@@ -1,0 +1,32 @@
+import type {
+  AppSnapshot,
+  SyncDecision,
+  SyncPlan,
+  SyncProgress,
+  TargetDraft,
+  WorkspaceProfile,
+} from '../electron/types'
+
+declare global {
+  interface Window {
+    tianchuang: {
+      getSnapshot(): Promise<AppSnapshot>
+      selectFolder(): Promise<string | undefined>
+      selectMirrorFolder(): Promise<string | undefined>
+      folderFromFile(file: File): string
+      addWorkspace(folderPath: string): Promise<WorkspaceProfile>
+      updateWorkspace(workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>): Promise<WorkspaceProfile>
+      removeWorkspace(workspaceId: string): Promise<void>
+      addTarget(draft: TargetDraft): Promise<WorkspaceProfile>
+      removeTarget(workspaceId: string, targetId: string): Promise<WorkspaceProfile>
+      planSync(workspaceId: string, targetId: string): Promise<SyncPlan>
+      runSync(planId: string, decision: SyncDecision): Promise<AppSnapshot>
+      syncWorkspace(workspaceId: string): Promise<AppSnapshot>
+      onProgress(listener: (progress: SyncProgress) => void): () => void
+      onAttention(listener: (plan: SyncPlan) => void): () => void
+      onSnapshot(listener: () => void): () => void
+    }
+  }
+}
+
+export {}
