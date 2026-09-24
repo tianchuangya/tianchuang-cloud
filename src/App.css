@@ -132,6 +132,10 @@
 .activity-row strong { display: block; font-size: 11px; font-weight: 640; }
 .activity-row p { margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--quiet); font-size: 10px; }
 .activity-row time { color: var(--quiet); font-size: 9px; }
+.project-loop-section { max-width: 1040px; margin: 2px auto 0; padding-top: 15px; border-top: 1px solid var(--line); }
+.project-loop-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 3px 10px; }
+.project-loop-heading span { color: var(--muted); font-size: 10px; font-weight: 680; }
+.project-loop-heading small { color: var(--quiet); font-size: 9px; }
 .empty-state { height: 100%; min-height: 480px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .empty-cloud { width: 80px; height: 80px; display: grid; place-items: center; border: 1px solid rgba(151,231,241,.22); border-radius: 23px; color: var(--cyan); background: rgba(13,22,27,.5); box-shadow: 0 18px 50px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.08), 0 0 34px rgba(102,216,231,.12); }
 .empty-state h1 { margin-top: 24px; font-size: 24px; }

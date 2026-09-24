@@ -13,12 +13,27 @@ import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
 import FadeContent from './components/FadeContent'
 import InteractiveBackdrop from './components/InteractiveBackdrop'
+import LogoLoop, { type LogoLoopItem } from './components/LogoLoop'
 import {
   loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorEffect, type CursorPreferences, type CursorStyle,
 } from './components/cursor-preferences'
 import './App.css'
 
 const EMPTY_SNAPSHOT: AppSnapshot = { workspaces: [], activity: [] }
+const PROJECT_LINKS: LogoLoopItem[] = [
+  {
+    title: 'Tianchuang Cloud',
+    ariaLabel: '打开 Tianchuang Cloud GitHub 仓库',
+    href: 'https://github.com/tianchuangya/tianchuang-cloud',
+    node: <><GitBranch size={17} /><span><strong>Tianchuang Cloud</strong><small>GitHub 项目仓库</small></span></>,
+  },
+  {
+    title: '是天创呀',
+    ariaLabel: '打开是天创呀的 GitHub 主页',
+    href: 'https://github.com/tianchuangya',
+    node: <><span className="loop-avatar">创</span><span><strong>是天创呀</strong><small>项目作者</small></span></>,
+  },
+]
 
 function relativeTime(value?: string): string {
   if (!value) return '尚未同步'
@@ -301,6 +316,13 @@ function App() {
               </section>
               </AnimatedContent>
             )}
+
+            <AnimatedContent key={`${selected.id}-project-links`} container=".content" distance={12} duration={.24} scale={.996}>
+              <section className="project-loop-section" aria-labelledby="project-loop-title">
+                <div className="project-loop-heading"><span id="project-loop-title">项目与作者</span><small>开源链接</small></div>
+                <LogoLoop logos={PROJECT_LINKS} speed={28} hoverSpeed={5} gap={10} ariaLabel="天创云端项目与作者链接" />
+              </section>
+            </AnimatedContent>
           </>
         ) : (
           <FadeContent className="empty-state-reveal" duration={300} blurAmount={8}>

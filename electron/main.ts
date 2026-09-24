@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, Tray } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { stat } from 'node:fs/promises'
@@ -99,6 +99,10 @@ function createWindow(): void {
       nodeIntegration: false,
       sandbox: false,
     },
+  })
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://') || url.startsWith('http://')) void shell.openExternal(url)
+    return { action: 'deny' }
   })
   mainWindow.once('ready-to-show', () => mainWindow?.show())
   mainWindow.on('focus', () => {

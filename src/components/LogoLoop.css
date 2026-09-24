@@ -1,0 +1,27 @@
+.logo-loop {
+  --logo-loop-gap: 12px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.logo-loop.fade-edges { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+
+.logo-loop-track { width: max-content; display: flex; will-change: transform; }
+.logo-loop-list { flex: 0 0 auto; display: flex; align-items: center; gap: var(--logo-loop-gap); margin: 0; padding: 0 var(--logo-loop-gap) 0 0; list-style: none; }
+.logo-loop-item { flex: 0 0 auto; }
+.logo-loop-item a { height: 42px; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 9px; border: 1px solid rgba(255,255,255,.075); border-radius: 11px; color: var(--muted); background: rgba(255,255,255,.025); text-decoration: none; box-shadow: inset 0 1px rgba(255,255,255,.035); transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 140ms cubic-bezier(.23,1,.32,1); }
+.logo-loop-item a > svg, .loop-avatar { width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center; padding: 6px; border: 1px solid rgba(128,220,232,.13); border-radius: 8px; color: var(--cyan); background: rgba(104,213,228,.065); }
+.logo-loop-item a > span:last-child:not(.loop-avatar) { display: flex; flex-direction: column; gap: 1px; }
+.logo-loop-item strong { color: var(--ink); font-size: 10px; font-weight: 670; }
+.logo-loop-item small { color: var(--quiet); font-size: 8px; }
+.loop-avatar { padding: 0; color: #071115; background: linear-gradient(135deg, #a5eef6, #60c8d7); font-size: 11px; font-weight: 760; }
+
+@media (hover: hover) and (pointer: fine) {
+  .logo-loop.scale-on-hover .logo-loop-item a:hover { color: var(--cyan); border-color: rgba(128,220,232,.24); background: rgba(104,213,228,.065); transform: scale(1.025); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-loop-track { transform: none !important; }
+  .logo-loop-item a { transition-duration: .01ms; }
+}
