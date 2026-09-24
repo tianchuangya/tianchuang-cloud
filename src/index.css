@@ -14,8 +14,9 @@
   --green: #1c9b69;
   --amber: #c77a17;
   --red: #d7473f;
-  --surface: rgba(247, 249, 251, .86);
-  --glass: rgba(242, 246, 249, .68);
+  --surface: rgba(247, 249, 251, .52);
+  --glass: rgba(242, 246, 249, .38);
+  --window-mask: rgba(232, 238, 243, .3);
   --shadow: 0 18px 55px rgba(31, 45, 60, .16), 0 2px 8px rgba(31, 45, 60, .08);
 }
 
@@ -34,8 +35,9 @@ button:disabled { opacity: .5; cursor: not-allowed; }
     --muted: #a4afb9;
     --quiet: #7f8b96;
     --line: rgba(225, 233, 240, .13);
-    --surface: rgba(24, 29, 35, .88);
-    --glass: rgba(31, 38, 45, .72);
+    --surface: rgba(24, 29, 35, .54);
+    --glass: rgba(31, 38, 45, .42);
+    --window-mask: rgba(12, 16, 20, .36);
     --shadow: 0 20px 60px rgba(0, 0, 0, .38), 0 2px 9px rgba(0, 0, 0, .22);
   }
 }

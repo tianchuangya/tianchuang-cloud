@@ -2,7 +2,10 @@
   height: 100%;
   display: grid;
   grid-template: 48px minmax(0, 1fr) / 260px minmax(0, 1fr);
-  background: rgba(239, 243, 246, .72);
+  background: var(--window-mask);
+  backdrop-filter: blur(32px) saturate(145%);
+  -webkit-backdrop-filter: blur(32px) saturate(145%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .34);
   overflow: hidden;
 }
 
@@ -14,8 +17,9 @@
   padding: 0 150px 0 18px;
   color: var(--ink);
   border-bottom: 1px solid var(--line);
-  background: rgba(250, 252, 253, .58);
-  backdrop-filter: blur(24px) saturate(145%);
+  background: rgba(250, 252, 253, .32);
+  backdrop-filter: blur(26px) saturate(150%);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
   -webkit-app-region: drag;
   user-select: none;
   font-size: 13px;
@@ -24,7 +28,7 @@
 .brand-mark { width: 26px; height: 26px; border-radius: 8px; corner-shape: squircle; display: grid; place-items: center; color: white; background: #1976ee; box-shadow: 0 5px 14px rgba(25, 118, 238, .24); }
 .titlebar-subtitle { color: var(--quiet); font-weight: 500; }
 
-.glass-material { background: var(--glass); backdrop-filter: blur(28px) saturate(155%); }
+.glass-material { background: var(--glass); backdrop-filter: blur(28px) saturate(155%); -webkit-backdrop-filter: blur(28px) saturate(155%); }
 .sidebar { min-height: 0; display: flex; flex-direction: column; padding: 18px 12px 14px; border-right: 1px solid var(--line); }
 .sidebar-heading, .section-heading { display: flex; align-items: center; justify-content: space-between; }
 .sidebar-heading { padding: 0 8px 11px 11px; font-size: 12px; color: var(--muted); font-weight: 650; }
@@ -47,7 +51,7 @@
 .sidebar-action:hover { color: var(--ink); background: rgba(118, 130, 142, .09); }
 .sidebar-action .count { margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 8px; background: rgba(118, 130, 142, .12); }
 
-.content { min-width: 0; overflow-y: auto; padding: 34px 42px 58px; background: var(--surface); }
+.content { min-width: 0; overflow-y: auto; padding: 34px 42px 58px; background: var(--surface); backdrop-filter: blur(18px) saturate(125%); -webkit-backdrop-filter: blur(18px) saturate(125%); }
 .workspace-header { max-width: 1040px; margin: 0 auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; }
 .workspace-header h1, .empty-state h1 { margin: 8px 0 6px; font-size: 30px; line-height: 1.15; letter-spacing: 0; font-weight: 690; color: var(--ink); }
 .status-line { display: flex; align-items: center; gap: 9px; color: var(--quiet); font-size: 12px; }
@@ -197,8 +201,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .app-shell { background: rgba(21, 26, 31, .8); }
-  .titlebar { background: rgba(24, 30, 36, .62); }
+  .app-shell { background: var(--window-mask); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+  .titlebar { background: rgba(24, 30, 36, .34); }
   .workspace-nav.active, .secondary-button, .sync-button, .inline-empty, .provider-tabs button.active, .field input, .field select, .input-action button, .issue-list { background: rgba(58, 67, 76, .58); }
   .provider-icon.git { color: #e6ebef; }
   .glass-modal { background: rgba(31, 37, 44, .91); border-color: rgba(255, 255, 255, .12); }
