@@ -1,7 +1,7 @@
 {
   "name": "tianchuang-cloud",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.8.1",
   "author": "Tianchuang",
   "description": "Cross-platform multi-target file sync with conflict-aware Git, WebDAV and local backups.",
   "main": "dist-electron/main.js",

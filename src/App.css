@@ -49,6 +49,7 @@
 .sidebar-footer { margin-top: auto; display: flex; flex-direction: column; gap: 3px; padding-top: 12px; border-top: 1px solid var(--line); }
 .sidebar-action { min-height: 38px; border: 0; border-radius: 9px; display: flex; align-items: center; gap: 10px; padding: 0 10px; color: var(--muted); background: transparent; cursor: pointer; text-align: left; }
 .sidebar-action:hover { color: var(--ink); background: rgba(118, 130, 142, .09); }
+.sidebar-action.add-library-action { color: var(--blue); }
 .sidebar-action .count { margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 8px; background: rgba(118, 130, 142, .12); }
 
 .content { min-width: 0; overflow-y: auto; padding: 34px 42px 58px; background: var(--surface); backdrop-filter: blur(18px) saturate(125%); -webkit-backdrop-filter: blur(18px) saturate(125%); }
@@ -206,6 +207,8 @@
 .progress-track i { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
 .toast { position: fixed; z-index: 500; top: 62px; left: 50%; transform: translateX(-50%); min-height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 13px; border: 1px solid rgba(255, 255, 255, .6); border-radius: 11px; box-shadow: 0 8px 26px rgba(37, 51, 64, .16); color: var(--ink); font-size: 12px; }
 .toast svg { color: var(--green); }
+.toast.error { color: var(--red); }
+.toast.error svg { color: var(--red); }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 

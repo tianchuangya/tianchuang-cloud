@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, Tray } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stat } from 'node:fs/promises'
 import chokidar, { type FSWatcher } from 'chokidar'
 import {
   addWorkspace,
@@ -130,10 +131,16 @@ function createTray(): void {
 function registerIpc(): void {
   ipcMain.handle('app:snapshot', () => snapshot())
   ipcMain.handle('folder:select', async () => {
-    const result = await dialog.showOpenDialog(mainWindow!, { properties: ['openDirectory', 'createDirectory'] })
+    const result = await dialog.showOpenDialog({
+      title: '添加资料库',
+      buttonLabel: '添加此文件夹',
+      properties: ['openDirectory', 'createDirectory'],
+    })
     return result.canceled ? undefined : result.filePaths[0]
   })
   ipcMain.handle('workspace:add', async (_event, folderPath: string) => {
+    const info = await stat(folderPath).catch(() => undefined)
+    if (!info?.isDirectory()) throw new Error('所选路径不是可访问的文件夹')
     const workspace = addWorkspace(folderPath)
     await refreshWatchers()
     send('app:snapshot-changed')

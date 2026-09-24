@@ -45,6 +45,8 @@ function App() {
   const [reviewPlan, setReviewPlan] = useState<SyncPlan>()
   const [progress, setProgress] = useState<SyncProgress>()
   const [notice, setNotice] = useState<string>()
+  const [noticeError, setNoticeError] = useState(false)
+  const [selectingFolder, setSelectingFolder] = useState(false)
   const [menuTargetId, setMenuTargetId] = useState<string>()
 
   const refresh = async () => {
@@ -75,13 +77,24 @@ function App() {
   )
 
   const addFolder = async (folderPath?: string) => {
-    const chosen = folderPath || await window.tianchuang.selectFolder()
-    if (!chosen) return
-    const workspace = await window.tianchuang.addWorkspace(chosen)
-    await refresh()
-    setSelectedId(workspace.id)
-    setNotice('资料库已加入，正在监听文件变化')
-    window.setTimeout(() => setNotice(undefined), 3200)
+    if (selectingFolder) return
+    setSelectingFolder(true)
+    setNoticeError(false)
+    try {
+      const chosen = folderPath || await window.tianchuang.selectFolder()
+      if (!chosen) return
+      const workspace = await window.tianchuang.addWorkspace(chosen)
+      await refresh()
+      setSelectedId(workspace.id)
+      setNotice('资料库已加入，正在监听文件变化')
+      window.setTimeout(() => setNotice(undefined), 3200)
+    } catch (reason) {
+      setNoticeError(true)
+      setNotice(`添加失败：${reason instanceof Error ? reason.message : String(reason)}`)
+      window.setTimeout(() => setNotice(undefined), 5200)
+    } finally {
+      setSelectingFolder(false)
+    }
   }
 
   const dropFolder = async (event: React.DragEvent) => {
@@ -164,7 +177,7 @@ function App() {
       <aside className="sidebar glass-material">
         <div className="sidebar-heading">
           <span>资料库</span>
-          <button className="icon-button" title="添加资料库" onClick={() => void addFolder()}><Plus size={17} /></button>
+          <button className="icon-button" title="添加资料库" aria-label="添加资料库" disabled={selectingFolder} onClick={(event) => { event.stopPropagation(); void addFolder() }}>{selectingFolder ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}</button>
         </div>
         <nav className="workspace-list" aria-label="资料库列表">
           {snapshot.workspaces.map((workspace) => (
@@ -176,6 +189,7 @@ function App() {
           ))}
         </nav>
         <div className="sidebar-footer">
+          <button className="sidebar-action add-library-action" disabled={selectingFolder} onClick={() => void addFolder()}><FolderInput size={17} /><span>添加资料库</span></button>
           <button className="sidebar-action"><Activity size={17} /><span>活动记录</span><span className="count">{snapshot.activity.length}</span></button>
           <button className="sidebar-action"><Settings size={17} /><span>设置</span></button>
         </div>
@@ -253,7 +267,7 @@ function App() {
             <div className="empty-cloud"><Cloud size={42} /></div>
             <h1>把资料放进天创云端</h1>
             <p>选择一个文件夹，或直接拖到窗口中。添加后可以同时同步到 GitHub、Gitee、WebDAV 和磁盘。</p>
-            <button className="primary-button large" onClick={() => void addFolder()}><FolderInput size={19} />选择文件夹</button>
+            <button className="primary-button large" disabled={selectingFolder} onClick={() => void addFolder()}>{selectingFolder ? <LoaderCircle className="spin" size={19} /> : <FolderInput size={19} />}选择文件夹</button>
           </section>
         )}
       </main>
@@ -263,7 +277,7 @@ function App() {
         {targetDialog && selected && <TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
         {reviewPlan && <ReviewDialog plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
         {progress && <ProgressOverlay progress={progress} onClose={() => setProgress(undefined)} />}
-        {notice && <motion.div className="toast glass-material" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}><Check size={16} />{notice}</motion.div>}
+        {notice && <motion.div className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
     </div>
   )

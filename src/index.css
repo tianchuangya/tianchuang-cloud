@@ -23,7 +23,7 @@
 * { box-sizing: border-box; }
 html, body, #root { width: 100%; min-width: 0; height: 100%; margin: 0; overflow: hidden; }
 body { background: transparent; }
-button, input, select { font: inherit; letter-spacing: 0; }
+button, input, select { font: inherit; letter-spacing: 0; -webkit-app-region: no-drag; }
 button { color: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(22, 119, 255, .22); outline-offset: 2px; }
 button:disabled { opacity: .5; cursor: not-allowed; }
