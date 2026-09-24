@@ -3,12 +3,17 @@ import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, Check, ChevronRight, Cloud, CloudUpload,
   FileWarning, Folder, FolderInput, GitBranch, Globe2, HardDrive, History, LoaderCircle,
-  LockKeyhole, LogIn, MoreHorizontal, Plus, RefreshCw, Server, Settings, ShieldCheck, Trash2, X,
+  LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
+  Settings, ShieldCheck, Sparkles, Trash2, Waves, X,
 } from 'lucide-react'
 import type {
   AppSnapshot, GitHubSession, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
 } from '../electron/types'
 import AnimatedContent from './components/AnimatedContent'
+import CursorExperience from './components/CursorExperience'
+import {
+  loadCursorPreferences, saveCursorPreferences, type CursorEffect, type CursorPreferences, type CursorStyle,
+} from './components/cursor-preferences'
 import './App.css'
 
 const EMPTY_SNAPSHOT: AppSnapshot = { workspaces: [], activity: [] }
@@ -53,6 +58,8 @@ function App() {
   const [menuTargetId, setMenuTargetId] = useState<string>()
   const [workspaceMenu, setWorkspaceMenu] = useState<{ id: string; x: number; y: number }>()
   const [removeWorkspaceDialog, setRemoveWorkspaceDialog] = useState<WorkspaceProfile>()
+  const [settingsDialog, setSettingsDialog] = useState(false)
+  const [cursorPreferences, setCursorPreferences] = useState(loadCursorPreferences)
 
   const refresh = async () => {
     const next = await window.tianchuang.getSnapshot()
@@ -174,14 +181,20 @@ function App() {
     await refresh()
   }
 
+  const changeCursorPreferences = (next: CursorPreferences) => {
+    setCursorPreferences(next)
+    saveCursorPreferences(next)
+  }
+
   return (
     <div
-      className={`app-shell ${dragging ? 'is-dragging' : ''}`}
+      className={`app-shell ${dragging ? 'is-dragging' : ''} ${cursorPreferences.style === 'rectangle' ? 'cursor-rectangle' : ''}`}
       onDragEnter={(event) => { event.preventDefault(); setDragging(true) }}
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false) }}
       onDrop={(event) => void dropFolder(event)}
     >
+      <CursorExperience preferences={cursorPreferences} />
       <header className="titlebar">
         <div className="brand-mark"><Cloud size={16} strokeWidth={2.3} /></div>
         <span>天创云端</span>
@@ -205,7 +218,7 @@ function App() {
         <div className="sidebar-footer">
           <button className="sidebar-action add-library-action" disabled={selectingFolder} onClick={() => void addFolder()}><FolderInput size={17} /><span>添加资料库</span></button>
           <button className="sidebar-action"><Activity size={17} /><span>活动记录</span><span className="count">{snapshot.activity.length}</span></button>
-          <button className="sidebar-action"><Settings size={17} /><span>设置</span></button>
+          <button className="sidebar-action" onClick={() => setSettingsDialog(true)}><Settings size={17} /><span>设置</span></button>
         </div>
       </aside>
 
@@ -302,10 +315,45 @@ function App() {
         {targetDialog && selected && <TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
         {reviewPlan && <ReviewDialog plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
         {removeWorkspaceDialog && <RemoveWorkspaceDialog workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
+        {settingsDialog && <CursorSettingsDialog preferences={cursorPreferences} onChange={changeCursorPreferences} onClose={() => setSettingsDialog(false)} />}
         {progress && <ProgressOverlay progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
     </div>
+  )
+}
+
+function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences: CursorPreferences; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
+  const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
+
+  return (
+    <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.section className="modal glass-modal cursor-settings-modal" initial={{ opacity: 0, transform: 'translateY(10px) scale(.97)' }} animate={{ opacity: 1, transform: 'translateY(0) scale(1)' }} exit={{ opacity: 0, transform: 'translateY(8px) scale(.98)' }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
+        <header><div className="settings-symbol"><MousePointer2 size={21} /></div><div><h2>指针与动态效果</h2><p>设置会立即预览并仅保存在这台设备上</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
+        <div className="cursor-settings-content">
+          <section>
+            <div className="setting-group-heading"><strong>指针外观</strong><span>选择日常操作时使用的指针</span></div>
+            <div className="cursor-choice-grid two">
+              <button className={preferences.style === 'rectangle' ? 'active' : ''} onClick={() => setStyle('rectangle')} aria-pressed={preferences.style === 'rectangle'}><span className="cursor-preview rectangle"><i /></span><span><strong>矩形高亮</strong><small>清晰、轻量，适合深色界面</small></span><Check size={15} /></button>
+              <button className={preferences.style === 'system' ? 'active' : ''} onClick={() => setStyle('system')} aria-pressed={preferences.style === 'system'}><span className="cursor-preview system"><MousePointer2 size={20} /></span><span><strong>系统原生</strong><small>跟随 Windows、macOS 或 Linux</small></span><Check size={15} /></button>
+            </div>
+          </section>
+          <section>
+            <div className="setting-group-heading"><strong>动态轨迹</strong><span>装饰效果不会改变点击行为</span></div>
+            <div className="cursor-choice-grid three">
+              <button className={preferences.effect === 'none' ? 'active' : ''} onClick={() => setEffect('none')} aria-pressed={preferences.effect === 'none'}><span className="effect-preview quiet"><Monitor size={20} /></span><span><strong>关闭</strong><small>性能优先</small></span><Check size={15} /></button>
+              <button className={preferences.effect === 'fluid' ? 'active' : ''} onClick={() => setEffect('fluid')} aria-pressed={preferences.effect === 'fluid'} disabled={reduceMotion}><span className="effect-preview fluid"><Waves size={20} /></span><span><strong>流体彩雾</strong><small>移动时产生渐色流体</small></span><Check size={15} /></button>
+              <button className={preferences.effect === 'fireworks' ? 'active' : ''} onClick={() => setEffect('fireworks')} aria-pressed={preferences.effect === 'fireworks'} disabled={reduceMotion}><span className="effect-preview fireworks"><Sparkles size={20} /></span><span><strong>点击烟花</strong><small>点击时短暂绽放</small></span><Check size={15} /></button>
+            </div>
+          </section>
+          {reduceMotion && <div className="motion-safety-note"><ShieldCheck size={16} /><span>系统已启用“减少动态效果”，动态轨迹会暂时停用，指针外观不受影响。</span></div>}
+          <div className="performance-note"><Waves size={16} /><span>流体彩雾使用 GPU 实时渲染；在电池模式或远程桌面中，建议选择点击烟花或关闭。</span></div>
+        </div>
+        <footer><button className="primary-button" onClick={onClose}>完成</button></footer>
+      </motion.section>
+    </motion.div>
   )
 }
 
