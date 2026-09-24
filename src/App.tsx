@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, Check, ChevronRight, Cloud, CloudUpload,
-  FileWarning, Folder, FolderInput, GitBranch, Globe2, HardDrive, History, LoaderCircle,
+  Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, HardDrive, History, Layers3, LoaderCircle,
   LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
   Settings, ShieldCheck, Sparkles, Trash2, Waves, X,
 } from 'lucide-react'
@@ -11,8 +11,9 @@ import type {
 } from '../electron/types'
 import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
+import InteractiveBackdrop from './components/InteractiveBackdrop'
 import {
-  loadCursorPreferences, saveCursorPreferences, type CursorEffect, type CursorPreferences, type CursorStyle,
+  loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorEffect, type CursorPreferences, type CursorStyle,
 } from './components/cursor-preferences'
 import './App.css'
 
@@ -194,6 +195,7 @@ function App() {
       onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false) }}
       onDrop={(event) => void dropFolder(event)}
     >
+      <InteractiveBackdrop ripple={cursorPreferences.backgroundEffect === 'ripple' && cursorPreferences.effect !== 'fluid'} />
       <CursorExperience preferences={cursorPreferences} />
       <header className="titlebar">
         <div className="brand-mark"><Cloud size={16} strokeWidth={2.3} /></div>
@@ -327,6 +329,7 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
+  const setBackgroundEffect = (backgroundEffect: BackgroundEffect) => onChange({ ...preferences, backgroundEffect })
 
   return (
     <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -348,7 +351,15 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
               <button className={preferences.effect === 'fireworks' ? 'active' : ''} onClick={() => setEffect('fireworks')} aria-pressed={preferences.effect === 'fireworks'} disabled={reduceMotion}><span className="effect-preview fireworks"><Sparkles size={20} /></span><span><strong>点击烟花</strong><small>点击时短暂绽放</small></span><Check size={15} /></button>
             </div>
           </section>
+          <section>
+            <div className="setting-group-heading"><strong>背景互动</strong><span>效果只作用于背景，不扭曲文字和控件</span></div>
+            <div className="cursor-choice-grid two">
+              <button className={preferences.backgroundEffect === 'static' ? 'active' : ''} onClick={() => setBackgroundEffect('static')} aria-pressed={preferences.backgroundEffect === 'static'}><span className="effect-preview quiet"><Layers3 size={20} /></span><span><strong>静态玻璃</strong><small>保留背景纹理，不进行实时渲染</small></span><Check size={15} /></button>
+              <button className={preferences.backgroundEffect === 'ripple' ? 'active' : ''} onClick={() => setBackgroundEffect('ripple')} aria-pressed={preferences.backgroundEffect === 'ripple'} disabled={reduceMotion}><span className="effect-preview ripple"><Droplets size={20} /></span><span><strong>水波折射</strong><small>移动和点击时扰动背景材质</small></span><Check size={15} /></button>
+            </div>
+          </section>
           {reduceMotion && <div className="motion-safety-note"><ShieldCheck size={16} /><span>系统已启用“减少动态效果”，动态轨迹会暂时停用，指针外观不受影响。</span></div>}
+          {preferences.backgroundEffect === 'ripple' && preferences.effect === 'fluid' && <div className="motion-safety-note"><ShieldCheck size={16} /><span>流体彩雾启用期间，水波背景会自动暂停，避免两个实时流体效果同时占用 GPU。</span></div>}
           <div className="performance-note"><Waves size={16} /><span>流体彩雾使用 GPU 实时渲染；在电池模式或远程桌面中，建议选择点击烟花或关闭。</span></div>
         </div>
         <footer><button className="primary-button" onClick={onClose}>完成</button></footer>
