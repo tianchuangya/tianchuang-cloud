@@ -1,46 +1,33 @@
 :root {
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  color: #17212b;
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #edf6f8;
   background: transparent;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --ink: #17212b;
-  --muted: #687480;
-  --quiet: #8c97a1;
-  --line: rgba(55, 67, 79, .13);
-  --blue: #1677ff;
-  --blue-strong: #0864df;
-  --green: #1c9b69;
-  --amber: #c77a17;
-  --red: #d7473f;
-  --surface: rgba(247, 249, 251, .52);
-  --glass: rgba(242, 246, 249, .38);
-  --window-mask: rgba(232, 238, 243, .3);
-  --shadow: 0 18px 55px rgba(31, 45, 60, .16), 0 2px 8px rgba(31, 45, 60, .08);
+  --ink: #edf6f8;
+  --muted: #9cabb2;
+  --quiet: #6f7e86;
+  --line: rgba(225, 241, 244, .1);
+  --cyan: #80dce8;
+  --blue: #80dce8;
+  --blue-strong: #9ee8f1;
+  --green: #52d49a;
+  --amber: #e4a44e;
+  --red: #ff716a;
+  --surface: rgba(9, 14, 18, .43);
+  --glass: rgba(10, 16, 20, .58);
+  --window-mask: rgba(7, 12, 16, .48);
+  --shadow: 0 24px 70px rgba(0, 0, 0, .45), 0 4px 16px rgba(0, 0, 0, .26);
 }
-
 * { box-sizing: border-box; }
 html, body, #root { width: 100%; min-width: 0; height: 100%; margin: 0; overflow: hidden; }
 body { background: transparent; }
 button, input, select { font: inherit; letter-spacing: 0; -webkit-app-region: no-drag; }
 button { color: inherit; }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(22, 119, 255, .22); outline-offset: 2px; }
-button:disabled { opacity: .5; cursor: not-allowed; }
-.startup-error { height: 100%; display: grid; place-content: center; gap: 8px; padding: 32px; color: var(--ink); background: var(--surface); text-align: center; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(119, 221, 234, .2); outline-offset: 2px; }
+button:disabled { opacity: .48; cursor: not-allowed; }
+.startup-error { height: 100%; display: grid; place-content: center; gap: 8px; padding: 32px; color: var(--ink); background: #11181d; text-align: center; }
 .startup-error strong { font-size: 18px; }
 .startup-error p { margin: 0; color: var(--muted); font-size: 13px; }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #edf2f6;
-    --ink: #edf2f6;
-    --muted: #a4afb9;
-    --quiet: #7f8b96;
-    --line: rgba(225, 233, 240, .13);
-    --surface: rgba(24, 29, 35, .54);
-    --glass: rgba(31, 38, 45, .42);
-    --window-mask: rgba(12, 16, 20, .36);
-    --shadow: 0 20px 60px rgba(0, 0, 0, .38), 0 2px 9px rgba(0, 0, 0, .22);
-  }
-}

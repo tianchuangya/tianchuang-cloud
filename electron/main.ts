@@ -92,7 +92,7 @@ function createWindow(): void {
     vibrancy: isMac ? 'sidebar' : undefined,
     visualEffectState: isMac ? 'active' : undefined,
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
-    titleBarOverlay: isMac ? false : { color: '#00000000', symbolColor: '#24303b', height: 48 },
+    titleBarOverlay: isMac ? false : { color: '#00000000', symbolColor: '#dce9ed', height: 48 },
     webPreferences: {
       preload: path.join(currentDirectory, 'preload.cjs'),
       contextIsolation: true,

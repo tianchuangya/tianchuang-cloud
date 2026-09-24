@@ -8,6 +8,7 @@ import {
 import type {
   AppSnapshot, GitHubSession, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
 } from '../electron/types'
+import AnimatedContent from './components/AnimatedContent'
 import './App.css'
 
 const EMPTY_SNAPSHOT: AppSnapshot = { workspaces: [], activity: [] }
@@ -211,6 +212,7 @@ function App() {
       <main className="content">
         {selected ? (
           <>
+            <AnimatedContent container=".content" direction="horizontal" reverse distance={42} duration={.68} initialOpacity={.2}>
             <section className="workspace-header">
               <div>
                 <div className="status-line"><span className={`status-pill ${selected.state}`}>{selected.state === 'syncing' ? '同步中' : selected.state === 'attention' ? '需要确认' : selected.state === 'error' ? '发生错误' : '已受保护'}</span><span>{relativeTime(selected.lastSyncAt)}</span></div>
@@ -222,13 +224,17 @@ function App() {
                 <button className="primary-button" onClick={() => void syncAllTargets()} disabled={selected.state === 'syncing'}><RefreshCw size={17} />立即同步</button>
               </div>
             </section>
+            </AnimatedContent>
 
+            <AnimatedContent container=".content" distance={24} delay={.07}>
             <section className="summary-strip" aria-label="同步摘要">
               <div><CloudUpload size={19} /><span><strong>{selected.targets.length}</strong>备份目标</span></div>
               <div><ShieldCheck size={19} /><span><strong>{selected.autoSync ? '开启' : '关闭'}</strong>后台同步</span></div>
               <div><History size={19} /><span><strong>{relativeTime(selected.lastSyncAt)}</strong>最近更新</span></div>
             </section>
+            </AnimatedContent>
 
+            <AnimatedContent container=".content" distance={28} delay={.1}>
             <section className="section-block">
               <div className="section-heading"><div><h2>同步目标</h2><p>同一份资料可同时备份到多个位置</p></div></div>
               {selected.targets.length ? (
@@ -257,14 +263,18 @@ function App() {
                 </button>
               )}
             </section>
+            </AnimatedContent>
 
+            <AnimatedContent container=".content" distance={28}>
             <section className="section-block settings-block">
               <div className="section-heading"><div><h2>自动化</h2><p>应用在后台监控变化，并在需要选择时通知你</p></div></div>
               <label className="setting-row"><span><strong>文件变化后自动同步</strong><small>连续编辑结束约 3 秒后检查所有目标</small></span><input type="checkbox" checked={selected.autoSync} onChange={(event) => void changeSetting({ autoSync: event.target.checked })} /><i /></label>
               <label className="setting-row"><span><strong>打开应用时检查</strong><small>回到天创云端时拉取其他电脑的最新版本</small></span><input type="checkbox" checked={selected.syncOnFocus} onChange={(event) => void changeSetting({ syncOnFocus: event.target.checked })} /><i /></label>
             </section>
+            </AnimatedContent>
 
             {snapshot.activity.some((item) => item.workspaceId === selected.id) && (
+              <AnimatedContent container=".content" distance={28}>
               <section className="section-block activity-block">
                 <div className="section-heading"><div><h2>最近活动</h2><p>同步结果与恢复信息</p></div></div>
                 <div className="activity-list">
@@ -273,6 +283,7 @@ function App() {
                   ))}
                 </div>
               </section>
+              </AnimatedContent>
             )}
           </>
         ) : (
