@@ -50,6 +50,8 @@ function App() {
   const [noticeError, setNoticeError] = useState(false)
   const [selectingFolder, setSelectingFolder] = useState(false)
   const [menuTargetId, setMenuTargetId] = useState<string>()
+  const [workspaceMenu, setWorkspaceMenu] = useState<{ id: string; x: number; y: number }>()
+  const [removeWorkspaceDialog, setRemoveWorkspaceDialog] = useState<WorkspaceProfile>()
 
   const refresh = async () => {
     const next = await window.tianchuang.getSnapshot()
@@ -72,6 +74,15 @@ function App() {
     const offSnapshot = window.tianchuang.onSnapshot(() => void refresh())
     return () => { offProgress(); offAttention(); offSnapshot() }
   }, [])
+
+  useEffect(() => {
+    if (!workspaceMenu) return
+    const close = () => setWorkspaceMenu(undefined)
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
+    window.addEventListener('click', close)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => { window.removeEventListener('click', close); window.removeEventListener('keydown', closeOnEscape) }
+  }, [workspaceMenu])
 
   const selected = useMemo(
     () => snapshot.workspaces.find((item) => item.id === selectedId),
@@ -183,7 +194,7 @@ function App() {
         </div>
         <nav className="workspace-list" aria-label="资料库列表">
           {snapshot.workspaces.map((workspace) => (
-            <button key={workspace.id} className={`workspace-nav ${workspace.id === selectedId ? 'active' : ''}`} onClick={() => setSelectedId(workspace.id)}>
+            <button key={workspace.id} className={`workspace-nav ${workspace.id === selectedId ? 'active' : ''}`} title="右键管理资料库" onClick={() => setSelectedId(workspace.id)} onContextMenu={(event) => { event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: event.clientX, y: event.clientY }) }}>
               <span className="nav-icon"><Folder size={17} /></span>
               <span className="nav-copy"><strong>{workspace.name}</strong><small>{workspace.targets.length} 个目标</small></span>
               <span className={`state-dot ${workspace.state}`} aria-label={workspace.state} />
@@ -275,13 +286,28 @@ function App() {
       </main>
 
       <AnimatePresence>
+        {workspaceMenu && <motion.div className="workspace-context-menu glass-modal" style={{ left: workspaceMenu.x, top: workspaceMenu.y }} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} onClick={(event) => event.stopPropagation()}><button onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); setRemoveWorkspaceDialog(workspace) }}><Trash2 size={15} />从列表移除</button></motion.div>}
         {dragging && <motion.div className="drop-overlay glass-material" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.div initial={{ scale: .96 }} animate={{ scale: 1 }}><FolderInput size={30} /><strong>松开以加入资料库</strong><span>文件夹内容不会被移动</span></motion.div></motion.div>}
         {targetDialog && selected && <TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
         {reviewPlan && <ReviewDialog plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
+        {removeWorkspaceDialog && <RemoveWorkspaceDialog workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
         {progress && <ProgressOverlay progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
     </div>
+  )
+}
+
+function RemoveWorkspaceDialog({ workspace, onClose, onRemove }: { workspace: WorkspaceProfile; onClose: () => void; onRemove: () => Promise<void> }) {
+  const [removing, setRemoving] = useState(false)
+  return (
+    <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.section className="modal glass-modal remove-workspace-modal" initial={{ opacity: 0, scale: .97, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .98, y: 8 }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
+        <header><div className="review-symbol danger"><Trash2 size={21} /></div><div><h2>移除“{workspace.name}”？</h2><p>它将不再出现在天创云端中，也不会继续后台同步。</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
+        <div className="remove-workspace-copy"><ShieldCheck size={18} /><span><strong>文件不会被删除</strong><small>本地文件夹、GitHub 仓库和其他云端备份都会原样保留。</small></span></div>
+        <footer><button className="plain-button" onClick={onClose}>取消</button><button className="danger-button" disabled={removing} onClick={() => { setRemoving(true); void onRemove().catch(() => setRemoving(false)) }}>{removing ? <LoaderCircle className="spin" size={17} /> : <Trash2 size={17} />}从列表移除</button></footer>
+      </motion.section>
+    </motion.div>
   )
 }
 

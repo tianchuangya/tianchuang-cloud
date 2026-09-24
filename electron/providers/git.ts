@@ -169,7 +169,7 @@ export async function runGitSync(
 
   if (!remoteSha) {
     const currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim()
-    if (currentBranch !== config.branch) await git.branch(['-M', config.branch])
+    if (currentBranch !== config.branch) await git.raw(['branch', '-M', config.branch])
   }
 
   const finalStatus = await git.status()

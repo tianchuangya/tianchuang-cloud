@@ -38,6 +38,9 @@
 .workspace-nav { width: 100%; min-height: 51px; display: grid; grid-template-columns: 32px minmax(0, 1fr) 10px; align-items: center; gap: 8px; padding: 6px 10px 6px 8px; border: 0; border-radius: 10px; corner-shape: squircle; text-align: left; background: transparent; cursor: pointer; }
 .workspace-nav:hover { background: rgba(118, 130, 142, .09); }
 .workspace-nav.active { background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55), 0 3px 11px rgba(54, 69, 82, .08); }
+.workspace-context-menu { position: fixed; z-index: 520; width: 160px; padding: 5px; border-radius: 10px; transform-origin: top left; }
+.workspace-context-menu button { width: 100%; min-height: 35px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 7px; color: var(--red); background: transparent; cursor: pointer; font-size: 12px; text-align: left; }
+.workspace-context-menu button:hover { background: rgba(215, 71, 63, .1); }
 .nav-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: #1870de; background: rgba(22, 119, 255, .12); }
 .nav-copy { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .nav-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 620; }
@@ -149,6 +152,13 @@
 .modal h2 { margin: 0; font-size: 17px; font-weight: 680; }
 .modal header p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
 .modal > footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 20px 18px; border-top: 1px solid var(--line); }
+.remove-workspace-modal { width: min(510px, 100%); }
+.remove-workspace-copy { display: flex; align-items: flex-start; gap: 11px; margin: 18px 20px; padding: 13px 14px; border-radius: 10px; color: var(--green); background: rgba(28, 155, 105, .08); }
+.remove-workspace-copy > span { display: flex; flex-direction: column; gap: 3px; }
+.remove-workspace-copy strong { color: var(--ink); font-size: 12px; }
+.remove-workspace-copy small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.danger-button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border: 0; border-radius: 10px; color: white; background: var(--red); cursor: pointer; font-size: 13px; font-weight: 650; }
+.danger-button:hover { background: #c83b34; }
 .provider-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 17px 20px 0; padding: 4px; border-radius: 11px; background: rgba(98, 111, 123, .09); }
 .provider-tabs button { min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; }
 .provider-tabs button.active { color: var(--ink); background: rgba(255, 255, 255, .78); box-shadow: 0 2px 7px rgba(52, 67, 80, .1); }

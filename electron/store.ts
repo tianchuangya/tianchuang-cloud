@@ -53,10 +53,16 @@ export function updateWorkspace(
 }
 
 export function removeWorkspace(workspaceId: string): void {
-  store.set(
-    'workspaces',
-    store.get('workspaces', []).filter((item) => item.id !== workspaceId),
-  )
+  const workspaces = store.get('workspaces', [])
+  const removed = workspaces.find((item) => item.id === workspaceId)
+  store.set('workspaces', workspaces.filter((item) => item.id !== workspaceId))
+  store.set('activity', store.get('activity', []).filter((item) => item.workspaceId !== workspaceId))
+  if (removed) {
+    const removedSecretIds = new Set(removed.targets.flatMap((target) => target.config.kind === 'webdav' && target.config.secretId ? [target.config.secretId] : []))
+    if (removedSecretIds.size > 0) {
+      store.set('secrets', Object.fromEntries(Object.entries(store.get('secrets', {})).filter(([id]) => !removedSecretIds.has(id))))
+    }
+  }
 }
 
 export function addTarget(target: SyncTarget, workspaceId: string): WorkspaceProfile {
