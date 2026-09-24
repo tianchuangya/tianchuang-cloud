@@ -9,8 +9,8 @@ import {
 import type {
   AppSnapshot, GitHubSession, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
 } from '../electron/types'
-import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
+import FadeContent from './components/FadeContent'
 import InteractiveBackdrop from './components/InteractiveBackdrop'
 import {
   loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorEffect, type CursorPreferences, type CursorStyle,
@@ -227,7 +227,7 @@ function App() {
       <main className="content">
         {selected ? (
           <>
-            <AnimatedContent container=".content" direction="horizontal" reverse distance={42} duration={.68} initialOpacity={.2}>
+            <FadeContent key={`${selected.id}-header`} duration={280} blurAmount={7}>
             <section className="workspace-header">
               <div>
                 <div className="status-line"><span className={`status-pill ${selected.state}`}>{selected.state === 'syncing' ? '同步中' : selected.state === 'attention' ? '需要确认' : selected.state === 'error' ? '发生错误' : '已受保护'}</span><span>{relativeTime(selected.lastSyncAt)}</span></div>
@@ -239,17 +239,17 @@ function App() {
                 <button className="primary-button" onClick={() => void syncAllTargets()} disabled={selected.state === 'syncing'}><RefreshCw size={17} />立即同步</button>
               </div>
             </section>
-            </AnimatedContent>
+            </FadeContent>
 
-            <AnimatedContent container=".content" distance={24} delay={.07}>
+            <FadeContent key={`${selected.id}-summary`} duration={260} delay={45} blurAmount={5}>
             <section className="summary-strip" aria-label="同步摘要">
               <div><CloudUpload size={19} /><span><strong>{selected.targets.length}</strong>备份目标</span></div>
               <div><ShieldCheck size={19} /><span><strong>{selected.autoSync ? '开启' : '关闭'}</strong>后台同步</span></div>
               <div><History size={19} /><span><strong>{relativeTime(selected.lastSyncAt)}</strong>最近更新</span></div>
             </section>
-            </AnimatedContent>
+            </FadeContent>
 
-            <AnimatedContent container=".content" distance={28} delay={.1}>
+            <FadeContent key={`${selected.id}-targets`} duration={260} delay={80} blurAmount={5}>
             <section className="section-block">
               <div className="section-heading"><div><h2>同步目标</h2><p>同一份资料可同时备份到多个位置</p></div></div>
               {selected.targets.length ? (
@@ -278,18 +278,18 @@ function App() {
                 </button>
               )}
             </section>
-            </AnimatedContent>
+            </FadeContent>
 
-            <AnimatedContent container=".content" distance={28}>
+            <FadeContent key={`${selected.id}-automation`} duration={250} delay={115} blurAmount={4}>
             <section className="section-block settings-block">
               <div className="section-heading"><div><h2>自动化</h2><p>应用在后台监控变化，并在需要选择时通知你</p></div></div>
               <label className="setting-row"><span><strong>文件变化后自动同步</strong><small>连续编辑结束约 3 秒后检查所有目标</small></span><input type="checkbox" checked={selected.autoSync} onChange={(event) => void changeSetting({ autoSync: event.target.checked })} /><i /></label>
               <label className="setting-row"><span><strong>打开应用时检查</strong><small>回到天创云端时拉取其他电脑的最新版本</small></span><input type="checkbox" checked={selected.syncOnFocus} onChange={(event) => void changeSetting({ syncOnFocus: event.target.checked })} /><i /></label>
             </section>
-            </AnimatedContent>
+            </FadeContent>
 
             {snapshot.activity.some((item) => item.workspaceId === selected.id) && (
-              <AnimatedContent container=".content" distance={28}>
+              <FadeContent key={`${selected.id}-activity`} duration={250} delay={145} blurAmount={4}>
               <section className="section-block activity-block">
                 <div className="section-heading"><div><h2>最近活动</h2><p>同步结果与恢复信息</p></div></div>
                 <div className="activity-list">
@@ -298,16 +298,18 @@ function App() {
                   ))}
                 </div>
               </section>
-              </AnimatedContent>
+              </FadeContent>
             )}
           </>
         ) : (
+          <FadeContent className="empty-state-reveal" duration={300} blurAmount={8}>
           <section className="empty-state">
             <div className="empty-cloud"><Cloud size={42} /></div>
             <h1>把资料放进天创云端</h1>
             <p>选择一个文件夹，或直接拖到窗口中。添加后可以同时同步到 GitHub、Gitee、WebDAV 和磁盘。</p>
             <button className="primary-button large" disabled={selectingFolder} onClick={() => void addFolder()}>{selectingFolder ? <LoaderCircle className="spin" size={19} /> : <FolderInput size={19} />}选择文件夹</button>
           </section>
+          </FadeContent>
         )}
       </main>
 
@@ -336,6 +338,7 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
       <motion.section className="modal glass-modal cursor-settings-modal" initial={{ opacity: 0, transform: 'translateY(10px) scale(.97)' }} animate={{ opacity: 1, transform: 'translateY(0) scale(1)' }} exit={{ opacity: 0, transform: 'translateY(8px) scale(.98)' }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
         <header><div className="settings-symbol"><MousePointer2 size={21} /></div><div><h2>指针与动态效果</h2><p>设置会立即预览并仅保存在这台设备上</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
         <div className="cursor-settings-content">
+          <FadeContent duration={220} blurAmount={4}>
           <section>
             <div className="setting-group-heading"><strong>指针外观</strong><span>选择日常操作时使用的指针</span></div>
             <div className="cursor-choice-grid two">
@@ -343,6 +346,8 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
               <button className={preferences.style === 'system' ? 'active' : ''} onClick={() => setStyle('system')} aria-pressed={preferences.style === 'system'}><span className="cursor-preview system"><MousePointer2 size={20} /></span><span><strong>系统原生</strong><small>跟随 Windows、macOS 或 Linux</small></span><Check size={15} /></button>
             </div>
           </section>
+          </FadeContent>
+          <FadeContent duration={220} delay={35} blurAmount={4}>
           <section>
             <div className="setting-group-heading"><strong>动态轨迹</strong><span>装饰效果不会改变点击行为</span></div>
             <div className="cursor-choice-grid three">
@@ -351,6 +356,8 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
               <button className={preferences.effect === 'fireworks' ? 'active' : ''} onClick={() => setEffect('fireworks')} aria-pressed={preferences.effect === 'fireworks'} disabled={reduceMotion}><span className="effect-preview fireworks"><Sparkles size={20} /></span><span><strong>点击烟花</strong><small>点击时短暂绽放</small></span><Check size={15} /></button>
             </div>
           </section>
+          </FadeContent>
+          <FadeContent duration={220} delay={70} blurAmount={4}>
           <section>
             <div className="setting-group-heading"><strong>背景互动</strong><span>效果只作用于背景，不扭曲文字和控件</span></div>
             <div className="cursor-choice-grid two">
@@ -358,6 +365,7 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
               <button className={preferences.backgroundEffect === 'ripple' ? 'active' : ''} onClick={() => setBackgroundEffect('ripple')} aria-pressed={preferences.backgroundEffect === 'ripple'} disabled={reduceMotion}><span className="effect-preview ripple"><Droplets size={20} /></span><span><strong>水波折射</strong><small>移动和点击时扰动背景材质</small></span><Check size={15} /></button>
             </div>
           </section>
+          </FadeContent>
           {reduceMotion && <div className="motion-safety-note"><ShieldCheck size={16} /><span>系统已启用“减少动态效果”，动态轨迹会暂时停用，指针外观不受影响。</span></div>}
           {preferences.backgroundEffect === 'ripple' && preferences.effect === 'fluid' && <div className="motion-safety-note"><ShieldCheck size={16} /><span>流体彩雾启用期间，水波背景会自动暂停，避免两个实时流体效果同时占用 GPU。</span></div>}
           <div className="performance-note"><Waves size={16} /><span>流体彩雾使用 GPU 实时渲染；在电池模式或远程桌面中，建议选择点击烟花或关闭。</span></div>
@@ -469,6 +477,7 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
           <button className={kind === 'webdav' ? 'active' : ''} onClick={() => selectKind('webdav')}><Server size={17} />WebDAV</button>
           <button className={kind === 'local' ? 'active' : ''} onClick={() => selectKind('local')}><HardDrive size={17} />磁盘</button>
         </div>
+        <FadeContent key={`${kind}-${provider}-${repositoryMode}`} className="form-panel-reveal" duration={230} blurAmount={5} role="tabpanel">
         <div className="form-grid">
           {kind === 'git' && <>
             <label className="field"><span>服务</span><select value={provider} onChange={(event) => setProvider(event.target.value as typeof provider)}><option value="github">GitHub</option><option value="gitee">Gitee</option><option value="generic">其他 Git</option></select></label>
@@ -506,6 +515,7 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
             <label className="field full"><span>远端路径</span><input value={remotePath} onChange={(event) => setRemotePath(event.target.value)} /></label>
           </>}
         </div>
+        </FadeContent>
         {error && <div className="form-error" role="alert"><AlertTriangle size={15} />{error}</div>}
         <footer><button className="plain-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}添加目标</button></footer>
       </motion.section>

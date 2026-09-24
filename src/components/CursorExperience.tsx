@@ -9,9 +9,6 @@ function prefersReducedMotion(): boolean {
 
 function RectangleCursor() {
   const cursorRef = useRef<HTMLDivElement>(null)
-  const [interactive, setInteractive] = useState(false)
-  const [pressed, setPressed] = useState(false)
-  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     const cursor = cursorRef.current
@@ -19,43 +16,81 @@ function RectangleCursor() {
     let frame = 0
     let x = window.innerWidth / 2
     let y = window.innerHeight / 2
+    let activeTarget: HTMLElement | null = null
+
+    const interactiveSelector = [
+      'button:not(:disabled)',
+      'input:not(:disabled)',
+      'select:not(:disabled)',
+      'textarea:not(:disabled)',
+      'a[href]',
+      'label.setting-row',
+      '[role="button"]:not([aria-disabled="true"])',
+      '[role="tab"]:not([aria-disabled="true"])',
+    ].join(',')
 
     const render = () => {
-      cursor.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`
+      if (activeTarget?.isConnected) {
+        const rect = activeTarget.getBoundingClientRect()
+        const padding = 3
+        const radius = Number.parseFloat(getComputedStyle(activeTarget).borderRadius) || 0
+        cursor.style.width = `${Math.max(18, rect.width + padding * 2)}px`
+        cursor.style.height = `${Math.max(18, rect.height + padding * 2)}px`
+        cursor.style.borderRadius = `${Math.min((rect.height + padding * 2) / 2, radius + padding)}px`
+        cursor.style.transform = `translate3d(${rect.left + rect.width / 2}px, ${rect.top + rect.height / 2}px, 0) translate(-50%, -50%)`
+      } else {
+        cursor.style.removeProperty('width')
+        cursor.style.removeProperty('height')
+        cursor.style.removeProperty('border-radius')
+        cursor.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`
+      }
       frame = 0
+    }
+    const scheduleRender = () => {
+      if (!frame) frame = requestAnimationFrame(render)
+    }
+    const findTarget = (eventTarget: EventTarget | null) => {
+      const element = eventTarget instanceof Element ? eventTarget.closest<HTMLElement>(interactiveSelector) : null
+      return element?.getAttribute('aria-hidden') === 'true' ? null : element
     }
     const move = (event: PointerEvent) => {
       x = event.clientX
       y = event.clientY
-      setVisible(true)
-      if (!frame) frame = requestAnimationFrame(render)
+      cursor.classList.add('visible')
+      const nextTarget = findTarget(event.target)
+      if (nextTarget !== activeTarget) {
+        activeTarget = nextTarget
+        cursor.classList.toggle('targeting', Boolean(activeTarget))
+      }
+      scheduleRender()
     }
-    const over = (event: PointerEvent) => {
-      const target = event.target instanceof Element ? event.target : null
-      setInteractive(Boolean(target?.closest('button, input, select, label, [role="button"]')))
+    const down = () => cursor.classList.add('pressed')
+    const up = () => cursor.classList.remove('pressed')
+    const hide = () => {
+      activeTarget = null
+      cursor.classList.remove('visible', 'targeting', 'pressed')
     }
-    const down = () => setPressed(true)
-    const up = () => setPressed(false)
-    const hide = () => { setVisible(false); setPressed(false) }
     window.addEventListener('pointermove', move, { passive: true })
-    window.addEventListener('pointerover', over, { passive: true })
     window.addEventListener('pointerdown', down, { passive: true })
     window.addEventListener('pointerup', up, { passive: true })
+    window.addEventListener('resize', scheduleRender, { passive: true })
+    window.addEventListener('scroll', scheduleRender, { passive: true, capture: true })
     window.addEventListener('blur', hide)
     document.documentElement.addEventListener('pointerleave', hide)
     render()
     return () => {
       if (frame) cancelAnimationFrame(frame)
       window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerover', over)
       window.removeEventListener('pointerdown', down)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('resize', scheduleRender)
+      window.removeEventListener('scroll', scheduleRender, true)
       window.removeEventListener('blur', hide)
       document.documentElement.removeEventListener('pointerleave', hide)
     }
   }, [])
 
-  return <div ref={cursorRef} className={`custom-cursor ${visible ? 'visible' : ''} ${interactive ? 'interactive' : ''} ${pressed ? 'pressed' : ''}`} aria-hidden="true"><i /></div>
+  return <div ref={cursorRef} className="custom-cursor" aria-hidden="true"><i /></div>
 }
 
 interface Particle {
