@@ -94,7 +94,7 @@ function createWindow(): void {
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     titleBarOverlay: isMac ? false : { color: '#00000000', symbolColor: '#24303b', height: 48 },
     webPreferences: {
-      preload: path.join(currentDirectory, 'preload.mjs'),
+      preload: path.join(currentDirectory, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

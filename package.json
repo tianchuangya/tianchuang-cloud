@@ -7,10 +7,12 @@
   "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {
+    "prebuild": "node -e \"require('node:fs').rmSync('dist-electron',{recursive:true,force:true})\"",
     "dev": "vite",
     "build": "tsc -b && tsc -p tsconfig.electron.json --noEmit && vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "smoke:preload": "electron scripts/smoke-preload.cjs",
     "preview": "vite preview",
     "dist": "npm run build && electron-builder"
   },

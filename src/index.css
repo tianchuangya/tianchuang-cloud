@@ -27,6 +27,9 @@ button, input, select { font: inherit; letter-spacing: 0; -webkit-app-region: no
 button { color: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(22, 119, 255, .22); outline-offset: 2px; }
 button:disabled { opacity: .5; cursor: not-allowed; }
+.startup-error { height: 100%; display: grid; place-content: center; gap: 8px; padding: 32px; color: var(--ink); background: var(--surface); text-align: center; }
+.startup-error strong { font-size: 18px; }
+.startup-error p { margin: 0; color: var(--muted); font-size: 13px; }
 
 @media (prefers-color-scheme: dark) {
   :root {

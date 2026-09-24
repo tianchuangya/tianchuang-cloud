@@ -11,6 +11,7 @@ export interface GitTargetConfig {
 export interface LocalTargetConfig {
   kind: 'local'
   destinationPath: string
+  locationType?: 'local' | 'removable' | 'network'
 }
 
 export interface WebDavTargetConfig {

@@ -13,7 +13,7 @@ let demoSnapshot: AppSnapshot = {
     targets: [
       { id: 'github', name: 'GitHub 主备份', enabled: true, maxFileSizeMb: 100, lastSyncAt: now, config: { kind: 'git', remoteUrl: 'https://github.com/tianchuangya/StudyNotes.git', branch: 'main', provider: 'github' } },
       { id: 'webdav', name: '私人云盘', enabled: true, maxFileSizeMb: 2048, config: { kind: 'webdav', endpoint: 'https://cloud.example.com', username: 'tianchuang', remotePath: '/StudyNotes' } },
-      { id: 'disk', name: '移动硬盘镜像', enabled: true, maxFileSizeMb: 4096, lastSyncAt: now, config: { kind: 'local', destinationPath: 'D:\\Backup' } },
+      { id: 'disk', name: '移动硬盘镜像', enabled: true, maxFileSizeMb: 4096, lastSyncAt: now, config: { kind: 'local', destinationPath: 'D:\\Backup', locationType: 'removable' } },
     ],
   }],
   activity: [
