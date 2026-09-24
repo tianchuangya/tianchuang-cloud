@@ -100,3 +100,26 @@ export interface TargetDraft {
   config: TargetConfig
   password?: string
 }
+
+export interface GitHubSession {
+  available: boolean
+  authenticated: boolean
+  username?: string
+  displayName?: string
+  avatarUrl?: string
+  message?: string
+}
+
+export interface GitHubRepositoryDraft {
+  name: string
+  description?: string
+  private: boolean
+}
+
+export interface GitHubRepositoryResult {
+  name: string
+  fullName: string
+  cloneUrl: string
+  htmlUrl: string
+  private: boolean
+}

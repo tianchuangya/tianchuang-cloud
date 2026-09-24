@@ -37,6 +37,15 @@ export function installDemoApi(): void {
     },
     removeWorkspace: async () => undefined,
     addTarget: async (_draft: TargetDraft) => demoSnapshot.workspaces[0],
+    getGitHubSession: async () => ({ available: true, authenticated: true, username: 'tianchuangya', displayName: '是天创呀' }),
+    loginGitHub: async () => ({ available: true, authenticated: true, username: 'tianchuangya', displayName: '是天创呀' }),
+    createGitHubRepository: async (draft) => ({
+      name: draft.name,
+      fullName: `tianchuangya/${draft.name}`,
+      cloneUrl: `https://github.com/tianchuangya/${draft.name}.git`,
+      htmlUrl: `https://github.com/tianchuangya/${draft.name}`,
+      private: draft.private,
+    }),
     removeTarget: async () => demoSnapshot.workspaces[0],
     planSync: async (workspaceId, targetId): Promise<SyncPlan> => ({
       id: 'demo-plan', workspaceId, targetId, targetName: 'GitHub 主备份', provider: 'git',

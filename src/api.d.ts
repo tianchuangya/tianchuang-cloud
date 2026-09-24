@@ -1,5 +1,8 @@
 import type {
   AppSnapshot,
+  GitHubRepositoryDraft,
+  GitHubRepositoryResult,
+  GitHubSession,
   SyncDecision,
   SyncPlan,
   SyncProgress,
@@ -18,6 +21,9 @@ declare global {
       updateWorkspace(workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>): Promise<WorkspaceProfile>
       removeWorkspace(workspaceId: string): Promise<void>
       addTarget(draft: TargetDraft): Promise<WorkspaceProfile>
+      getGitHubSession(): Promise<GitHubSession>
+      loginGitHub(): Promise<GitHubSession>
+      createGitHubRepository(draft: GitHubRepositoryDraft): Promise<GitHubRepositoryResult>
       removeTarget(workspaceId: string, targetId: string): Promise<WorkspaceProfile>
       planSync(workspaceId: string, targetId: string): Promise<SyncPlan>
       runSync(planId: string, decision: SyncDecision): Promise<AppSnapshot>

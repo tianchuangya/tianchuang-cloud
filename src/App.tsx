@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, Check, ChevronRight, Cloud, CloudUpload,
-  FileWarning, Folder, FolderInput, GitBranch, HardDrive, History, LoaderCircle,
-  MoreHorizontal, Plus, RefreshCw, Server, Settings, ShieldCheck, Trash2, X,
+  FileWarning, Folder, FolderInput, GitBranch, Globe2, HardDrive, History, LoaderCircle,
+  LockKeyhole, LogIn, MoreHorizontal, Plus, RefreshCw, Server, Settings, ShieldCheck, Trash2, X,
 } from 'lucide-react'
 import type {
-  AppSnapshot, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
+  AppSnapshot, GitHubSession, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
 } from '../electron/types'
 import './App.css'
 
@@ -25,6 +25,10 @@ function providerLabel(kind: ProviderKind): string {
   if (kind === 'git') return 'Git 仓库'
   if (kind === 'webdav') return 'WebDAV'
   return '本地或远程磁盘'
+}
+
+function repositoryNameFor(value: string): string {
+  return value.trim().replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '') || 'tianchuang-data'
 }
 
 function ProviderIcon({ kind }: { kind: ProviderKind }) {
@@ -271,6 +275,12 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   const [remoteUrl, setRemoteUrl] = useState('')
   const [branch, setBranch] = useState('main')
   const [provider, setProvider] = useState<'github' | 'gitee' | 'generic'>('github')
+  const [repositoryMode, setRepositoryMode] = useState<'create' | 'existing'>('create')
+  const [repositoryName, setRepositoryName] = useState(repositoryNameFor(workspace.name))
+  const [repositoryPrivate, setRepositoryPrivate] = useState(true)
+  const [githubAccount, setGitHubAccount] = useState<GitHubSession>()
+  const [accountLoading, setAccountLoading] = useState(true)
+  const [loginPending, setLoginPending] = useState(false)
   const [destinationPath, setDestinationPath] = useState('')
   const [endpoint, setEndpoint] = useState('')
   const [username, setUsername] = useState('')
@@ -279,27 +289,59 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    void window.tianchuang.getGitHubSession()
+      .then(setGitHubAccount)
+      .catch((reason) => setGitHubAccount({ available: false, authenticated: false, message: reason instanceof Error ? reason.message : String(reason) }))
+      .finally(() => setAccountLoading(false))
+  }, [])
+
   const selectKind = (next: ProviderKind) => {
     setKind(next)
     setName(next === 'git' ? 'GitHub 备份' : next === 'webdav' ? 'WebDAV 云盘' : '本地镜像')
   }
 
+  const login = async () => {
+    setError('')
+    setLoginPending(true)
+    try {
+      setGitHubAccount(await window.tianchuang.loginGitHub())
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setLoginPending(false)
+    }
+  }
+
   const save = async () => {
     setError('')
-    let config: TargetDraft['config']
-    if (kind === 'git') {
-      if (!remoteUrl.trim()) return setError('请输入 Git 仓库地址')
-      config = { kind, remoteUrl: remoteUrl.trim(), branch: branch.trim() || 'main', provider }
-    } else if (kind === 'local') {
-      if (!destinationPath) return setError('请选择备份磁盘或文件夹')
-      config = { kind, destinationPath }
-    } else {
-      if (!endpoint || !username) return setError('请填写 WebDAV 地址和用户名')
-      config = { kind, endpoint: endpoint.trim(), username: username.trim(), remotePath: remotePath.trim() }
-    }
     setSaving(true)
     try {
+      let config: TargetDraft['config']
+      let createdRepository = false
+      if (kind === 'git') {
+        let selectedRemote = remoteUrl.trim()
+        if (provider === 'github' && repositoryMode === 'create') {
+          if (!githubAccount?.authenticated) throw new Error('请先登录 GitHub')
+          const repository = await window.tianchuang.createGitHubRepository({
+            name: repositoryName,
+            description: `${workspace.name} 的天创云端同步仓库`,
+            private: repositoryPrivate,
+          })
+          selectedRemote = repository.cloneUrl
+          createdRepository = true
+        }
+        if (!selectedRemote) throw new Error('请输入 Git 仓库地址')
+        config = { kind, remoteUrl: selectedRemote, branch: branch.trim() || 'main', provider }
+      } else if (kind === 'local') {
+        if (!destinationPath) throw new Error('请选择备份磁盘或文件夹')
+        config = { kind, destinationPath }
+      } else {
+        if (!endpoint || !username) throw new Error('请填写 WebDAV 地址和用户名')
+        config = { kind, endpoint: endpoint.trim(), username: username.trim(), remotePath: remotePath.trim() }
+      }
       await window.tianchuang.addTarget({ workspaceId: workspace.id, name: name.trim() || providerLabel(kind), maxFileSizeMb: kind === 'git' ? 100 : 2048, config, password })
+      if (createdRepository) await window.tianchuang.syncWorkspace(workspace.id)
       onSaved()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
@@ -319,10 +361,28 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
         <div className="form-grid">
           <label className="field full"><span>目标名称</span><input value={name} onChange={(event) => setName(event.target.value)} /></label>
           {kind === 'git' && <>
-            <label className="field full"><span>仓库地址</span><input placeholder="https://github.com/你的用户名/tianchuang-cloud-data.git" value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} /></label>
             <label className="field"><span>服务</span><select value={provider} onChange={(event) => setProvider(event.target.value as typeof provider)}><option value="github">GitHub</option><option value="gitee">Gitee</option><option value="generic">其他 Git</option></select></label>
             <label className="field"><span>分支</span><input value={branch} onChange={(event) => setBranch(event.target.value)} /></label>
-            <div className="form-note full"><ShieldCheck size={16} /><span>登录信息由系统 Git 凭据管理器或 SSH 密钥处理，应用不保存 Git 密码。</span></div>
+            {provider === 'github' && <>
+              <div className="github-account full">
+                <span className={`account-symbol ${githubAccount?.authenticated ? 'connected' : ''}`}>{githubAccount?.authenticated ? <ShieldCheck size={17} /> : <LogIn size={17} />}</span>
+                <span><strong>{accountLoading ? '正在检查 GitHub 登录' : githubAccount?.authenticated ? githubAccount.displayName || githubAccount.username : '尚未登录 GitHub'}</strong><small>{githubAccount?.authenticated ? `@${githubAccount.username} · 凭据保存在系统中` : githubAccount?.available === false ? '需要安装 Git Credential Manager' : '登录后可直接创建仓库'}</small></span>
+                {!accountLoading && !githubAccount?.authenticated && <button type="button" disabled={loginPending || githubAccount?.available === false} onClick={() => void login()}>{loginPending ? <LoaderCircle className="spin" size={15} /> : <LogIn size={15} />}登录</button>}
+              </div>
+              <div className="repository-mode full" role="group" aria-label="仓库来源">
+                <button type="button" className={repositoryMode === 'create' ? 'active' : ''} onClick={() => setRepositoryMode('create')}>新建仓库</button>
+                <button type="button" className={repositoryMode === 'existing' ? 'active' : ''} onClick={() => setRepositoryMode('existing')}>已有仓库</button>
+              </div>
+              {repositoryMode === 'create' ? <>
+                <label className="field full"><span>仓库名称</span><input value={repositoryName} onChange={(event) => setRepositoryName(event.target.value)} placeholder="study-notes" /></label>
+                <div className="visibility-options full">
+                  <button type="button" className={repositoryPrivate ? 'active' : ''} onClick={() => setRepositoryPrivate(true)}><LockKeyhole size={16} /><span><strong>私有仓库</strong><small>仅你和授权成员可见</small></span></button>
+                  <button type="button" className={!repositoryPrivate ? 'active' : ''} onClick={() => setRepositoryPrivate(false)}><Globe2 size={16} /><span><strong>公开仓库</strong><small>任何人都可以查看</small></span></button>
+                </div>
+              </> : <label className="field full"><span>仓库地址</span><input placeholder="https://github.com/用户名/仓库.git" value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} /></label>}
+            </>}
+            {provider !== 'github' && <label className="field full"><span>仓库地址</span><input placeholder="https://gitee.com/用户名/仓库.git" value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} /></label>}
+            <div className="form-note full"><ShieldCheck size={16} /><span>GitHub 登录由系统 Git Credential Manager 处理，访问令牌不会写入天创云端配置。</span></div>
           </>}
           {kind === 'local' && <>
             <label className="field full"><span>目标文件夹</span><div className="input-action"><input readOnly value={destinationPath} placeholder="选择移动硬盘、NAS 挂载目录或其他文件夹" /><button onClick={async () => { const value = await window.tianchuang.selectMirrorFolder(); if (value) setDestinationPath(value) }}>选择</button></div></label>

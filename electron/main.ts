@@ -13,7 +13,8 @@ import {
   updateWorkspaceSettings,
 } from './sync-service.js'
 import { removeWorkspace } from './store.js'
-import type { SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
+import { createGitHubRepository, githubSession, loginGitHub } from './github.js'
+import type { GitHubRepositoryDraft, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 let mainWindow: BrowserWindow | undefined
@@ -154,6 +155,9 @@ function registerIpc(): void {
     send('app:snapshot-changed')
     return updated
   })
+  ipcMain.handle('github:session', () => githubSession())
+  ipcMain.handle('github:login', () => loginGitHub())
+  ipcMain.handle('github:repository:create', (_event, draft: GitHubRepositoryDraft) => createGitHubRepository(draft))
   ipcMain.handle('target:remove', (_event, workspaceId: string, targetId: string) => {
     const updated = removeTarget(workspaceId, targetId)
     send('app:snapshot-changed')
