@@ -63,11 +63,16 @@ export function createTarget(draft: TargetDraft): WorkspaceProfile {
     config.secretId = secretId
   }
   const target: SyncTarget = {
-    id, name: draft.name, enabled: true,
+    id,
+    name: config.kind === 'git' ? (config.provider === 'github' ? 'GitHub' : config.provider === 'gitee' ? 'Gitee' : 'Git')
+      : config.kind === 'webdav' ? 'WebDAV'
+        : config.locationType === 'removable' ? '移动硬盘'
+          : config.locationType === 'network' ? '网络磁盘 / NAS' : '本机文件夹',
+    enabled: true,
     maxFileSizeMb: Math.max(1, draft.maxFileSizeMb), config,
   }
   const updated = addTarget(target, draft.workspaceId)
-  activity(draft.workspaceId, 'info', '已添加备份目标', draft.name)
+  activity(draft.workspaceId, 'info', '已添加备份目标', target.name)
   return updated
 }
 
@@ -87,7 +92,15 @@ export async function planSync(workspaceId: string, targetId: string): Promise<S
     else if (target.config.kind === 'local') plan = await planLocalSync(workspace, target)
     else plan = await planWebDavSync(workspace, target)
     pendingPlans.set(plan.id, plan)
-    updateWorkspace(workspaceId, (item) => ({ ...item, state: plan.requiresConfirmation ? 'attention' : 'idle' }))
+    const checkedAt = new Date().toISOString()
+    updateWorkspace(workspaceId, (item) => ({
+      ...item,
+      state: plan.requiresConfirmation ? 'attention' : 'idle',
+      ...(plan.direction === 'none' ? { lastSyncAt: checkedAt } : {}),
+      targets: item.targets.map((current) => current.id === targetId && plan.direction === 'none'
+        ? { ...current, lastError: undefined, lastSyncAt: checkedAt }
+        : current),
+    }))
     return plan
   } catch (error) {
     updateWorkspace(workspaceId, (item) => ({ ...item, state: 'error' }))

@@ -75,17 +75,17 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
     if (ahead > 0 && behind > 0) diverged = true
   }
   const dirty = !status.isClean()
-  const direction = diverged ? 'blocked' : behind > 0 && (ahead > 0 || dirty) ? 'bidirectional' : behind > 0 ? 'download' : ahead > 0 || dirty ? 'upload' : 'none'
+  const direction = !remoteSha ? 'upload' : diverged ? 'blocked' : behind > 0 && (ahead > 0 || dirty) ? 'bidirectional' : behind > 0 ? 'download' : ahead > 0 || dirty ? 'upload' : 'none'
   const actions: string[] = []
   if (behind > 0) actions.push(`下载 ${behind} 个远端版本`)
   if (dirty) actions.push('保存本地改动为新版本')
-  if (ahead > 0 || dirty) actions.push('上传本地版本')
+  if (!remoteSha || ahead > 0 || dirty) actions.push('上传本地版本')
   if (direction === 'none') actions.push('无需传输')
 
   return {
     id: crypto.randomUUID(), workspaceId: workspace.id, targetId: target.id,
     targetName: target.name, provider: 'git', direction,
-    summary: diverged ? '本地与远端历史已经分叉，需要人工检查' : direction === 'none' ? '已是最新版本' : `本地领先 ${ahead}，远端领先 ${behind}`,
+    summary: !remoteSha ? '远端分支为空，准备上传本地版本' : diverged ? '本地与远端历史已经分叉，需要人工检查' : direction === 'none' ? '已是最新版本' : `本地领先 ${ahead}，远端领先 ${behind}`,
     actions, issues: diverged ? [{ path: config.branch, kind: 'conflict' }, ...localOnly] : localOnly,
     requiresConfirmation: diverged || (behind > 0 && localOnly.length > 0),
     createdAt: new Date().toISOString(), metadata: { ahead, behind, dirty, diverged, remoteExists: Boolean(remoteSha) },
@@ -129,7 +129,7 @@ export async function runGitSync(
   if (plan.metadata.diverged) throw new Error('分支已经分叉，请先在 Git 工具中解决冲突')
   const config = target.config as GitTargetConfig
   const git = simpleGit(workspace.path)
-  if (!(await git.checkIsRepo())) await git.init()
+  if (!(await git.checkIsRepo())) await git.raw(['init', '--initial-branch', config.branch])
   await configureIdentity(workspace.path)
   const remote = await ensureRemote(workspace.path, target)
   const remoteSha = await remoteHead(config)
@@ -165,6 +165,11 @@ export async function runGitSync(
   } else if (!(await hasHead(workspace.path))) {
     await git.add(['-A'])
     await git.commit('初始化天创云端资料库')
+  }
+
+  if (!remoteSha) {
+    const currentBranch = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim()
+    if (currentBranch !== config.branch) await git.branch(['-M', config.branch])
   }
 
   const finalStatus = await git.status()

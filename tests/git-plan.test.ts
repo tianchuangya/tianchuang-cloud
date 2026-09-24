@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { simpleGit } from 'simple-git'
 import { afterEach, describe, expect, it } from 'vitest'
-import { planGitSync } from '../electron/providers/git.js'
+import { planGitSync, runGitSync } from '../electron/providers/git.js'
 import type { SyncTarget, WorkspaceProfile } from '../electron/types.js'
 
 const temporaryFolders: string[] = []
@@ -64,5 +64,25 @@ describe('git sync planning', () => {
     expect(plan.requiresConfirmation).toBe(true)
     expect(plan.issues).toContainEqual({ path: 'pc-only.md', kind: 'local-only' })
     expect(plan.metadata.behind).toBe(1)
+  })
+
+  it('renames a first local master branch and pushes it to main', async () => {
+    const remote = await temporaryFolder('empty-remote')
+    await simpleGit(remote).init(true)
+    const local = await temporaryFolder('master-local')
+    const git = simpleGit(local)
+    await git.init()
+    await configure(local)
+    await writeFile(path.join(local, 'note.md'), 'first version')
+    await git.add('.').commit('initial')
+    const workspace: WorkspaceProfile = { id: 'workspace', name: 'Notes', path: local, autoSync: true, syncOnFocus: true, state: 'idle', targets: [] }
+    const target: SyncTarget = { id: 'target', name: 'GitHub', enabled: true, maxFileSizeMb: 100, config: { kind: 'git', remoteUrl: remote, branch: 'main', provider: 'github' } }
+
+    const plan = await planGitSync(workspace, target)
+    expect(plan.direction).toBe('upload')
+    await runGitSync(workspace, target, plan, { preserveLocalOnly: true })
+
+    expect((await git.revparse(['--abbrev-ref', 'HEAD'])).trim()).toBe('main')
+    expect((await simpleGit().listRemote(['--heads', remote, 'main'])).trim()).not.toBe('')
   })
 })

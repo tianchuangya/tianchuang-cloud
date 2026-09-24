@@ -227,9 +227,9 @@ function App() {
                       <div className={`provider-icon ${target.config.kind}`}><ProviderIcon kind={target.config.kind} /></div>
                       <div className="target-main">
                         <div className="target-title"><strong>{target.name}</strong><span>{providerLabel(target.config.kind, target.config.kind === 'local' ? target.config.locationType : undefined)}</span></div>
-                        <p>{target.lastError || (target.config.kind === 'local' ? target.config.destinationPath : target.lastSyncAt ? `上次同步 ${relativeTime(target.lastSyncAt)}` : '等待首次同步')}</p>
+                        <p title={target.config.kind === 'git' ? target.config.remoteUrl : target.config.kind === 'webdav' ? target.config.endpoint : target.config.destinationPath}>{target.config.kind === 'git' ? target.config.remoteUrl : target.config.kind === 'webdav' ? `${target.config.endpoint}${target.config.remotePath}` : target.config.destinationPath}</p>
                       </div>
-                      <div className={`target-health ${target.lastError ? 'bad' : ''}`}><span />{target.lastError ? '异常' : '正常'}</div>
+                      <div className={`target-health ${target.lastError ? 'bad' : ''}`} title={target.lastError}><span />{target.lastError ? '异常' : '正常'}</div>
                       <button className="sync-button" onClick={() => void checkTarget(selected.id, target.id)}><RefreshCw size={16} />同步</button>
                       <div className="more-wrap">
                         <button className="icon-button" title="更多操作" onClick={() => setMenuTargetId(menuTargetId === target.id ? undefined : target.id)}><MoreHorizontal size={18} /></button>
@@ -287,7 +287,6 @@ function App() {
 
 function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspaceProfile; onClose: () => void; onSaved: () => void }) {
   const [kind, setKind] = useState<ProviderKind>('git')
-  const [name, setName] = useState('GitHub 备份')
   const [remoteUrl, setRemoteUrl] = useState('')
   const [branch, setBranch] = useState('main')
   const [provider, setProvider] = useState<'github' | 'gitee' | 'generic'>('github')
@@ -315,7 +314,6 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
 
   const selectKind = (next: ProviderKind) => {
     setKind(next)
-    setName(next === 'git' ? 'GitHub 备份' : next === 'webdav' ? 'WebDAV 云盘' : '本机文件夹备份')
   }
 
   const login = async () => {
@@ -357,7 +355,7 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
         if (!endpoint || !username) throw new Error('请填写 WebDAV 地址和用户名')
         config = { kind, endpoint: endpoint.trim(), username: username.trim(), remotePath: remotePath.trim() }
       }
-      await window.tianchuang.addTarget({ workspaceId: workspace.id, name: name.trim() || providerLabel(kind, kind === 'local' ? locationType : undefined), maxFileSizeMb: kind === 'git' ? 100 : 2048, config, password })
+      await window.tianchuang.addTarget({ workspaceId: workspace.id, name: providerLabel(kind, kind === 'local' ? locationType : undefined), maxFileSizeMb: kind === 'git' ? 100 : 2048, config, password })
       if (createdRepository) await window.tianchuang.syncWorkspace(workspace.id)
       onSaved()
     } catch (reason) {
@@ -376,7 +374,6 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
           <button className={kind === 'local' ? 'active' : ''} onClick={() => selectKind('local')}><HardDrive size={17} />磁盘</button>
         </div>
         <div className="form-grid">
-          <label className="field full"><span>目标名称</span><input value={name} onChange={(event) => setName(event.target.value)} /></label>
           {kind === 'git' && <>
             <label className="field"><span>服务</span><select value={provider} onChange={(event) => setProvider(event.target.value as typeof provider)}><option value="github">GitHub</option><option value="gitee">Gitee</option><option value="generic">其他 Git</option></select></label>
             <label className="field"><span>分支</span><input value={branch} onChange={(event) => setBranch(event.target.value)} /></label>
@@ -402,7 +399,7 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
             <div className="form-note full"><ShieldCheck size={16} /><span>GitHub 登录由系统 Git Credential Manager 处理，访问令牌不会写入天创云端配置。</span></div>
           </>}
           {kind === 'local' && <>
-            <label className="field full"><span>位置类型</span><select value={locationType} onChange={(event) => { const value = event.target.value as typeof locationType; setLocationType(value); setName(`${providerLabel('local', value)}备份`) }}><option value="local">本机文件夹</option><option value="removable">移动硬盘</option><option value="network">网络磁盘 / NAS</option></select></label>
+            <label className="field full"><span>位置类型</span><select value={locationType} onChange={(event) => setLocationType(event.target.value as typeof locationType)}><option value="local">本机文件夹</option><option value="removable">移动硬盘</option><option value="network">网络磁盘 / NAS</option></select></label>
             <label className="field full"><span>目标文件夹</span><div className="input-action"><input readOnly value={destinationPath} placeholder="选择移动硬盘、NAS 挂载目录或其他文件夹" /><button onClick={async () => { const value = await window.tianchuang.selectMirrorFolder(); if (value) setDestinationPath(value) }}>选择</button></div></label>
             <div className="form-note full"><ArchiveRestore size={16} /><span>{locationType === 'network' ? '网络磁盘或 NAS 需要先由操作系统挂载为可访问目录。' : locationType === 'removable' ? '移动硬盘断开时会停止该目标同步，不会影响其他备份。' : '本机文件夹适合备份到另一块内置磁盘或固定目录。'}镜像只复制新增和变化文件，不自动删除历史文件。</span></div>
           </>}

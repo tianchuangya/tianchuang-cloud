@@ -1,6 +1,6 @@
 import Store from 'electron-store'
 import { safeStorage } from 'electron'
-import type { ActivityItem, AppSnapshot, SyncTarget, WorkspaceProfile } from './types.js'
+import type { ActivityItem, AppSnapshot, SyncTarget, TargetConfig, WorkspaceProfile } from './types.js'
 
 interface StoreData {
   workspaces: WorkspaceProfile[]
@@ -14,8 +14,18 @@ const store = new Store<StoreData>({
 })
 
 export function getSnapshot(): AppSnapshot {
+  const targetName = (config: TargetConfig): string => {
+    if (config.kind === 'git') return config.provider === 'github' ? 'GitHub' : config.provider === 'gitee' ? 'Gitee' : 'Git'
+    if (config.kind === 'webdav') return 'WebDAV'
+    if (config.locationType === 'removable') return '移动硬盘'
+    if (config.locationType === 'network') return '网络磁盘 / NAS'
+    return '本机文件夹'
+  }
   return {
-    workspaces: store.get('workspaces', []),
+    workspaces: store.get('workspaces', []).map((workspace) => ({
+      ...workspace,
+      targets: workspace.targets.map((target) => ({ ...target, name: targetName(target.config) })),
+    })),
     activity: store.get('activity', []).slice(0, 80),
   }
 }

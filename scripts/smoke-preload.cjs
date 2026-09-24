@@ -1,7 +1,8 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('node:path')
 
 app.whenReady().then(async () => {
+  ipcMain.handle('app:snapshot', () => ({ workspaces: [], activity: [] }))
   const window = new BrowserWindow({
     show: false,
     webPreferences: {
