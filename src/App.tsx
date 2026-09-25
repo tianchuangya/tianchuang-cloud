@@ -34,7 +34,7 @@ const PROJECT_LINKS: LogoLoopItem[] = [
     title: '是天创呀',
     ariaLabel: '打开是天创呀的 GitHub 主页',
     href: 'https://github.com/tianchuangya',
-    node: <><span className="loop-avatar">创</span><span><strong>是天创呀</strong><small>项目作者</small></span></>,
+    node: <><img className="loop-avatar" src="/assets/author-avatar.png" alt="是天创呀头像" /><span><strong>是天创呀</strong><small>项目作者</small></span></>,
   },
 ]
 
@@ -614,7 +614,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
               <button className={preferences.libraryView === 'glass' ? 'active' : ''} onClick={() => setLibraryView('glass')} aria-pressed={preferences.libraryView === 'glass'}><span className="effect-preview quiet"><Grid2X2 size={20} /></span><span><strong>玻璃图标</strong><small>清晰直观，适合日常管理</small></span><Check size={15} /></button>
               <button className={preferences.libraryView === 'motion' ? 'active' : ''} onClick={() => setLibraryView('motion')} aria-pressed={preferences.libraryView === 'motion'} disabled={reduceMotion}><span className="effect-preview ripple"><Layers3 size={20} /></span><span><strong>动态网格</strong><small>使用封面构成有序运动网格</small></span><Check size={15} /></button>
             </div></section></FadeContent>}
-            {category === 'about' && <FadeContent key="about" duration={220} blurAmount={4}><section className="settings-about-panel"><div className="setting-group-heading"><strong>项目与作者</strong><span>个人主页与项目链接</span></div><p>这里集中展示作者主页、当前项目以及后续加入的个人内容。你提供图片后，可以直接扩展为带封面的滚动展示。</p><div className="settings-project-loop"><LogoLoop logos={PROJECT_LINKS} speed={28} hoverSpeed={5} gap={10} ariaLabel="天创云端项目与作者链接" /></div></section></FadeContent>}
+            {category === 'about' && <FadeContent key="about" duration={220} blurAmount={4}><section className="settings-about-panel"><div className="setting-group-heading"><strong>项目与作者</strong><span>个人主页与项目链接</span></div><p>这里集中展示天创云端项目、作者主页以及后续加入的个人作品。</p><div className="settings-project-loop"><LogoLoop logos={PROJECT_LINKS} speed={28} hoverSpeed={5} gap={10} ariaLabel="天创云端项目与作者链接" /></div></section></FadeContent>}
           </div>
         </div>
         <footer><button className="primary-button" onClick={onClose}>完成</button></footer>
