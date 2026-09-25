@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { ArrowRight, Cloud } from 'lucide-react'
+import { Cloud } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { StartupEffect } from './cursor-preferences'
 import './StartupExperience.css'
@@ -17,7 +17,9 @@ export default function StartupExperience({ ready, effect, onComplete }: Startup
 
   useEffect(() => {
     const skip = (event: KeyboardEvent) => {
-      if (ready && event.key === 'Enter') onComplete()
+      if (!ready || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return
+      event.preventDefault()
+      onComplete()
     }
     window.addEventListener('keydown', skip)
     return () => window.removeEventListener('keydown', skip)
@@ -41,9 +43,14 @@ export default function StartupExperience({ ready, effect, onComplete }: Startup
         <h1>天创云端</h1>
         <p>Tianchuang Cloud</p>
       </motion.div>
-      <div className="startup-status" aria-live="polite">
-        <span className={ready ? 'ready' : ''}><i />{ready ? '资料库已准备完成' : '正在准备资料库'}</span>
-        <button className="startup-enter-button" disabled={!ready} onClick={onComplete}>{ready ? '进入天创云端' : '请稍候'}<ArrowRight size={14} /></button>
+      <div className={`startup-loader ${ready ? 'ready' : ''}`} aria-live="polite">
+        <div className="startup-progress-track" role="progressbar" aria-label="启动进度" aria-valuemin={0} aria-valuemax={100} {...(ready ? { 'aria-valuenow': 100 } : {})}>
+          <motion.span initial={{ scaleX: reduceMotion ? .82 : .06 }} animate={{ scaleX: ready ? 1 : .82 }} transition={{ duration: reduceMotion ? .01 : ready ? .36 : 2.6, ease: ready ? [0.22, 1, 0.36, 1] : [0.32, 0, 0.2, 1] }} />
+        </div>
+        <div className="startup-status-row">
+          <span className="startup-state"><i />{ready ? '资料库已准备完成' : '正在准备资料库'}</span>
+          <span className="startup-enter-hint">{ready ? '按任意键进入' : '正在加载'}</span>
+        </div>
       </div>
     </motion.section>
   )

@@ -573,7 +573,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
                   <button className={preferences.startupEffect === 'light' ? 'active' : ''} onClick={() => setStartupEffect('light')} aria-pressed={preferences.startupEffect === 'light'}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光掠影</strong><small>更克制的缓慢光束</small></span><Check size={15} /></button>
                 </div></div>
                 <div className="startup-settings-preview" data-effect={preferences.startupEffect}><span><Cloud size={22} /><strong>天创云端</strong><small>{preferences.startupEffect === 'aurora' ? '柔光极光' : '侧光掠影'}</small></span></div>
-                <div className="performance-note"><ShieldCheck size={16} /><span>资料库会在动画期间并行加载；准备完成后，需要点击“进入天创云端”或按 Enter 才会进入软件。</span></div>
+                <div className="performance-note"><ShieldCheck size={16} /><span>资料库会在动画期间并行加载；进度完成后按任意键进入软件。</span></div>
               </section>
             </FadeContent>}
             {category === 'appearance' && subpage === 'pointer' && <FadeContent key="pointer" duration={220} blurAmount={4}>

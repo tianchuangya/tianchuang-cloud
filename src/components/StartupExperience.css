@@ -8,14 +8,18 @@
 .startup-mark { width: 78px; height: 78px; display: grid; place-items: center; margin-bottom: 20px; border: 1px solid rgba(220,251,255,.34); border-radius: 24px; color: #071216; background: rgba(196,247,252,.92); box-shadow: 0 22px 70px rgba(71,201,219,.22), inset 0 1px rgba(255,255,255,.82); backdrop-filter: blur(20px); }
 .startup-brand h1 { margin: 0; font-size: 36px; line-height: 1.15; font-weight: 690; letter-spacing: 0; text-shadow: 0 10px 38px rgba(0,0,0,.45); }
 .startup-brand p { margin: 8px 0 0; color: rgba(220,239,242,.62); font-size: 11px; font-weight: 560; }
-.startup-status { position: absolute; right: 28px; bottom: 24px; left: 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; color: rgba(220,239,242,.6); font-size: 10px; }
-.startup-status > span { display: inline-flex; align-items: center; gap: 8px; }
-.startup-status i { width: 6px; height: 6px; border-radius: 50%; background: #86dfeb; box-shadow: 0 0 14px rgba(112,222,235,.8); animation: startup-status-breathe 1.3s ease-in-out infinite; }
-.startup-status .ready i { background: #69dca1; box-shadow: 0 0 14px rgba(76,216,145,.7); animation: none; }
-.startup-status button { min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid rgba(220,251,255,.34); border-radius: 10px; color: #071216; background: rgba(210,249,252,.92); box-shadow: 0 9px 28px rgba(70,201,218,.2), inset 0 1px rgba(255,255,255,.7); cursor: pointer; font-size: 10px; font-weight: 680; transition: transform .14s ease, background .16s ease, opacity .16s ease; }
-.startup-status button:hover:not(:disabled) { background: #e9fdff; transform: translateY(-1px); }
-.startup-status button:active:not(:disabled) { transform: scale(.97); }
-.startup-status button:disabled { color: rgba(225,242,244,.48); border-color: rgba(255,255,255,.1); background: rgba(255,255,255,.05); box-shadow: none; cursor: wait; }
+.startup-loader { position: absolute; z-index: 2; left: 50%; bottom: 30px; width: min(480px, calc(100% - 56px)); transform: translateX(-50%); }
+.startup-progress-track { position: relative; height: 4px; overflow: hidden; border: 1px solid rgba(220,251,255,.12); border-radius: 4px; background: rgba(1,7,10,.36); box-shadow: inset 0 1px 4px rgba(0,0,0,.28), 0 8px 24px rgba(0,0,0,.12); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.startup-progress-track > span { position: absolute; inset: 0; display: block; transform-origin: left center; border-radius: inherit; background: linear-gradient(90deg, rgba(115,221,234,.72), #e8fdff); box-shadow: 0 0 14px rgba(115,221,234,.58); }
+.startup-loader:not(.ready) .startup-progress-track > span::after { content: ''; position: absolute; inset: 0; width: 32%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.72), transparent); animation: startup-progress-glint 1.4s ease-in-out infinite; }
+.startup-status-row { min-height: 27px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-top: 9px; color: rgba(220,239,242,.62); font-size: 10px; }
+.startup-state { display: inline-flex; align-items: center; gap: 8px; }
+.startup-state i { width: 6px; height: 6px; border-radius: 50%; background: #86dfeb; box-shadow: 0 0 14px rgba(112,222,235,.8); animation: startup-status-breathe 1.3s ease-in-out infinite; }
+.startup-loader.ready .startup-state i { background: #69dca1; box-shadow: 0 0 14px rgba(76,216,145,.7); animation: none; }
+.startup-enter-hint { color: rgba(229,248,250,.42); transition: color .22s ease, opacity .22s ease; }
+.startup-loader.ready .startup-enter-hint { color: rgba(235,253,255,.9); animation: startup-enter-breathe 1.8s ease-in-out infinite; }
 @keyframes startup-light-drift { to { transform: translate3d(18%, 5%, 0) rotate(.7deg); } }
 @keyframes startup-status-breathe { 50% { opacity: .38; transform: scale(.72); } }
-@media (prefers-reduced-motion: reduce) { .startup-light-sweep, .startup-status i { animation: none; } .startup-effect-layer { display: none; } }
+@keyframes startup-progress-glint { from { transform: translateX(-120%); } to { transform: translateX(410%); } }
+@keyframes startup-enter-breathe { 50% { opacity: .48; } }
+@media (prefers-reduced-motion: reduce) { .startup-light-sweep, .startup-state i, .startup-enter-hint, .startup-progress-track > span::after { animation: none !important; } .startup-effect-layer { display: none; } }
