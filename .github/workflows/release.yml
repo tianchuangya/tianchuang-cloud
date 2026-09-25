@@ -58,4 +58,4 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" artifacts/**/* --title "天创云端 $GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: gh release create "$GITHUB_REF_NAME" artifacts/**/* --repo "$GITHUB_REPOSITORY" --title "天创云端 $GITHUB_REF_NAME" --generate-notes --verify-tag
