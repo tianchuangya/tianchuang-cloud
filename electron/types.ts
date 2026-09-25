@@ -39,6 +39,7 @@ export interface WorkspaceProfile {
   name: string
   path: string
   autoSync: boolean
+  syncOnChange?: boolean
   syncOnFocus: boolean
   state: SyncState
   lastSyncAt?: string

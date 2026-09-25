@@ -40,7 +40,7 @@ export function addWorkspace(folderPath: string): WorkspaceProfile {
   if (existing) return existing
   const workspace: WorkspaceProfile = {
     id: randomUUID(), name: basename(folderPath), path: folderPath,
-    autoSync: true, syncOnFocus: true, state: 'idle', targets: [],
+    autoSync: true, syncOnChange: true, syncOnFocus: true, state: 'idle', targets: [],
   }
   saveWorkspace(workspace)
   activity(workspace.id, 'info', '资料库已添加', folderPath)
@@ -49,7 +49,7 @@ export function addWorkspace(folderPath: string): WorkspaceProfile {
 
 export function updateWorkspaceSettings(
   workspaceId: string,
-  changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>,
+  changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'name'>,
 ): WorkspaceProfile {
   return updateWorkspace(workspaceId, (workspace) => ({ ...workspace, ...changes }))
 }

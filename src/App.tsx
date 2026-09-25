@@ -21,6 +21,7 @@ import {
 import './App.css'
 
 const EMPTY_SNAPSHOT: AppSnapshot = { workspaces: [], activity: [] }
+type AppNavigationState = { view: 'overview' | 'workspace'; workspaceId?: string; settings?: boolean }
 const PROJECT_LINKS: LogoLoopItem[] = [
   {
     title: 'Tianchuang Cloud',
@@ -84,6 +85,32 @@ function App() {
   const [backgroundEffectPreview, setBackgroundEffectPreview] = useState<BackgroundEffect>()
   const [coverCrop, setCoverCrop] = useState<{ workspace: WorkspaceProfile; source: string }>()
 
+  const applyNavigation = (state: AppNavigationState) => {
+    setShowOverview(state.view === 'overview')
+    if (state.workspaceId) setSelectedId(state.workspaceId)
+    setSettingsDialog(Boolean(state.settings))
+    if (!state.settings) setBackgroundEffectPreview(undefined)
+  }
+
+  const navigate = (state: AppNavigationState) => {
+    window.history.pushState({ tianchuangNavigation: state }, '')
+    applyNavigation(state)
+  }
+
+  const currentNavigation = (): AppNavigationState => ({
+    view: showOverview ? 'overview' : 'workspace',
+    workspaceId: selectedId,
+  })
+
+  const closeSettings = () => {
+    const state = window.history.state?.tianchuangNavigation as AppNavigationState | undefined
+    if (state?.settings) window.history.back()
+    else {
+      setBackgroundEffectPreview(undefined)
+      setSettingsDialog(false)
+    }
+  }
+
   const refresh = async () => {
     const next = await window.tianchuang.getSnapshot()
     setSnapshot(next)
@@ -105,6 +132,27 @@ function App() {
     const offAttention = window.tianchuang.onAttention((plan) => setReviewPlan(plan))
     const offSnapshot = window.tianchuang.onSnapshot(() => void refresh())
     return () => { offProgress(); offAttention(); offSnapshot() }
+  }, [])
+
+  useEffect(() => {
+    window.history.replaceState({ tianchuangNavigation: { view: 'overview' } satisfies AppNavigationState }, '')
+    const onPopState = (event: PopStateEvent) => {
+      const state = event.state?.tianchuangNavigation as AppNavigationState | undefined
+      applyNavigation(state || { view: 'overview' })
+    }
+    const onMouseSideButton = (event: MouseEvent) => {
+      if (event.button !== 3 && event.button !== 4) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.button === 3) window.history.back()
+      else window.history.forward()
+    }
+    window.addEventListener('popstate', onPopState)
+    window.addEventListener('mousedown', onMouseSideButton, true)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('mousedown', onMouseSideButton, true)
+    }
   }, [])
 
   useEffect(() => {
@@ -137,8 +185,7 @@ function App() {
       if (!chosen) return
       const workspace = await window.tianchuang.addWorkspace(chosen)
       await refresh()
-      setSelectedId(workspace.id)
-      setShowOverview(false)
+      navigate({ view: 'workspace', workspaceId: workspace.id })
       setNotice('资料库已加入，正在监听文件变化')
       window.setTimeout(() => setNotice(undefined), 3200)
     } catch (reason) {
@@ -203,11 +250,12 @@ function App() {
     }
   }
 
-  const changeSetting = async (changes: Partial<Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>>) => {
+  const changeSetting = async (changes: Partial<Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'name'>>) => {
     if (!selected) return
     await window.tianchuang.updateWorkspace(selected.id, {
       name: changes.name ?? selected.name,
       autoSync: changes.autoSync ?? selected.autoSync,
+      syncOnChange: changes.syncOnChange ?? selected.syncOnChange ?? true,
       syncOnFocus: changes.syncOnFocus ?? selected.syncOnFocus,
     })
     await refresh()
@@ -279,12 +327,12 @@ function App() {
 
       <aside className="sidebar glass-material">
         <div className="sidebar-heading">
-          <button className={`library-home-button ${showOverview ? 'active' : ''}`} onClick={() => setShowOverview(true)}><Grid2X2 size={13} /><span>资料库</span></button>
+          <button className={`library-home-button ${showOverview ? 'active' : ''}`} onClick={() => navigate({ view: 'overview' })}><Grid2X2 size={13} /><span>资料库</span></button>
           <button className="icon-button" title="添加资料库" aria-label="添加资料库" disabled={selectingFolder} onClick={(event) => { event.stopPropagation(); void addFolder() }}>{selectingFolder ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}</button>
         </div>
         <nav className="workspace-list" aria-label="资料库列表">
           {snapshot.workspaces.map((workspace) => (
-            <button key={workspace.id} className={`workspace-nav ${!showOverview && workspace.id === selectedId ? 'active' : ''}`} title="右键管理资料库" onClick={() => { setSelectedId(workspace.id); setShowOverview(false) }} onContextMenu={(event) => { event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: event.clientX, y: event.clientY }) }}>
+            <button key={workspace.id} className={`workspace-nav ${!showOverview && workspace.id === selectedId ? 'active' : ''}`} title="右键管理资料库" onClick={() => navigate({ view: 'workspace', workspaceId: workspace.id })} onContextMenu={(event) => { event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: event.clientX, y: event.clientY }) }}>
               <span className={`nav-icon ${coverUrls[workspace.id] ? 'has-cover' : ''}`}>
                 {coverUrls[workspace.id] ? <img src={coverUrls[workspace.id]} alt="" /> : <Folder size={17} />}
               </span>
@@ -296,7 +344,7 @@ function App() {
         <div className="sidebar-footer">
           <button className="sidebar-action add-library-action" disabled={selectingFolder} onClick={() => void addFolder()}><FolderInput size={17} /><span>添加资料库</span></button>
           <button className="sidebar-action"><Activity size={17} /><span>活动记录</span><span className="count">{snapshot.activity.length}</span></button>
-          <button className="sidebar-action" onClick={() => setSettingsDialog(true)}><Settings size={17} /><span>设置</span></button>
+          <button className="sidebar-action" onClick={() => navigate({ ...currentNavigation(), settings: true })}><Settings size={17} /><span>设置</span></button>
         </div>
       </aside>
 
@@ -310,7 +358,7 @@ function App() {
             backgroundOpacity={cursorPreferences.backgroundOpacity}
             view={cursorPreferences.libraryView}
             onChangeView={(libraryView) => changeCursorPreferences({ ...cursorPreferences, libraryView })}
-            onSelect={(workspaceId) => { setSelectedId(workspaceId); setShowOverview(false) }}
+            onSelect={(workspaceId) => navigate({ view: 'workspace', workspaceId })}
             onAdd={() => void addFolder()}
           />
         ) : selected ? (
@@ -318,7 +366,7 @@ function App() {
             <AnimatedContent key={`${selected.id}-header`} container=".content" direction="horizontal" reverse distance={26} duration={.28} initialOpacity={.15} scale={.995}>
             <section className="workspace-header">
               <div>
-                <button className="workspace-back-button" onClick={() => setShowOverview(true)}><ArrowLeft size={15} />返回资料库</button>
+                <button className="workspace-back-button" onClick={() => navigate({ view: 'overview' })}><ArrowLeft size={15} />返回资料库</button>
                 <div className="status-line"><span className={`status-pill ${selected.state}`}>{selected.state === 'syncing' ? '同步中' : selected.state === 'attention' ? '需要确认' : selected.state === 'error' ? '发生错误' : '已受保护'}</span><span>{relativeTime(selected.lastSyncAt)}</span></div>
                 <h1>{selected.name}</h1>
                 <p className="path-text" title={selected.path}>{selected.path}</p>
@@ -371,9 +419,10 @@ function App() {
 
             <AnimatedContent key={`${selected.id}-automation`} container=".content" distance={14} duration={.24} delay={.09} scale={.994}>
             <section className="section-block settings-block">
-              <div className="section-heading"><div><h2>自动化</h2><p>应用在后台监控变化，并在需要选择时通知你</p></div></div>
-              <label className="setting-row"><span><strong>文件变化后自动同步</strong><small>连续编辑结束约 3 秒后检查所有目标</small></span><input type="checkbox" checked={selected.autoSync} onChange={(event) => void changeSetting({ autoSync: event.target.checked })} /><i /></label>
-              <label className="setting-row"><span><strong>打开应用时检查</strong><small>回到天创云端时拉取其他电脑的最新版本</small></span><input type="checkbox" checked={selected.syncOnFocus} onChange={(event) => void changeSetting({ syncOnFocus: event.target.checked })} /><i /></label>
+              <div className="section-heading"><div><h2>自动同步</h2><p>控制这个资料库何时在后台检查并同步</p></div></div>
+              <label className="setting-row master-setting-row"><span><strong>自动同步总开关</strong><small>关闭后只保留“立即同步”，不会在后台自动传输</small></span><input type="checkbox" checked={selected.autoSync} onChange={(event) => void changeSetting({ autoSync: event.target.checked })} /><i /></label>
+              <label className={`setting-row ${selected.autoSync ? '' : 'disabled'}`}><span><strong>文件变化后同步</strong><small>连续编辑结束约 3 秒后检查所有目标</small></span><input type="checkbox" disabled={!selected.autoSync} checked={selected.syncOnChange !== false} onChange={(event) => void changeSetting({ syncOnChange: event.target.checked })} /><i /></label>
+              <label className={`setting-row ${selected.autoSync ? '' : 'disabled'}`}><span><strong>打开应用时检查</strong><small>回到天创云端时拉取其他电脑的最新版本</small></span><input type="checkbox" disabled={!selected.autoSync} checked={selected.syncOnFocus} onChange={(event) => void changeSetting({ syncOnFocus: event.target.checked })} /><i /></label>
             </section>
             </AnimatedContent>
 
@@ -390,12 +439,6 @@ function App() {
               </AnimatedContent>
             )}
 
-            <AnimatedContent key={`${selected.id}-project-links`} container=".content" distance={12} duration={.24} scale={.996}>
-              <section className="project-loop-section" aria-labelledby="project-loop-title">
-                <div className="project-loop-heading"><span id="project-loop-title">项目与作者</span><small>开源链接</small></div>
-                <LogoLoop logos={PROJECT_LINKS} speed={28} hoverSpeed={5} gap={10} ariaLabel="天创云端项目与作者链接" />
-              </section>
-            </AnimatedContent>
           </>
         ) : (
           <FadeContent className="empty-state-reveal" duration={300} blurAmount={8}>
@@ -415,7 +458,7 @@ function App() {
         {targetDialog && selected && <TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
         {reviewPlan && <ReviewDialog plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
         {removeWorkspaceDialog && <RemoveWorkspaceDialog workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
-        {settingsDialog && <CursorSettingsDialog preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onChange={changeCursorPreferences} onClose={() => { setBackgroundEffectPreview(undefined); setSettingsDialog(false) }} />}
+        {settingsDialog && <CursorSettingsDialog preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onChange={changeCursorPreferences} onClose={closeSettings} />}
         {coverCrop && <CoverCropDialog workspace={coverCrop.workspace} source={coverCrop.source} onClose={() => setCoverCrop(undefined)} onSave={saveCroppedCover} />}
         {progress && <ProgressOverlay progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
@@ -457,6 +500,8 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, backgroundBlur
 function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [backgroundEffectSearch, setBackgroundEffectSearch] = useState('')
+  const [category, setCategory] = useState<'appearance' | 'library' | 'about'>('appearance')
+  const [subpage, setSubpage] = useState<'pointer' | 'background' | 'view' | 'links'>('pointer')
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
   const setBackgroundEffect = (backgroundEffect: BackgroundEffect) => onChange({ ...preferences, backgroundEffect })
@@ -469,75 +514,71 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
     { value: 'aurora', title: '柔光极光', description: 'OGL 柔和光带与色彩流动', className: 'aurora', icon: <Waves size={20} /> },
   ]
   const visibleBackgroundEffects = backgroundEffects.filter((item) => `${item.title}${item.description}${item.value}`.toLowerCase().includes(backgroundEffectSearch.trim().toLowerCase()))
+  const chooseCategory = (next: 'appearance' | 'library' | 'about') => {
+    setCategory(next)
+    setSubpage(next === 'appearance' ? 'pointer' : next === 'library' ? 'view' : 'links')
+    onPreviewBackgroundEffect(undefined)
+  }
 
   return (
     <motion.div className="modal-backdrop settings-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.section className="modal glass-modal cursor-settings-modal" initial={{ opacity: 0, transform: 'translateY(10px) scale(.97)' }} animate={{ opacity: 1, transform: 'translateY(0) scale(1)' }} exit={{ opacity: 0, transform: 'translateY(8px) scale(.98)' }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
-        <header><div className="settings-symbol"><MousePointer2 size={21} /></div><div><h2>外观与动态效果</h2><p>设置会立即预览并仅保存在这台设备上</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
-        <div className="cursor-settings-content">
-          <FadeContent duration={220} blurAmount={4}>
-          <section>
-            <div className="setting-group-heading"><strong>指针外观</strong><span>选择日常操作时使用的指针</span></div>
-            <div className="cursor-choice-grid two">
-              <button className={preferences.style === 'rectangle' ? 'active' : ''} onClick={() => setStyle('rectangle')} aria-pressed={preferences.style === 'rectangle'}><span className="cursor-preview rectangle"><i /></span><span><strong>矩形高亮</strong><small>清晰、轻量，适合深色界面</small></span><Check size={15} /></button>
-              <button className={preferences.style === 'system' ? 'active' : ''} onClick={() => setStyle('system')} aria-pressed={preferences.style === 'system'}><span className="cursor-preview system"><MousePointer2 size={20} /></span><span><strong>系统原生</strong><small>跟随 Windows、macOS 或 Linux</small></span><Check size={15} /></button>
-            </div>
-          </section>
-          </FadeContent>
-          <FadeContent duration={220} delay={55} blurAmount={4}>
-          <section>
-            <div className="setting-group-heading"><strong>背景图</strong><span>底图与动态效果相互独立</span></div>
-            <div className="background-image-settings">
-              <div className="background-image-preview">{customBackground ? <img src={customBackground} alt="当前自定义背景预览" /> : <img src="/assets/cloud-glass-bg.png" alt="默认背景预览" />}</div>
-              <div><strong>{customBackground ? '自定义背景' : '天创云端默认背景'}</strong><small>{customBackground ? '图片已复制到应用数据目录' : '当前项目内置的玻璃云端背景'}</small><span><button className="secondary-button" onClick={() => void onSelectBackground()}><ImageIcon size={15} />选择图片</button>{customBackground && <button className="plain-button" onClick={() => void onResetBackground()}>恢复默认</button>}</span></div>
-            </div>
-            <div className="background-tuning-grid">
-              <label><span><strong>背景模糊</strong><small>{preferences.backgroundBlur}px</small></span><input aria-label="背景模糊" type="range" min="0" max="24" step="1" value={preferences.backgroundBlur} onInput={(event) => onChange({ ...preferences, backgroundBlur: Number(event.currentTarget.value) })} /></label>
-              <label><span><strong>背景不透明度</strong><small>{Math.round(preferences.backgroundOpacity * 100)}%</small></span><input type="range" min="20" max="100" step="5" value={preferences.backgroundOpacity * 100} onChange={(event) => onChange({ ...preferences, backgroundOpacity: Number(event.target.value) / 100 })} /></label>
-            </div>
-          </section>
-          </FadeContent>
-          <FadeContent duration={220} delay={24} blurAmount={4}>
-          <section>
-            <div className="setting-group-heading"><strong>资料库视图</strong><span>选择进入资料库首页时的浏览方式</span></div>
-            <div className="cursor-choice-grid two">
+        <header><div className="settings-symbol"><Settings size={21} /></div><div><h2>设置</h2><p>按大类与子项管理天创云端</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
+        <nav className="settings-top-nav" aria-label="设置大类">
+          <button className={category === 'appearance' ? 'active' : ''} onClick={() => chooseCategory('appearance')}><MousePointer2 size={15} />外观与动态</button>
+          <button className={category === 'library' ? 'active' : ''} onClick={() => chooseCategory('library')}><Layers3 size={15} />资料库</button>
+          <button className={category === 'about' ? 'active' : ''} onClick={() => chooseCategory('about')}><Globe2 size={15} />关于</button>
+        </nav>
+        <div className="settings-cross-layout">
+          <aside className="settings-side-nav" aria-label="设置子类">
+            {category === 'appearance' && <>
+              <button className={subpage === 'pointer' ? 'active' : ''} onClick={() => setSubpage('pointer')}>指针与轨迹</button>
+              <button className={subpage === 'background' ? 'active' : ''} onClick={() => setSubpage('background')}>背景与效果</button>
+            </>}
+            {category === 'library' && <button className="active" onClick={() => setSubpage('view')}>浏览方式</button>}
+            {category === 'about' && <button className="active" onClick={() => setSubpage('links')}>项目与作者</button>}
+          </aside>
+          <div className="cursor-settings-content">
+            {category === 'appearance' && subpage === 'pointer' && <FadeContent key="pointer" duration={220} blurAmount={4}>
+              <section className="settings-panel-stack">
+                <div><div className="setting-group-heading"><strong>指针外观</strong><span>选择日常操作时使用的指针</span></div><div className="cursor-choice-grid two">
+                  <button className={preferences.style === 'rectangle' ? 'active' : ''} onClick={() => setStyle('rectangle')} aria-pressed={preferences.style === 'rectangle'}><span className="cursor-preview rectangle"><i /></span><span><strong>矩形高亮</strong><small>清晰、轻量，适合深色界面</small></span><Check size={15} /></button>
+                  <button className={preferences.style === 'system' ? 'active' : ''} onClick={() => setStyle('system')} aria-pressed={preferences.style === 'system'}><span className="cursor-preview system"><MousePointer2 size={20} /></span><span><strong>系统原生</strong><small>跟随 Windows、macOS 或 Linux</small></span><Check size={15} /></button>
+                </div></div>
+                <div><div className="setting-group-heading"><strong>指针配色</strong><span>空闲与吸附状态独立设置</span></div><div className="cursor-color-grid">
+                  <label><span><strong>基础颜色</strong><small>{preferences.cursorColor}</small></span><input type="color" value={preferences.cursorColor} onChange={(event) => onChange({ ...preferences, cursorColor: event.target.value })} /></label>
+                  <label><span><strong>吸附颜色</strong><small>{preferences.cursorTargetColor}</small></span><input type="color" value={preferences.cursorTargetColor} onChange={(event) => onChange({ ...preferences, cursorTargetColor: event.target.value })} /></label>
+                </div></div>
+                <div><div className="setting-group-heading"><strong>动态轨迹</strong><span>装饰效果不会改变点击行为</span></div><div className="cursor-choice-grid three">
+                  <button className={preferences.effect === 'none' ? 'active' : ''} onClick={() => setEffect('none')} aria-pressed={preferences.effect === 'none'}><span className="effect-preview quiet"><Monitor size={20} /></span><span><strong>关闭</strong><small>性能优先</small></span><Check size={15} /></button>
+                  <button className={preferences.effect === 'fluid' ? 'active' : ''} onClick={() => setEffect('fluid')} aria-pressed={preferences.effect === 'fluid'} disabled={reduceMotion}><span className="effect-preview fluid"><Waves size={20} /></span><span><strong>流体彩雾</strong><small>移动时产生渐色流体</small></span><Check size={15} /></button>
+                  <button className={preferences.effect === 'fireworks' ? 'active' : ''} onClick={() => setEffect('fireworks')} aria-pressed={preferences.effect === 'fireworks'} disabled={reduceMotion}><span className="effect-preview fireworks"><Sparkles size={20} /></span><span><strong>白色点击烟花</strong><small>缓慢扩散并柔和消退</small></span><Check size={15} /></button>
+                </div></div>
+                {reduceMotion && <div className="motion-safety-note"><ShieldCheck size={16} /><span>系统已启用“减少动态效果”，动态轨迹会暂时停用。</span></div>}
+              </section>
+            </FadeContent>}
+            {category === 'appearance' && subpage === 'background' && <FadeContent key="background" duration={220} blurAmount={4}>
+              <section className="settings-panel-stack">
+                <div><div className="setting-group-heading"><strong>背景图</strong><span>底图与动态效果相互独立</span></div><div className="background-image-settings">
+                  <div className="background-image-preview">{customBackground ? <img src={customBackground} alt="当前自定义背景预览" /> : <img src="/assets/cloud-glass-bg.png" alt="默认背景预览" />}</div>
+                  <div><strong>{customBackground ? '自定义背景' : '天创云端默认背景'}</strong><small>{customBackground ? '图片已复制到应用数据目录' : '当前项目内置的玻璃云端背景'}</small><span><button className="secondary-button" onClick={() => void onSelectBackground()}><ImageIcon size={15} />选择图片</button>{customBackground && <button className="plain-button" onClick={() => void onResetBackground()}>恢复默认</button>}</span></div>
+                </div><div className="background-tuning-grid">
+                  <label><span><strong>背景模糊</strong><small>{preferences.backgroundBlur}px</small></span><input aria-label="背景模糊" type="range" min="0" max="24" step="1" value={preferences.backgroundBlur} onInput={(event) => onChange({ ...preferences, backgroundBlur: Number(event.currentTarget.value) })} /></label>
+                  <label><span><strong>背景不透明度</strong><small>{Math.round(preferences.backgroundOpacity * 100)}%</small></span><input type="range" min="20" max="100" step="5" value={preferences.backgroundOpacity * 100} onChange={(event) => onChange({ ...preferences, backgroundOpacity: Number(event.target.value) / 100 })} /></label>
+                </div></div>
+                <div><div className="setting-group-heading"><strong>背景动态效果</strong><span>悬停即可预览</span></div><label className="effect-search"><Search size={15} /><input value={backgroundEffectSearch} onChange={(event) => setBackgroundEffectSearch(event.target.value)} placeholder="搜索背景效果" /></label><div className="cursor-choice-grid two">
+                  {visibleBackgroundEffects.map((item) => <button key={item.value} className={preferences.backgroundEffect === item.value ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect(item.value)} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect(item.value)} aria-pressed={preferences.backgroundEffect === item.value} disabled={reduceMotion && item.value !== 'none'}><span className={`effect-preview ${item.className}`}>{item.icon}</span><span><strong>{item.title}</strong><small>{item.description} · 悬停预览</small></span><Check size={15} /></button>)}
+                </div>{!visibleBackgroundEffects.length && <div className="effect-search-empty">没有匹配的背景效果</div>}</div>
+                {preferences.backgroundEffect === 'ripple' && preferences.effect === 'fluid' && <div className="motion-safety-note"><ShieldCheck size={16} /><span>流体彩雾启用期间，水波背景会自动暂停，避免同时占用 GPU。</span></div>}
+                <div className="performance-note"><Waves size={16} /><span>实时背景使用 GPU 渲染；电池模式或远程桌面中建议降低动态效果。</span></div>
+              </section>
+            </FadeContent>}
+            {category === 'library' && <FadeContent key="library" duration={220} blurAmount={4}><section><div className="setting-group-heading"><strong>资料库视图</strong><span>进入资料库首页时的浏览方式</span></div><div className="cursor-choice-grid two">
               <button className={preferences.libraryView === 'glass' ? 'active' : ''} onClick={() => setLibraryView('glass')} aria-pressed={preferences.libraryView === 'glass'}><span className="effect-preview quiet"><Grid2X2 size={20} /></span><span><strong>玻璃图标</strong><small>清晰直观，适合日常管理</small></span><Check size={15} /></button>
               <button className={preferences.libraryView === 'motion' ? 'active' : ''} onClick={() => setLibraryView('motion')} aria-pressed={preferences.libraryView === 'motion'} disabled={reduceMotion}><span className="effect-preview ripple"><Layers3 size={20} /></span><span><strong>动态网格</strong><small>使用封面构成有序运动网格</small></span><Check size={15} /></button>
-            </div>
-          </section>
-          </FadeContent>
-          <FadeContent duration={220} delay={30} blurAmount={4}>
-          <section>
-            <div className="setting-group-heading"><strong>指针配色</strong><span>分别设置空闲状态和控件吸附状态</span></div>
-            <div className="cursor-color-grid">
-              <label><span><strong>基础颜色</strong><small>{preferences.cursorColor}</small></span><input type="color" value={preferences.cursorColor} onChange={(event) => onChange({ ...preferences, cursorColor: event.target.value })} /></label>
-              <label><span><strong>吸附颜色</strong><small>{preferences.cursorTargetColor}</small></span><input type="color" value={preferences.cursorTargetColor} onChange={(event) => onChange({ ...preferences, cursorTargetColor: event.target.value })} /></label>
-            </div>
-          </section>
-          </FadeContent>
-          <FadeContent duration={220} delay={35} blurAmount={4}>
-          <section>
-            <div className="setting-group-heading"><strong>动态轨迹</strong><span>装饰效果不会改变点击行为</span></div>
-            <div className="cursor-choice-grid three">
-              <button className={preferences.effect === 'none' ? 'active' : ''} onClick={() => setEffect('none')} aria-pressed={preferences.effect === 'none'}><span className="effect-preview quiet"><Monitor size={20} /></span><span><strong>关闭</strong><small>性能优先</small></span><Check size={15} /></button>
-              <button className={preferences.effect === 'fluid' ? 'active' : ''} onClick={() => setEffect('fluid')} aria-pressed={preferences.effect === 'fluid'} disabled={reduceMotion}><span className="effect-preview fluid"><Waves size={20} /></span><span><strong>流体彩雾</strong><small>移动时产生渐色流体</small></span><Check size={15} /></button>
-              <button className={preferences.effect === 'fireworks' ? 'active' : ''} onClick={() => setEffect('fireworks')} aria-pressed={preferences.effect === 'fireworks'} disabled={reduceMotion}><span className="effect-preview fireworks"><Sparkles size={20} /></span><span><strong>白色点击烟花</strong><small>缓慢扩散并柔和消退</small></span><Check size={15} /></button>
-            </div>
-          </section>
-          </FadeContent>
-          <FadeContent duration={220} delay={70} blurAmount={4}>
-          <section>
-            <div className="setting-group-heading"><strong>背景动态效果</strong><span>效果叠加在当前背景图上</span></div>
-            <label className="effect-search"><Search size={15} /><input value={backgroundEffectSearch} onChange={(event) => setBackgroundEffectSearch(event.target.value)} placeholder="搜索背景效果" /></label>
-            <div className="cursor-choice-grid two">
-              {visibleBackgroundEffects.map((item) => <button key={item.value} className={preferences.backgroundEffect === item.value ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect(item.value)} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect(item.value)} aria-pressed={preferences.backgroundEffect === item.value} disabled={reduceMotion && item.value !== 'none'}><span className={`effect-preview ${item.className}`}>{item.icon}</span><span><strong>{item.title}</strong><small>{item.description} · 悬停预览</small></span><Check size={15} /></button>)}
-            </div>
-            {!visibleBackgroundEffects.length && <div className="effect-search-empty">没有匹配的背景效果</div>}
-          </section>
-          </FadeContent>
-          {reduceMotion && <div className="motion-safety-note"><ShieldCheck size={16} /><span>系统已启用“减少动态效果”，动态轨迹会暂时停用，指针外观不受影响。</span></div>}
-          {preferences.backgroundEffect === 'ripple' && preferences.effect === 'fluid' && <div className="motion-safety-note"><ShieldCheck size={16} /><span>流体彩雾启用期间，水波背景会自动暂停，避免两个实时流体效果同时占用 GPU。</span></div>}
-          <div className="performance-note"><Waves size={16} /><span>流体彩雾使用 GPU 实时渲染；在电池模式或远程桌面中，建议选择点击烟花或关闭。</span></div>
+            </div></section></FadeContent>}
+            {category === 'about' && <FadeContent key="about" duration={220} blurAmount={4}><section className="settings-about-panel"><div className="setting-group-heading"><strong>项目与作者</strong><span>个人主页与项目链接</span></div><p>这里集中展示作者主页、当前项目以及后续加入的个人内容。你提供图片后，可以直接扩展为带封面的滚动展示。</p><div className="settings-project-loop"><LogoLoop logos={PROJECT_LINKS} speed={28} hoverSpeed={5} gap={10} ariaLabel="天创云端项目与作者链接" /></div></section></FadeContent>}
+          </div>
         </div>
         <footer><button className="primary-button" onClick={onClose}>完成</button></footer>
       </motion.section>

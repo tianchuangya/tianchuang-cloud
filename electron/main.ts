@@ -59,14 +59,14 @@ function queueAutomaticSync(workspaceId: string, delay = 3500): void {
 }
 
 async function refreshWatchers(): Promise<void> {
-  const active = new Set(snapshot().workspaces.filter((item) => item.autoSync).map((item) => item.id))
+  const active = new Set(snapshot().workspaces.filter((item) => item.autoSync && item.syncOnChange !== false).map((item) => item.id))
   for (const [id, watcher] of watchers) {
     if (!active.has(id)) {
       await watcher.close()
       watchers.delete(id)
     }
   }
-  for (const workspace of snapshot().workspaces.filter((item) => item.autoSync)) {
+  for (const workspace of snapshot().workspaces.filter((item) => item.autoSync && item.syncOnChange !== false)) {
     if (watchers.has(workspace.id)) continue
     const watcher = chokidar.watch(workspace.path, {
       ignoreInitial: true,
@@ -108,7 +108,7 @@ function createWindow(): void {
   })
   mainWindow.once('ready-to-show', () => mainWindow?.show())
   mainWindow.on('focus', () => {
-    for (const workspace of snapshot().workspaces.filter((item) => item.syncOnFocus)) queueAutomaticSync(workspace.id, 400)
+    for (const workspace of snapshot().workspaces.filter((item) => item.autoSync && item.syncOnFocus)) queueAutomaticSync(workspace.id, 400)
   })
   mainWindow.on('close', (event) => {
     if (!quitting) {
@@ -188,8 +188,13 @@ function registerIpc(): void {
     send('app:snapshot-changed')
     return updated
   })
-  ipcMain.handle('workspace:update', async (_event, id: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>) => {
+  ipcMain.handle('workspace:update', async (_event, id: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'name'>) => {
     const updated = updateWorkspaceSettings(id, changes)
+    const queued = syncTimers.get(id)
+    if (queued) {
+      clearTimeout(queued)
+      syncTimers.delete(id)
+    }
     await refreshWatchers()
     send('app:snapshot-changed')
     return updated

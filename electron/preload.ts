@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('tianchuang', {
   getWorkspaceCover: (workspaceId: string) => ipcRenderer.invoke('workspace:cover:data', workspaceId),
   pickWorkspaceCover: (workspaceId: string) => ipcRenderer.invoke('workspace:cover:pick', workspaceId),
   saveWorkspaceCover: (workspaceId: string, dataUrl: string) => ipcRenderer.invoke('workspace:cover:save', workspaceId, dataUrl),
-  updateWorkspace: (workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>) => ipcRenderer.invoke('workspace:update', workspaceId, changes),
+  updateWorkspace: (workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'name'>) => ipcRenderer.invoke('workspace:update', workspaceId, changes),
   removeWorkspace: (workspaceId: string) => ipcRenderer.invoke('workspace:remove', workspaceId),
   addTarget: (draft: TargetDraft) => ipcRenderer.invoke('target:add', draft),
   getGitHubSession: () => ipcRenderer.invoke('github:session'),
