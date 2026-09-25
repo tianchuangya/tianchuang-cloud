@@ -330,7 +330,7 @@ function App() {
     >
       <InteractiveBackdrop effect={cursorPreferences.effect === 'fluid' ? 'none' : (backgroundEffectPreview || cursorPreferences.backgroundEffect)} image={customBackground} blur={cursorPreferences.backgroundBlur} opacity={cursorPreferences.backgroundOpacity} />
       <CursorExperience preferences={cursorPreferences} />
-      <AnimatePresence>{showStartup && <StartupExperience ready={appReady} effect={cursorPreferences.startupEffect} onComplete={completeStartup} />}</AnimatePresence>
+      <AnimatePresence>{showStartup && <StartupExperience key="startup-experience" ready={appReady} effect={cursorPreferences.startupEffect} onComplete={completeStartup} />}</AnimatePresence>
       <header className="titlebar">
         <div className="brand-mark"><Cloud size={16} strokeWidth={2.3} /></div>
         <span>天创云端</span>
