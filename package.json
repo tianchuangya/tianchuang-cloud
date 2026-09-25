@@ -2,7 +2,11 @@
   "name": "tianchuang-cloud",
   "private": true,
   "version": "0.1.0",
-  "author": "Tianchuang",
+  "author": {
+    "name": "Tianchuang",
+    "email": "tianchuangya@users.noreply.github.com"
+  },
+  "desktopName": "Tianchuang Cloud",
   "description": "Cross-platform multi-target file sync with conflict-aware Git, WebDAV and local backups.",
   "main": "dist-electron/main.js",
   "type": "module",
@@ -46,6 +50,7 @@
         "deb"
       ],
       "category": "Utility",
+      "syncDesktopName": true,
       "icon": "build/icon.png",
       "artifactName": "Tianchuang-Cloud-${version}-Linux-${arch}.${ext}"
     }
