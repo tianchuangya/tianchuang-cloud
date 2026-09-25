@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, ArchiveRestore, ArrowLeft, Check, ChevronRight, Cloud, CloudUpload, Crop,
   Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, Grid2X2, HardDrive, History, Image as ImageIcon, ImagePlus, Layers3, LoaderCircle,
   LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
-  Settings, ShieldCheck, Sparkles, SunMedium, Trash2, Waves, X, ZoomIn,
+  Search, Settings, ShieldCheck, Sparkles, SunMedium, Trash2, Waves, X, ZoomIn,
 } from 'lucide-react'
 import type {
   AppSnapshot, GitHubSession, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
@@ -452,10 +452,19 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, view, onChange
 
 function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const [backgroundEffectSearch, setBackgroundEffectSearch] = useState('')
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
   const setBackgroundEffect = (backgroundEffect: BackgroundEffect) => onChange({ ...preferences, backgroundEffect })
   const setLibraryView = (libraryView: LibraryView) => onChange({ ...preferences, libraryView })
+  const backgroundEffects: Array<{ value: BackgroundEffect; title: string; description: string; className: string; icon: React.ReactNode }> = [
+    { value: 'none', title: '无动态效果', description: '只显示背景图与透明玻璃材质', className: 'quiet', icon: <Layers3 size={20} /> },
+    { value: 'ripple', title: '水波折射', description: '移动或点击时扰动背景材质', className: 'ripple', icon: <Droplets size={20} /> },
+    { value: 'rays', title: '侧光流束', description: '缓慢移动的半透明光束', className: 'rays', icon: <SunMedium size={20} /> },
+    { value: 'particles', title: '微光粒子', description: '低密度白色粒子缓慢漂移', className: 'particles', icon: <Sparkles size={20} /> },
+    { value: 'aurora', title: '柔光极光', description: 'OGL 柔和光带与色彩流动', className: 'aurora', icon: <Waves size={20} /> },
+  ]
+  const visibleBackgroundEffects = backgroundEffects.filter((item) => `${item.title}${item.description}${item.value}`.toLowerCase().includes(backgroundEffectSearch.trim().toLowerCase()))
 
   return (
     <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -515,12 +524,11 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
           <FadeContent duration={220} delay={70} blurAmount={4}>
           <section>
             <div className="setting-group-heading"><strong>背景动态效果</strong><span>效果叠加在当前背景图上</span></div>
+            <label className="effect-search"><Search size={15} /><input value={backgroundEffectSearch} onChange={(event) => setBackgroundEffectSearch(event.target.value)} placeholder="搜索背景效果" /></label>
             <div className="cursor-choice-grid two">
-              <button className={preferences.backgroundEffect === 'none' ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect('none')} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect('none')} aria-pressed={preferences.backgroundEffect === 'none'}><span className="effect-preview quiet"><Layers3 size={20} /></span><span><strong>无动态效果</strong><small>悬停预览，点击后保存</small></span><Check size={15} /></button>
-              <button className={preferences.backgroundEffect === 'ripple' ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect('ripple')} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect('ripple')} aria-pressed={preferences.backgroundEffect === 'ripple'} disabled={reduceMotion}><span className="effect-preview ripple"><Droplets size={20} /></span><span><strong>水波折射</strong><small>悬停预览，移动或点击扰动</small></span><Check size={15} /></button>
-              <button className={preferences.backgroundEffect === 'rays' ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect('rays')} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect('rays')} aria-pressed={preferences.backgroundEffect === 'rays'} disabled={reduceMotion}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光流束</strong><small>悬停预览，点击后保存</small></span><Check size={15} /></button>
-              <button className={preferences.backgroundEffect === 'particles' ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect('particles')} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect('particles')} aria-pressed={preferences.backgroundEffect === 'particles'} disabled={reduceMotion}><span className="effect-preview particles"><Sparkles size={20} /></span><span><strong>微光粒子</strong><small>悬停预览，点击后保存</small></span><Check size={15} /></button>
+              {visibleBackgroundEffects.map((item) => <button key={item.value} className={preferences.backgroundEffect === item.value ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect(item.value)} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect(item.value)} aria-pressed={preferences.backgroundEffect === item.value} disabled={reduceMotion && item.value !== 'none'}><span className={`effect-preview ${item.className}`}>{item.icon}</span><span><strong>{item.title}</strong><small>{item.description} · 悬停预览</small></span><Check size={15} /></button>)}
             </div>
+            {!visibleBackgroundEffects.length && <div className="effect-search-empty">没有匹配的背景效果</div>}
           </section>
           </FadeContent>
           {reduceMotion && <div className="motion-safety-note"><ShieldCheck size={16} /><span>系统已启用“减少动态效果”，动态轨迹会暂时停用，指针外观不受影响。</span></div>}

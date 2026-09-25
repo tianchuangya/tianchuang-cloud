@@ -1,6 +1,6 @@
 export type CursorStyle = 'rectangle' | 'system'
 export type CursorEffect = 'none' | 'fluid' | 'fireworks'
-export type BackgroundEffect = 'none' | 'ripple' | 'rays' | 'particles'
+export type BackgroundEffect = 'none' | 'ripple' | 'rays' | 'particles' | 'aurora'
 export type LibraryView = 'glass' | 'motion'
 
 export interface CursorPreferences {
@@ -35,7 +35,7 @@ export function loadCursorPreferences(): CursorPreferences {
     return {
       style: stored.style === 'system' ? 'system' : 'rectangle',
       effect: stored.effect === 'fluid' || stored.effect === 'fireworks' ? stored.effect : 'none',
-      backgroundEffect: storedBackgroundEffect === 'rays' || storedBackgroundEffect === 'particles' || storedBackgroundEffect === 'none' || storedBackgroundEffect === 'static'
+      backgroundEffect: storedBackgroundEffect === 'rays' || storedBackgroundEffect === 'particles' || storedBackgroundEffect === 'aurora' || storedBackgroundEffect === 'none' || storedBackgroundEffect === 'static'
         ? (storedBackgroundEffect === 'static' ? 'none' : storedBackgroundEffect)
         : 'ripple',
       backgroundBlur: typeof stored.backgroundBlur === 'number' ? Math.min(24, Math.max(0, stored.backgroundBlur)) : 0,
