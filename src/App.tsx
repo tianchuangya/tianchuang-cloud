@@ -4,10 +4,10 @@ import {
   Activity, AlertTriangle, ArchiveRestore, ArrowLeft, Check, ChevronRight, Cloud, CloudUpload, Crop,
   Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, Grid2X2, HardDrive, History, Image as ImageIcon, ImagePlus, Layers3, LoaderCircle,
   LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
-  Search, Settings, ShieldCheck, Sparkles, SunMedium, Trash2, Waves, X, ZoomIn,
+  Search, Settings, Share2, ShieldCheck, Sparkles, SunMedium, Trash2, UserPlus, Waves, X, ZoomIn,
 } from 'lucide-react'
 import type {
-  AppSnapshot, GitHubSession, ProviderKind, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
+  AppSnapshot, GitHubCollaborator, GitHubCollaboratorPermission, GitHubSession, ProviderKind, SyncDecision, SyncPlan, SyncProgress, SyncTarget, TargetDraft, WorkspaceProfile,
 } from '../electron/types'
 import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
@@ -91,6 +91,7 @@ function App() {
   const [customBackground, setCustomBackground] = useState<string>()
   const [backgroundEffectPreview, setBackgroundEffectPreview] = useState<BackgroundEffect>()
   const [coverCrop, setCoverCrop] = useState<{ workspace: WorkspaceProfile; source: string }>()
+  const [collaborationTarget, setCollaborationTarget] = useState<SyncTarget>()
 
   const applyNavigation = (state: AppNavigationState) => {
     setShowOverview(state.view === 'overview')
@@ -422,7 +423,7 @@ function App() {
                       <button className="sync-button" onClick={() => void checkTarget(selected.id, target.id)}><RefreshCw size={16} />同步</button>
                       <div className="more-wrap">
                         <button className="icon-button" title="更多操作" onClick={() => setMenuTargetId(menuTargetId === target.id ? undefined : target.id)}><MoreHorizontal size={18} /></button>
-                        {menuTargetId === target.id && <div className="context-menu glass-material"><button onClick={async () => { await window.tianchuang.removeTarget(selected.id, target.id); setMenuTargetId(undefined); await refresh() }}><Trash2 size={15} />移除目标</button></div>}
+                        {menuTargetId === target.id && <div className="context-menu glass-material">{target.config.kind === 'git' && target.config.provider === 'github' && <button onClick={() => { setCollaborationTarget(target); setMenuTargetId(undefined) }}><Share2 size={15} />协作与分享</button>}<button onClick={async () => { await window.tianchuang.removeTarget(selected.id, target.id); setMenuTargetId(undefined); await refresh() }}><Trash2 size={15} />移除目标</button></div>}
                       </div>
                     </article>
                   ))}
@@ -482,6 +483,7 @@ function App() {
         {removeWorkspaceDialog && <RemoveWorkspaceDialog key="remove-workspace-dialog" workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
         {settingsDialog && <CursorSettingsDialog key="settings-dialog" preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onChange={changeCursorPreferences} onClose={closeSettings} />}
         {coverCrop && <CoverCropDialog key="cover-crop-dialog" workspace={coverCrop.workspace} source={coverCrop.source} onClose={() => setCoverCrop(undefined)} onSave={saveCroppedCover} />}
+        {collaborationTarget?.config.kind === 'git' && <CollaborationDialog key="collaboration-dialog" targetName={collaborationTarget.name} remoteUrl={collaborationTarget.config.remoteUrl} onClose={() => setCollaborationTarget(undefined)} />}
         {progress && <ProgressOverlay key="progress-overlay" progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div key="notice-toast" className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
@@ -876,7 +878,7 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
           {kind === 'local' && <>
             <label className="field full"><span>位置类型</span><select value={locationType} onChange={(event) => setLocationType(event.target.value as typeof locationType)}><option value="local">本机文件夹</option><option value="removable">移动硬盘</option><option value="network">网络磁盘 / NAS</option></select></label>
             <label className="field full"><span>目标文件夹</span><div className="input-action"><input readOnly value={destinationPath} placeholder="选择移动硬盘、NAS 挂载目录或其他文件夹" /><button onClick={async () => { const value = await window.tianchuang.selectMirrorFolder(); if (value) setDestinationPath(value) }}>选择</button></div></label>
-            <div className="form-note full"><ArchiveRestore size={16} /><span>{locationType === 'network' ? '网络磁盘或 NAS 需要先由操作系统挂载为可访问目录。' : locationType === 'removable' ? '移动硬盘断开时会停止该目标同步，不会影响其他备份。' : '本机文件夹适合备份到另一块内置磁盘或固定目录。'}镜像只复制新增和变化文件，不自动删除历史文件。</span></div>
+            <div className="form-note full"><ArchiveRestore size={16} /><span>{locationType === 'network' ? '网络磁盘或 NAS 需要先由操作系统挂载为可访问目录。' : locationType === 'removable' ? '移动硬盘断开时会停止该目标同步，不会影响其他备份。' : '本机文件夹适合备份到另一块内置磁盘或固定目录。'}镜像会记录受管文件；本地删除只有经你确认后才会传播到目标。</span></div>
           </>}
           {kind === 'webdav' && <>
             <label className="field full"><span>服务器地址</span><input placeholder="https://cloud.example.com/remote.php/dav/files/name" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} /></label>
@@ -888,6 +890,79 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
         </FadeContent>
         {error && <div className="form-error" role="alert"><AlertTriangle size={15} />{error}</div>}
         <footer><button className="plain-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}添加目标</button></footer>
+      </motion.section>
+    </motion.div>
+  )
+}
+
+function CollaborationDialog({ targetName, remoteUrl, onClose }: { targetName: string; remoteUrl: string; onClose: () => void }) {
+  const [collaborators, setCollaborators] = useState<GitHubCollaborator[]>([])
+  const [username, setUsername] = useState('')
+  const [permission, setPermission] = useState<GitHubCollaboratorPermission>('pull')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [sent, setSent] = useState('')
+
+  const refreshCollaborators = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setCollaborators(await window.tianchuang.listGitHubCollaborators(remoteUrl))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setLoading(false)
+    }
+  }, [remoteUrl])
+
+  useEffect(() => {
+    let active = true
+    void window.tianchuang.listGitHubCollaborators(remoteUrl).then((items) => {
+      if (active) setCollaborators(items)
+    }).catch((reason) => {
+      if (active) setError(reason instanceof Error ? reason.message : String(reason))
+    }).finally(() => {
+      if (active) setLoading(false)
+    })
+    return () => { active = false }
+  }, [remoteUrl])
+
+  const invite = async () => {
+    setSaving(true)
+    setError('')
+    setSent('')
+    try {
+      await window.tianchuang.inviteGitHubCollaborator({ remoteUrl, username, permission })
+      setSent(`已向 @${username.trim().replace(/^@/, '')} 发送${permission === 'push' ? '可更新' : '只读'}邀请`)
+      setUsername('')
+      await refreshCollaborators()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.section className="modal glass-modal collaboration-modal" initial={{ opacity: 0, scale: .97, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .98, y: 8 }} transition={{ type: 'spring', bounce: 0, duration: .32 }}>
+        <header><div className="review-symbol"><Share2 size={21} /></div><div><h2>协作与分享</h2><p>{targetName} · {remoteUrl}</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
+        <div className="collaboration-body">
+          <div className="collaboration-invite">
+            <label className="field"><span>GitHub 用户名</span><input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="username" /></label>
+            <label className="field"><span>协作权限</span><select value={permission} onChange={(event) => setPermission(event.target.value as GitHubCollaboratorPermission)}><option value="pull">只读，可接收更新</option><option value="push">可更新，可共同同步</option></select></label>
+            <button className="primary-button" disabled={saving || !username.trim()} onClick={() => void invite()}>{saving ? <LoaderCircle className="spin" size={16} /> : <UserPlus size={16} />}发送邀请</button>
+          </div>
+          <div className="form-note"><ShieldCheck size={16} /><span>邀请由 GitHub 管理。对方接受后，在天创云端选择“已有仓库”并填入此地址即可接收更新。</span></div>
+          {error && <div className="form-error" role="alert"><AlertTriangle size={15} />{error}</div>}
+          {sent && <div className="form-success"><Check size={15} />{sent}</div>}
+          <div className="collaboration-list">
+            <strong>成员与待接受邀请</strong>
+            {loading ? <div className="collaboration-empty"><LoaderCircle className="spin" size={16} />正在读取 GitHub 权限</div> : collaborators.length ? collaborators.map((item) => <div className="collaborator-row" key={`${item.username}-${item.pending}`}><span className="collaborator-avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : item.username.slice(0, 1).toUpperCase()}</span><span><strong>@{item.username}</strong><small>{item.pending ? '等待对方接受邀请' : '已加入资料库'}</small></span><em>{item.permission === 'push' ? '可更新' : item.permission === 'pull' ? '只读' : item.permission}</em></div>) : <div className="collaboration-empty">尚未添加协作者</div>}
+          </div>
+        </div>
+        <footer><button className="plain-button" onClick={onClose}>完成</button></footer>
       </motion.section>
     </motion.div>
   )

@@ -129,3 +129,18 @@ export interface GitHubRepositoryResult {
   htmlUrl: string
   private: boolean
 }
+
+export type GitHubCollaboratorPermission = 'pull' | 'push'
+
+export interface GitHubCollaborator {
+  username: string
+  avatarUrl?: string
+  permission: string
+  pending: boolean
+}
+
+export interface GitHubCollaboratorDraft {
+  remoteUrl: string
+  username: string
+  permission: GitHubCollaboratorPermission
+}

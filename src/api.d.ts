@@ -2,6 +2,8 @@ import type {
   AppSnapshot,
   GitHubRepositoryDraft,
   GitHubRepositoryResult,
+  GitHubCollaborator,
+  GitHubCollaboratorDraft,
   GitHubSession,
   SyncDecision,
   SyncPlan,
@@ -31,6 +33,8 @@ declare global {
       getGitHubSession(): Promise<GitHubSession>
       loginGitHub(): Promise<GitHubSession>
       createGitHubRepository(draft: GitHubRepositoryDraft): Promise<GitHubRepositoryResult>
+      listGitHubCollaborators(remoteUrl: string): Promise<GitHubCollaborator[]>
+      inviteGitHubCollaborator(draft: GitHubCollaboratorDraft): Promise<void>
       removeTarget(workspaceId: string, targetId: string): Promise<WorkspaceProfile>
       planSync(workspaceId: string, targetId: string): Promise<SyncPlan>
       runSync(planId: string, decision: SyncDecision): Promise<AppSnapshot>

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import type { GitHubRepositoryDraft, GitHubRepositoryResult, GitHubSession } from './types.js'
+import type { GitHubCollaborator, GitHubCollaboratorDraft, GitHubRepositoryDraft, GitHubRepositoryResult, GitHubSession } from './types.js'
 
 interface CommandResult {
   stdout: string
@@ -70,7 +70,20 @@ async function githubRequest<T>(path: string, token: string, init?: RequestInit)
     if (response.status === 401 || response.status === 403) throw new Error('GitHub 登录已失效，请重新登录')
     throw new Error(body.message || `GitHub 请求失败（${response.status}）`)
   }
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
+}
+
+export function parseGitHubRepository(remoteUrl: string): { owner: string; repository: string } {
+  const match = remoteUrl.trim().match(/^(?:https?:\/\/github\.com\/|git@github\.com:)([^/]+)\/([^/]+?)(?:\.git)?\/?$/i)
+  if (!match) throw new Error('这不是有效的 GitHub 仓库地址')
+  return { owner: match[1], repository: match[2] }
+}
+
+async function primaryCredential(): Promise<{ username: string; token: string }> {
+  const accounts = await accountNames()
+  if (!accounts.length) throw new Error('请先登录 GitHub')
+  return credential(accounts[0])
 }
 
 export function validateRepositoryName(name: string): string {
@@ -144,4 +157,28 @@ export async function createGitHubRepository(draft: GitHubRepositoryDraft): Prom
     htmlUrl: repository.html_url,
     private: repository.private,
   }
+}
+
+export async function listGitHubCollaborators(remoteUrl: string): Promise<GitHubCollaborator[]> {
+  const { owner, repository } = parseGitHubRepository(remoteUrl)
+  const auth = await primaryCredential()
+  const [members, invitations] = await Promise.all([
+    githubRequest<Array<{ login: string; avatar_url?: string; role_name?: string }>>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/collaborators`, auth.token),
+    githubRequest<Array<{ invitee?: { login?: string; avatar_url?: string }; permissions?: string }>>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/invitations`, auth.token),
+  ])
+  return [
+    ...members.filter((member) => member.login !== owner).map((member) => ({ username: member.login, avatarUrl: member.avatar_url, permission: member.role_name || 'pull', pending: false })),
+    ...invitations.flatMap((invitation) => invitation.invitee?.login ? [{ username: invitation.invitee.login, avatarUrl: invitation.invitee.avatar_url, permission: invitation.permissions || 'pull', pending: true }] : []),
+  ]
+}
+
+export async function inviteGitHubCollaborator(draft: GitHubCollaboratorDraft): Promise<void> {
+  const { owner, repository } = parseGitHubRepository(draft.remoteUrl)
+  const username = draft.username.trim().replace(/^@/, '')
+  if (!/^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i.test(username)) throw new Error('请输入有效的 GitHub 用户名')
+  const auth = await primaryCredential()
+  await githubRequest(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/collaborators/${encodeURIComponent(username)}`, auth.token, {
+    method: 'PUT',
+    body: JSON.stringify({ permission: draft.permission }),
+  })
 }

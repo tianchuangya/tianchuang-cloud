@@ -53,6 +53,8 @@ export function installDemoApi(): void {
       htmlUrl: `https://github.com/tianchuangya/${draft.name}`,
       private: draft.private,
     }),
+    listGitHubCollaborators: async () => [{ username: 'teammate', permission: 'push', pending: false }],
+    inviteGitHubCollaborator: async () => undefined,
     removeTarget: async () => demoSnapshot.workspaces[0],
     planSync: async (workspaceId, targetId): Promise<SyncPlan> => ({
       id: 'demo-plan', workspaceId, targetId, targetName: 'GitHub 主备份', provider: 'git',

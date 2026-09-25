@@ -14,10 +14,10 @@ import {
   updateWorkspaceSettings,
 } from './sync-service.js'
 import { removeWorkspace, updateWorkspace } from './store.js'
-import { createGitHubRepository, githubSession, loginGitHub } from './github.js'
+import { createGitHubRepository, githubSession, inviteGitHubCollaborator, listGitHubCollaborators, loginGitHub } from './github.js'
 import { coverDataUrl, coverFileFilters, findWorkspaceCover, saveWorkspaceCoverData } from './covers.js'
 import { backgroundFileFilters, clearCustomBackground, copyCustomBackground, findCustomBackground, imageDataUrl } from './backgrounds.js'
-import type { GitHubRepositoryDraft, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
+import type { GitHubCollaboratorDraft, GitHubRepositoryDraft, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 let mainWindow: BrowserWindow | undefined
@@ -240,6 +240,8 @@ function registerIpc(): void {
   ipcMain.handle('github:session', () => githubSession())
   ipcMain.handle('github:login', () => loginGitHub())
   ipcMain.handle('github:repository:create', (_event, draft: GitHubRepositoryDraft) => createGitHubRepository(draft))
+  ipcMain.handle('github:collaborators:list', (_event, remoteUrl: string) => listGitHubCollaborators(remoteUrl))
+  ipcMain.handle('github:collaborators:invite', (_event, draft: GitHubCollaboratorDraft) => inviteGitHubCollaborator(draft))
   ipcMain.handle('target:remove', (_event, workspaceId: string, targetId: string) => {
     const updated = removeTarget(workspaceId, targetId)
     send('app:snapshot-changed')
