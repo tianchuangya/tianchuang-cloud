@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { CursorPreferences } from './cursor-preferences'
 
 const SplashCursor = lazy(() => import('./SplashCursor.jsx'))
@@ -7,7 +7,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-function RectangleCursor() {
+function RectangleCursor({ preferences }: { preferences: CursorPreferences }) {
   const cursorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -17,6 +17,7 @@ function RectangleCursor() {
     let x = window.innerWidth / 2
     let y = window.innerHeight / 2
     let activeTarget: HTMLElement | null = null
+    let feedbackTimer = 0
 
     const interactiveSelector = [
       'button:not(:disabled)',
@@ -64,7 +65,15 @@ function RectangleCursor() {
       }
       scheduleRender()
     }
-    const down = () => cursor.classList.add('pressed')
+    const down = (event: PointerEvent) => {
+      cursor.classList.add('pressed')
+      const feedbackClass = event.button === 2 ? 'secondary-click' : 'primary-click'
+      cursor.classList.remove('primary-click', 'secondary-click')
+      void cursor.offsetWidth
+      cursor.classList.add(feedbackClass)
+      window.clearTimeout(feedbackTimer)
+      feedbackTimer = window.setTimeout(() => cursor.classList.remove(feedbackClass), 340)
+    }
     const up = () => cursor.classList.remove('pressed')
     const hide = () => {
       activeTarget = null
@@ -80,6 +89,7 @@ function RectangleCursor() {
     render()
     return () => {
       if (frame) cancelAnimationFrame(frame)
+      window.clearTimeout(feedbackTimer)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerdown', down)
       window.removeEventListener('pointerup', up)
@@ -90,7 +100,7 @@ function RectangleCursor() {
     }
   }, [])
 
-  return <div ref={cursorRef} className="custom-cursor" aria-hidden="true"><i /></div>
+  return <div ref={cursorRef} className="custom-cursor" style={{ '--cursor-color': preferences.cursorColor, '--cursor-target-color': preferences.cursorTargetColor } as CSSProperties} aria-hidden="true"><i /></div>
 }
 
 interface Particle {
@@ -187,7 +197,7 @@ export default function CursorExperience({ preferences }: { preferences: CursorP
   }, [])
 
   return <>
-    {preferences.style === 'rectangle' && <RectangleCursor />}
+    {preferences.style === 'rectangle' && <RectangleCursor preferences={preferences} />}
     {!reduceMotion && preferences.effect === 'fluid' && (
       <Suspense fallback={null}><SplashCursor
         DENSITY_DISSIPATION={3.5}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, Check, ChevronRight, Cloud, CloudUpload,
-  Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, HardDrive, History, Layers3, LoaderCircle,
+  Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, Grid2X2, HardDrive, History, ImagePlus, Layers3, LoaderCircle,
   LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
   Settings, ShieldCheck, Sparkles, Trash2, Waves, X,
 } from 'lucide-react'
@@ -13,9 +13,10 @@ import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
 import FadeContent from './components/FadeContent'
 import InteractiveBackdrop from './components/InteractiveBackdrop'
+import GridMotion from './components/GridMotion'
 import LogoLoop, { type LogoLoopItem } from './components/LogoLoop'
 import {
-  loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorEffect, type CursorPreferences, type CursorStyle,
+  loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorEffect, type CursorPreferences, type CursorStyle, type LibraryView,
 } from './components/cursor-preferences'
 import './App.css'
 
@@ -77,6 +78,8 @@ function App() {
   const [removeWorkspaceDialog, setRemoveWorkspaceDialog] = useState<WorkspaceProfile>()
   const [settingsDialog, setSettingsDialog] = useState(false)
   const [cursorPreferences, setCursorPreferences] = useState(loadCursorPreferences)
+  const [showOverview, setShowOverview] = useState(true)
+  const [coverUrls, setCoverUrls] = useState<Record<string, string | undefined>>({})
 
   const refresh = async () => {
     const next = await window.tianchuang.getSnapshot()
@@ -99,6 +102,13 @@ function App() {
     const offSnapshot = window.tianchuang.onSnapshot(() => void refresh())
     return () => { offProgress(); offAttention(); offSnapshot() }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    void Promise.all(snapshot.workspaces.map(async (workspace) => [workspace.id, await window.tianchuang.getWorkspaceCover(workspace.id)] as const))
+      .then((entries) => { if (active) setCoverUrls(Object.fromEntries(entries)) })
+    return () => { active = false }
+  }, [snapshot.workspaces])
 
   useEffect(() => {
     if (!workspaceMenu) return
@@ -124,6 +134,7 @@ function App() {
       const workspace = await window.tianchuang.addWorkspace(chosen)
       await refresh()
       setSelectedId(workspace.id)
+      setShowOverview(false)
       setNotice('资料库已加入，正在监听文件变化')
       window.setTimeout(() => setNotice(undefined), 3200)
     } catch (reason) {
@@ -203,6 +214,24 @@ function App() {
     saveCursorPreferences(next)
   }
 
+  const selectWorkspaceCover = async (workspaceId: string) => {
+    setWorkspaceMenu(undefined)
+    setNoticeError(false)
+    try {
+      const updated = await window.tianchuang.selectWorkspaceCover(workspaceId)
+      if (!updated) return
+      await refresh()
+      const cover = await window.tianchuang.getWorkspaceCover(workspaceId)
+      setCoverUrls((current) => ({ ...current, [workspaceId]: cover }))
+      setNotice('封面已保存到资料库根目录，将随资料一起同步')
+      window.setTimeout(() => setNotice(undefined), 3600)
+    } catch (reason) {
+      setNoticeError(true)
+      setNotice(`设置封面失败：${reason instanceof Error ? reason.message : String(reason)}`)
+      window.setTimeout(() => setNotice(undefined), 5200)
+    }
+  }
+
   return (
     <div
       className={`app-shell ${dragging ? 'is-dragging' : ''} ${cursorPreferences.style === 'rectangle' ? 'cursor-rectangle' : ''}`}
@@ -221,12 +250,12 @@ function App() {
 
       <aside className="sidebar glass-material">
         <div className="sidebar-heading">
-          <span>资料库</span>
+          <button className={`library-home-button ${showOverview ? 'active' : ''}`} onClick={() => setShowOverview(true)}><Grid2X2 size={13} /><span>资料库</span></button>
           <button className="icon-button" title="添加资料库" aria-label="添加资料库" disabled={selectingFolder} onClick={(event) => { event.stopPropagation(); void addFolder() }}>{selectingFolder ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}</button>
         </div>
         <nav className="workspace-list" aria-label="资料库列表">
           {snapshot.workspaces.map((workspace) => (
-            <button key={workspace.id} className={`workspace-nav ${workspace.id === selectedId ? 'active' : ''}`} title="右键管理资料库" onClick={() => setSelectedId(workspace.id)} onContextMenu={(event) => { event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: event.clientX, y: event.clientY }) }}>
+            <button key={workspace.id} className={`workspace-nav ${!showOverview && workspace.id === selectedId ? 'active' : ''}`} title="右键管理资料库" onClick={() => { setSelectedId(workspace.id); setShowOverview(false) }} onContextMenu={(event) => { event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: event.clientX, y: event.clientY }) }}>
               <span className="nav-icon"><Folder size={17} /></span>
               <span className="nav-copy"><strong>{workspace.name}</strong><small>{workspace.targets.length} 个目标</small></span>
               <span className={`state-dot ${workspace.state}`} aria-label={workspace.state} />
@@ -241,7 +270,16 @@ function App() {
       </aside>
 
       <main className="content">
-        {selected ? (
+        {showOverview && snapshot.workspaces.length ? (
+          <WorkspaceOverview
+            workspaces={snapshot.workspaces}
+            covers={coverUrls}
+            view={cursorPreferences.libraryView}
+            onChangeView={(libraryView) => changeCursorPreferences({ ...cursorPreferences, libraryView })}
+            onSelect={(workspaceId) => { setSelectedId(workspaceId); setShowOverview(false) }}
+            onAdd={() => void addFolder()}
+          />
+        ) : selected ? (
           <>
             <AnimatedContent key={`${selected.id}-header`} container=".content" direction="horizontal" reverse distance={26} duration={.28} initialOpacity={.15} scale={.995}>
             <section className="workspace-header">
@@ -337,7 +375,7 @@ function App() {
       </main>
 
       <AnimatePresence>
-        {workspaceMenu && <motion.div className="workspace-context-menu glass-modal" style={{ left: workspaceMenu.x, top: workspaceMenu.y }} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} onClick={(event) => event.stopPropagation()}><button onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); setRemoveWorkspaceDialog(workspace) }}><Trash2 size={15} />从列表移除</button></motion.div>}
+        {workspaceMenu && <motion.div className="workspace-context-menu glass-modal" style={{ left: workspaceMenu.x, top: workspaceMenu.y }} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} onClick={(event) => event.stopPropagation()}><button className="neutral" onClick={() => void selectWorkspaceCover(workspaceMenu.id)}><ImagePlus size={15} />设置资料库封面</button><button onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); setRemoveWorkspaceDialog(workspace) }}><Trash2 size={15} />从列表移除</button></motion.div>}
         {dragging && <motion.div className="drop-overlay glass-material" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.div initial={{ scale: .96 }} animate={{ scale: 1 }}><FolderInput size={30} /><strong>松开以加入资料库</strong><span>文件夹内容不会被移动</span></motion.div></motion.div>}
         {targetDialog && selected && <TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
         {reviewPlan && <ReviewDialog plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
@@ -350,16 +388,47 @@ function App() {
   )
 }
 
+function WorkspaceOverview({ workspaces, covers, view, onChangeView, onSelect, onAdd }: { workspaces: WorkspaceProfile[]; covers: Record<string, string | undefined>; view: LibraryView; onChangeView: (view: LibraryView) => void; onSelect: (workspaceId: string) => void; onAdd: () => void }) {
+  return (
+    <FadeContent className="library-overview" duration={320} blurAmount={7}>
+      <section className="library-overview-header">
+        <div><span className="overview-eyebrow">所有资料库</span><h1>你的同步空间</h1><p>封面随资料库保存，换一台电脑也能保持相同识别方式。</p></div>
+        <div className="overview-actions">
+          <div className="view-switch" aria-label="资料库显示方式">
+            <button className={view === 'glass' ? 'active' : ''} title="玻璃图标" aria-label="玻璃图标视图" aria-pressed={view === 'glass'} onClick={() => onChangeView('glass')}><Grid2X2 size={16} /></button>
+            <button className={view === 'motion' ? 'active' : ''} title="动态网格" aria-label="动态网格视图" aria-pressed={view === 'motion'} onClick={() => onChangeView('motion')}><Layers3 size={16} /></button>
+          </div>
+          <button className="secondary-button" onClick={onAdd}><FolderInput size={16} />添加资料库</button>
+        </div>
+      </section>
+      {view === 'motion' ? <GridMotion workspaces={workspaces} covers={covers} onSelect={onSelect} /> : (
+        <section className="library-glass-grid" aria-label="资料库">
+          {workspaces.map((workspace, index) => (
+            <motion.button className="library-glass-card" key={workspace.id} onClick={() => onSelect(workspace.id)} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * .035, .18), duration: .24 }}>
+              <span className={`library-card-cover ${covers[workspace.id] ? 'has-cover' : ''}`}>
+                {covers[workspace.id] ? <img src={covers[workspace.id]} alt="" /> : <Folder size={34} />}
+              </span>
+              <span className="library-card-copy"><strong>{workspace.name}</strong><small>{workspace.path}</small></span>
+              <span className="library-card-meta"><i className={`state-dot ${workspace.state}`} /><span>{workspace.targets.length} 个备份目标</span><ChevronRight size={15} /></span>
+            </motion.button>
+          ))}
+        </section>
+      )}
+    </FadeContent>
+  )
+}
+
 function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences: CursorPreferences; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
   const setBackgroundEffect = (backgroundEffect: BackgroundEffect) => onChange({ ...preferences, backgroundEffect })
+  const setLibraryView = (libraryView: LibraryView) => onChange({ ...preferences, libraryView })
 
   return (
     <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.section className="modal glass-modal cursor-settings-modal" initial={{ opacity: 0, transform: 'translateY(10px) scale(.97)' }} animate={{ opacity: 1, transform: 'translateY(0) scale(1)' }} exit={{ opacity: 0, transform: 'translateY(8px) scale(.98)' }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
-        <header><div className="settings-symbol"><MousePointer2 size={21} /></div><div><h2>指针与动态效果</h2><p>设置会立即预览并仅保存在这台设备上</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
+        <header><div className="settings-symbol"><MousePointer2 size={21} /></div><div><h2>外观与动态效果</h2><p>设置会立即预览并仅保存在这台设备上</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
         <div className="cursor-settings-content">
           <FadeContent duration={220} blurAmount={4}>
           <section>
@@ -367,6 +436,24 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
             <div className="cursor-choice-grid two">
               <button className={preferences.style === 'rectangle' ? 'active' : ''} onClick={() => setStyle('rectangle')} aria-pressed={preferences.style === 'rectangle'}><span className="cursor-preview rectangle"><i /></span><span><strong>矩形高亮</strong><small>清晰、轻量，适合深色界面</small></span><Check size={15} /></button>
               <button className={preferences.style === 'system' ? 'active' : ''} onClick={() => setStyle('system')} aria-pressed={preferences.style === 'system'}><span className="cursor-preview system"><MousePointer2 size={20} /></span><span><strong>系统原生</strong><small>跟随 Windows、macOS 或 Linux</small></span><Check size={15} /></button>
+            </div>
+          </section>
+          </FadeContent>
+          <FadeContent duration={220} delay={24} blurAmount={4}>
+          <section>
+            <div className="setting-group-heading"><strong>资料库视图</strong><span>选择进入资料库首页时的浏览方式</span></div>
+            <div className="cursor-choice-grid two">
+              <button className={preferences.libraryView === 'glass' ? 'active' : ''} onClick={() => setLibraryView('glass')} aria-pressed={preferences.libraryView === 'glass'}><span className="effect-preview quiet"><Grid2X2 size={20} /></span><span><strong>玻璃图标</strong><small>清晰直观，适合日常管理</small></span><Check size={15} /></button>
+              <button className={preferences.libraryView === 'motion' ? 'active' : ''} onClick={() => setLibraryView('motion')} aria-pressed={preferences.libraryView === 'motion'} disabled={reduceMotion}><span className="effect-preview ripple"><Layers3 size={20} /></span><span><strong>动态网格</strong><small>使用封面构成有序运动网格</small></span><Check size={15} /></button>
+            </div>
+          </section>
+          </FadeContent>
+          <FadeContent duration={220} delay={30} blurAmount={4}>
+          <section>
+            <div className="setting-group-heading"><strong>指针配色</strong><span>分别设置空闲状态和控件吸附状态</span></div>
+            <div className="cursor-color-grid">
+              <label><span><strong>基础颜色</strong><small>{preferences.cursorColor}</small></span><input type="color" value={preferences.cursorColor} onChange={(event) => onChange({ ...preferences, cursorColor: event.target.value })} /></label>
+              <label><span><strong>吸附颜色</strong><small>{preferences.cursorTargetColor}</small></span><input type="color" value={preferences.cursorTargetColor} onChange={(event) => onChange({ ...preferences, cursorTargetColor: event.target.value })} /></label>
             </div>
           </section>
           </FadeContent>

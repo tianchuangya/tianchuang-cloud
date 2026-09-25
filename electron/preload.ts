@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('tianchuang', {
   selectFolder: () => ipcRenderer.invoke('folder:select'),
   folderFromFile: (file: File) => webUtils.getPathForFile(file),
   addWorkspace: (folderPath: string) => ipcRenderer.invoke('workspace:add', folderPath),
+  getWorkspaceCover: (workspaceId: string) => ipcRenderer.invoke('workspace:cover:data', workspaceId),
+  selectWorkspaceCover: (workspaceId: string) => ipcRenderer.invoke('workspace:cover:select', workspaceId),
   updateWorkspace: (workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>) => ipcRenderer.invoke('workspace:update', workspaceId, changes),
   removeWorkspace: (workspaceId: string) => ipcRenderer.invoke('workspace:remove', workspaceId),
   addTarget: (draft: TargetDraft) => ipcRenderer.invoke('target:add', draft),

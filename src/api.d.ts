@@ -18,6 +18,8 @@ declare global {
       selectMirrorFolder(): Promise<string | undefined>
       folderFromFile(file: File): string
       addWorkspace(folderPath: string): Promise<WorkspaceProfile>
+      getWorkspaceCover(workspaceId: string): Promise<string | undefined>
+      selectWorkspaceCover(workspaceId: string): Promise<WorkspaceProfile | undefined>
       updateWorkspace(workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>): Promise<WorkspaceProfile>
       removeWorkspace(workspaceId: string): Promise<void>
       addTarget(draft: TargetDraft): Promise<WorkspaceProfile>

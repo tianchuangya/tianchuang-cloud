@@ -1,0 +1,31 @@
+.library-motion-grid {
+  position: relative;
+  height: clamp(340px, 55vh, 520px);
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 16px;
+  background: rgba(5, 9, 12, .26);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .05), 0 24px 60px rgba(0, 0, 0, .18);
+}
+.library-motion-row { width: calc(100% + 160px); margin-left: -80px; display: grid; grid-template-columns: repeat(7, minmax(118px, 1fr)); gap: 10px; will-change: transform; }
+.library-motion-row:nth-child(2), .library-motion-row:nth-child(4) { margin-left: -25px; }
+.library-motion-item { position: relative; min-width: 0; height: 92px; overflow: hidden; display: flex; align-items: flex-end; padding: 11px; border: 1px solid rgba(255,255,255,.11); border-radius: 10px; color: #20272b; background: #f5f7f7; text-align: left; box-shadow: 0 10px 28px rgba(0,0,0,.15); cursor: pointer; transition: border-color 160ms ease, transform 180ms cubic-bezier(.23,1,.32,1), box-shadow 180ms ease; }
+.library-motion-item::before { content: ''; position: absolute; inset: 0; background: var(--library-cover) center / cover no-repeat; opacity: 0; transition: opacity 180ms ease, transform 260ms cubic-bezier(.23,1,.32,1); }
+.library-motion-item.has-cover::before { opacity: 1; }
+.library-motion-item.has-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 30%, rgba(4,8,10,.84)); }
+.library-motion-item:hover { z-index: 2; border-color: rgba(213,250,255,.52); transform: translateY(-3px) scale(1.025); box-shadow: 0 16px 32px rgba(0,0,0,.26); }
+.library-motion-item:hover::before { transform: scale(1.035); }
+.motion-cover-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #758087; }
+.library-motion-item.has-cover .motion-cover-placeholder { display: none; }
+.motion-item-copy { position: relative; z-index: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.motion-item-copy strong, .motion-item-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.motion-item-copy strong { font-size: 11px; font-weight: 720; }
+.motion-item-copy small { color: #657078; font-size: 8px; }
+.library-motion-item.has-cover .motion-item-copy { color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.7); }
+.library-motion-item.has-cover .motion-item-copy small { color: rgba(255,255,255,.7); }
+.library-motion-vignette { position: absolute; pointer-events: none; inset: 0; background: radial-gradient(circle at center, transparent 35%, rgba(5,9,12,.46) 100%); }
+@media (max-width: 1060px) { .library-motion-row { grid-template-columns: repeat(7, minmax(104px, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .library-motion-row { transform: none !important; } .library-motion-item:hover { transform: none; } }

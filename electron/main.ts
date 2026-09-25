@@ -13,8 +13,9 @@ import {
   snapshot,
   updateWorkspaceSettings,
 } from './sync-service.js'
-import { removeWorkspace } from './store.js'
+import { removeWorkspace, updateWorkspace } from './store.js'
 import { createGitHubRepository, githubSession, loginGitHub } from './github.js'
+import { copyWorkspaceCover, coverDataUrl, coverFileFilters, findWorkspaceCover } from './covers.js'
 import type { GitHubRepositoryDraft, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -145,10 +146,28 @@ function registerIpc(): void {
   ipcMain.handle('workspace:add', async (_event, folderPath: string) => {
     const info = await stat(folderPath).catch(() => undefined)
     if (!info?.isDirectory()) throw new Error('所选路径不是可访问的文件夹')
-    const workspace = addWorkspace(folderPath)
+    let workspace = addWorkspace(folderPath)
+    const coverPath = workspace.coverPath || await findWorkspaceCover(folderPath)
+    if (coverPath && coverPath !== workspace.coverPath) workspace = updateWorkspace(workspace.id, (item) => ({ ...item, coverPath }))
     await refreshWatchers()
     send('app:snapshot-changed')
     return workspace
+  })
+  ipcMain.handle('workspace:cover:data', async (_event, workspaceId: string) => {
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) return undefined
+    const coverPath = workspace.coverPath || await findWorkspaceCover(workspace.path)
+    return coverDataUrl(coverPath)
+  })
+  ipcMain.handle('workspace:cover:select', async (_event, workspaceId: string) => {
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) throw new Error('找不到资料库')
+    const result = await dialog.showOpenDialog({ title: `为“${workspace.name}”选择封面`, buttonLabel: '使用此封面', properties: ['openFile'], filters: coverFileFilters })
+    if (result.canceled || !result.filePaths[0]) return undefined
+    const coverPath = await copyWorkspaceCover(workspace.path, result.filePaths[0])
+    const updated = updateWorkspace(workspaceId, (item) => ({ ...item, coverPath }))
+    send('app:snapshot-changed')
+    return updated
   })
   ipcMain.handle('workspace:update', async (_event, id: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnFocus' | 'name'>) => {
     const updated = updateWorkspaceSettings(id, changes)

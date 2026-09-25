@@ -30,6 +30,8 @@ export function installDemoApi(): void {
     selectMirrorFolder: async () => undefined,
     folderFromFile: () => '',
     addWorkspace: async () => demoSnapshot.workspaces[0],
+    getWorkspaceCover: async () => undefined,
+    selectWorkspaceCover: async () => demoSnapshot.workspaces[0],
     updateWorkspace: async (id, changes) => {
       const item = demoSnapshot.workspaces.find((workspace) => workspace.id === id)!
       Object.assign(item, changes)

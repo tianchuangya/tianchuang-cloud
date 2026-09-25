@@ -42,6 +42,7 @@ export interface WorkspaceProfile {
   syncOnFocus: boolean
   state: SyncState
   lastSyncAt?: string
+  coverPath?: string
   targets: SyncTarget[]
 }
 
