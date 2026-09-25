@@ -8,16 +8,14 @@
   border: 1px solid rgba(255, 255, 255, .09);
   border-radius: 16px;
   background-color: rgba(12, 18, 22, .42);
-  background-image: linear-gradient(rgba(4,9,12,.54), rgba(4,9,12,.7)), var(--motion-background);
-  background-position: center;
-  background-size: cover;
   box-shadow: inset 0 1px rgba(255, 255, 255, .05), 0 24px 60px rgba(0, 0, 0, .18);
 }
-.library-motion-row { width: calc(100% + 160px); margin-left: -80px; display: grid; grid-template-columns: repeat(7, minmax(118px, 1fr)); gap: 10px; will-change: transform; }
+.library-motion-grid::before { content: ''; position: absolute; z-index: 0; inset: 0; pointer-events: none; opacity: var(--motion-background-opacity); background-image: linear-gradient(rgba(4,9,12,.54), rgba(4,9,12,.7)), var(--motion-background); background-position: center; background-size: cover; filter: blur(var(--motion-background-blur)); transform: scale(var(--motion-background-scale)); transform-origin: center; transition: opacity .16s ease, filter .16s ease, transform .16s ease; }
+.library-motion-row { position: relative; z-index: 1; width: calc(100% + 160px); margin-left: -80px; display: grid; grid-template-columns: repeat(7, minmax(118px, 1fr)); gap: 10px; will-change: transform; }
 .library-motion-row:nth-child(2), .library-motion-row:nth-child(4) { margin-left: -25px; }
-.library-motion-ambient { position: relative; height: 92px; overflow: hidden; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background-color: rgba(255,255,255,.035); background-image: linear-gradient(135deg, rgba(255,255,255,.08), rgba(7,12,15,.22)), var(--motion-background); background-size: auto, 760px auto; box-shadow: inset 0 1px rgba(255,255,255,.06), 0 10px 26px rgba(0,0,0,.12); filter: saturate(.65) brightness(.62); opacity: .56; }
-.library-motion-row:nth-child(2) .library-motion-ambient { filter: saturate(.8) brightness(.72); opacity: .64; }
-.library-motion-row:nth-child(3) .library-motion-ambient { filter: saturate(.55) brightness(.56); opacity: .48; }
+.library-motion-ambient { position: relative; height: 92px; overflow: hidden; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background-color: rgba(255,255,255,.035); background-image: linear-gradient(135deg, rgba(255,255,255,.08), rgba(7,12,15,.22)), var(--motion-background); background-size: auto, 760px auto; box-shadow: inset 0 1px rgba(255,255,255,.06), 0 10px 26px rgba(0,0,0,.12); filter: blur(var(--motion-background-blur)) saturate(.65) brightness(.62); opacity: var(--motion-ambient-opacity); }
+.library-motion-row:nth-child(2) .library-motion-ambient { filter: blur(var(--motion-background-blur)) saturate(.8) brightness(.72); opacity: var(--motion-ambient-opacity-even); }
+.library-motion-row:nth-child(3) .library-motion-ambient { filter: blur(var(--motion-background-blur)) saturate(.55) brightness(.56); opacity: var(--motion-ambient-opacity-third); }
 .library-motion-ambient::after { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent, rgba(213,248,252,.09), transparent); }
 .library-motion-item { position: relative; min-width: 0; height: 92px; overflow: hidden; display: flex; align-items: flex-end; padding: 11px; border: 1px solid rgba(255,255,255,.11); border-radius: 10px; color: #20272b; background: #f5f7f7; text-align: left; box-shadow: 0 10px 28px rgba(0,0,0,.15); cursor: pointer; transition: border-color 160ms ease, transform 180ms cubic-bezier(.23,1,.32,1), box-shadow 180ms ease; }
 .library-motion-item::before { content: ''; position: absolute; inset: 0; background: var(--library-cover) center / cover no-repeat; opacity: 0; transition: opacity 180ms ease, transform 260ms cubic-bezier(.23,1,.32,1); }
@@ -33,6 +31,6 @@
 .motion-item-copy small { color: #657078; font-size: 8px; }
 .library-motion-item.has-cover .motion-item-copy { color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.7); }
 .library-motion-item.has-cover .motion-item-copy small { color: rgba(255,255,255,.7); }
-.library-motion-vignette { position: absolute; pointer-events: none; inset: 0; background: radial-gradient(circle at center, transparent 35%, rgba(5,9,12,.46) 100%); }
+.library-motion-vignette { position: absolute; z-index: 2; pointer-events: none; inset: 0; background: radial-gradient(circle at center, transparent 35%, rgba(5,9,12,.46) 100%); }
 @media (max-width: 1060px) { .library-motion-row { grid-template-columns: repeat(7, minmax(104px, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .library-motion-row { transform: none !important; } .library-motion-item:hover { transform: none; } }

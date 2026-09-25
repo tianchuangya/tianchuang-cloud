@@ -304,6 +304,8 @@ function App() {
             workspaces={snapshot.workspaces}
             covers={coverUrls}
             backgroundImage={customBackground}
+            backgroundBlur={cursorPreferences.backgroundBlur}
+            backgroundOpacity={cursorPreferences.backgroundOpacity}
             view={cursorPreferences.libraryView}
             onChangeView={(libraryView) => changeCursorPreferences({ ...cursorPreferences, libraryView })}
             onSelect={(workspaceId) => { setSelectedId(workspaceId); setShowOverview(false) }}
@@ -420,7 +422,7 @@ function App() {
   )
 }
 
-function WorkspaceOverview({ workspaces, covers, backgroundImage, view, onChangeView, onSelect, onAdd }: { workspaces: WorkspaceProfile[]; covers: Record<string, string | undefined>; backgroundImage?: string; view: LibraryView; onChangeView: (view: LibraryView) => void; onSelect: (workspaceId: string) => void; onAdd: () => void }) {
+function WorkspaceOverview({ workspaces, covers, backgroundImage, backgroundBlur, backgroundOpacity, view, onChangeView, onSelect, onAdd }: { workspaces: WorkspaceProfile[]; covers: Record<string, string | undefined>; backgroundImage?: string; backgroundBlur: number; backgroundOpacity: number; view: LibraryView; onChangeView: (view: LibraryView) => void; onSelect: (workspaceId: string) => void; onAdd: () => void }) {
   return (
     <FadeContent className="library-overview" duration={320} blurAmount={7}>
       <section className="library-overview-header">
@@ -433,7 +435,7 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, view, onChange
           <button className="secondary-button" onClick={onAdd}><FolderInput size={16} />添加资料库</button>
         </div>
       </section>
-      {view === 'motion' ? <GridMotion workspaces={workspaces} covers={covers} backgroundImage={backgroundImage} onSelect={onSelect} /> : (
+      {view === 'motion' ? <GridMotion workspaces={workspaces} covers={covers} backgroundImage={backgroundImage} backgroundBlur={backgroundBlur} backgroundOpacity={backgroundOpacity} onSelect={onSelect} /> : (
         <section className="library-glass-grid" aria-label="资料库">
           {workspaces.map((workspace, index) => (
             <motion.button className="library-glass-card" key={workspace.id} onClick={() => onSelect(workspace.id)} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * .035, .18), duration: .24 }}>
@@ -467,7 +469,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
   const visibleBackgroundEffects = backgroundEffects.filter((item) => `${item.title}${item.description}${item.value}`.toLowerCase().includes(backgroundEffectSearch.trim().toLowerCase()))
 
   return (
-    <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <motion.div className="modal-backdrop settings-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.section className="modal glass-modal cursor-settings-modal" initial={{ opacity: 0, transform: 'translateY(10px) scale(.97)' }} animate={{ opacity: 1, transform: 'translateY(0) scale(1)' }} exit={{ opacity: 0, transform: 'translateY(8px) scale(.98)' }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
         <header><div className="settings-symbol"><MousePointer2 size={21} /></div><div><h2>外观与动态效果</h2><p>设置会立即预览并仅保存在这台设备上</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
         <div className="cursor-settings-content">
@@ -488,7 +490,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
               <div><strong>{customBackground ? '自定义背景' : '天创云端默认背景'}</strong><small>{customBackground ? '图片已复制到应用数据目录' : '当前项目内置的玻璃云端背景'}</small><span><button className="secondary-button" onClick={() => void onSelectBackground()}><ImageIcon size={15} />选择图片</button>{customBackground && <button className="plain-button" onClick={() => void onResetBackground()}>恢复默认</button>}</span></div>
             </div>
             <div className="background-tuning-grid">
-              <label><span><strong>背景模糊</strong><small>{preferences.backgroundBlur}px</small></span><input type="range" min="0" max="24" step="1" value={preferences.backgroundBlur} onChange={(event) => onChange({ ...preferences, backgroundBlur: Number(event.target.value) })} /></label>
+              <label><span><strong>背景模糊</strong><small>{preferences.backgroundBlur}px</small></span><input aria-label="背景模糊" type="range" min="0" max="24" step="1" value={preferences.backgroundBlur} onInput={(event) => onChange({ ...preferences, backgroundBlur: Number(event.currentTarget.value) })} /></label>
               <label><span><strong>背景不透明度</strong><small>{Math.round(preferences.backgroundOpacity * 100)}%</small></span><input type="range" min="20" max="100" step="5" value={preferences.backgroundOpacity * 100} onChange={(event) => onChange({ ...preferences, backgroundOpacity: Number(event.target.value) / 100 })} /></label>
             </div>
           </section>

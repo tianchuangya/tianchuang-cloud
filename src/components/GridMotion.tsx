@@ -7,13 +7,15 @@ interface GridMotionProps {
   workspaces: WorkspaceProfile[]
   covers: Record<string, string | undefined>
   backgroundImage?: string
+  backgroundBlur: number
+  backgroundOpacity: number
   onSelect: (workspaceId: string) => void
 }
 
 const CELL_COUNT = 28
 const FOCUS_POSITIONS = [10, 17, 9, 18, 11, 16, 3, 24, 2, 25, 4, 23, 8, 19, 12, 15, 1, 26, 5, 22, 7, 20, 13, 14, 0, 27, 6, 21]
 
-export default function GridMotion({ workspaces, covers, backgroundImage, onSelect }: GridMotionProps) {
+export default function GridMotion({ workspaces, covers, backgroundImage, backgroundBlur, backgroundOpacity, onSelect }: GridMotionProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<Array<HTMLDivElement | null>>([])
   const items = useMemo(() => {
@@ -59,7 +61,20 @@ export default function GridMotion({ workspaces, covers, backgroundImage, onSele
   if (!workspaces.length) return null
 
   return (
-    <div ref={rootRef} className="library-motion-grid" aria-label="动态资料库网格" style={{ '--motion-background': `url("${backgroundImage || '/assets/cloud-glass-bg.png'}")` } as CSSProperties}>
+    <div
+      ref={rootRef}
+      className="library-motion-grid"
+      aria-label="动态资料库网格"
+      style={{
+        '--motion-background': `url("${backgroundImage || '/assets/cloud-glass-bg.png'}")`,
+        '--motion-background-blur': `${backgroundBlur}px`,
+        '--motion-background-opacity': backgroundOpacity,
+        '--motion-background-scale': 1 + backgroundBlur / 480,
+        '--motion-ambient-opacity': .56 * backgroundOpacity,
+        '--motion-ambient-opacity-even': .64 * backgroundOpacity,
+        '--motion-ambient-opacity-third': .48 * backgroundOpacity,
+      } as CSSProperties}
+    >
       {Array.from({ length: 4 }, (_, rowIndex) => (
         <div className="library-motion-row" key={rowIndex} ref={(element) => { rowRefs.current[rowIndex] = element }}>
           {items.slice(rowIndex * 7, rowIndex * 7 + 7).map(({ workspace }, columnIndex) => {

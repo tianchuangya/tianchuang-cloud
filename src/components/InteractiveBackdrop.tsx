@@ -11,6 +11,7 @@ export default function InteractiveBackdrop({ effect, image, blur, opacity }: { 
     '--background-image': `url("${source}")`,
     '--background-blur': `${blur}px`,
     '--background-opacity': opacity,
+    '--background-scale': 1 + blur / 480,
   } as CSSProperties
   return (
     <div className={`interactive-backdrop effect-${effect}`} style={backgroundStyle} aria-hidden="true">
@@ -33,7 +34,7 @@ export default function InteractiveBackdrop({ effect, image, blur, opacity }: { 
             grayscale={false}
             trigger="both"
             clickStrength={1.8}
-            quality="low"
+            quality="high"
             style={{}}
           />
         </Suspense>
