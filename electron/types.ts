@@ -67,7 +67,7 @@ export interface FileIssue {
   path: string
   size?: number
   limit?: number
-  kind: 'local-only' | 'remote-only' | 'conflict' | 'too-large' | 'changed'
+  kind: 'local-only' | 'remote-only' | 'remote-delete' | 'conflict' | 'too-large' | 'changed'
 }
 
 export interface SyncPlan {
@@ -87,6 +87,7 @@ export interface SyncPlan {
 
 export interface SyncDecision {
   preserveLocalOnly: boolean
+  deleteRemote?: boolean
 }
 
 export interface SyncProgress {

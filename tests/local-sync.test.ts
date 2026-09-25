@@ -37,12 +37,30 @@ describe('local mirror provider', () => {
     expect(firstPlan.direction).toBe('upload')
     expect(firstPlan.metadata.changed).toBe(1)
 
-    const result = await runLocalSync(workspace, target, { preserveLocalOnly: true })
+    const result = await runLocalSync(workspace, target, firstPlan, { preserveLocalOnly: true })
     expect(result).toContain('1 个文件')
     expect(await readFile(path.join(destination, 'Notes', '课程', '笔记.md'), 'utf8')).toBe('# 第一章\n')
 
     const secondPlan = await planLocalSync(workspace, target)
     expect(secondPlan.direction).toBe('none')
+  })
+
+  it('requires explicit confirmation before deleting a previously managed backup', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    await writeFile(path.join(source, 'obsolete.md'), 'remove later')
+    const [workspace, target] = fixtures(source, destination)
+    const firstPlan = await planLocalSync(workspace, target)
+    await runLocalSync(workspace, target, firstPlan, { preserveLocalOnly: true })
+    await rm(path.join(source, 'obsolete.md'))
+
+    const deletePlan = await planLocalSync(workspace, target)
+    expect(deletePlan.requiresConfirmation).toBe(true)
+    expect(deletePlan.issues).toContainEqual({ path: 'obsolete.md', kind: 'remote-delete' })
+    await expect(runLocalSync(workspace, target, deletePlan, { preserveLocalOnly: true })).rejects.toThrow('明确确认')
+
+    await runLocalSync(workspace, target, deletePlan, { preserveLocalOnly: true, deleteRemote: true })
+    await expect(readFile(path.join(destination, 'Notes', 'obsolete.md'))).rejects.toThrow()
   })
 
   it('requires confirmation before overwriting a newer destination file', async () => {

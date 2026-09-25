@@ -85,4 +85,23 @@ describe('git sync planning', () => {
     expect((await git.revparse(['--abbrev-ref', 'HEAD'])).trim()).toBe('main')
     expect((await simpleGit().listRemote(['--heads', remote, 'main'])).trim()).not.toBe('')
   })
+
+  it('requires explicit confirmation before pushing a tracked deletion', async () => {
+    const remote = await temporaryFolder('delete-remote')
+    await simpleGit(remote).init(true)
+    const local = await temporaryFolder('delete-local')
+    const git = simpleGit(local)
+    await git.init()
+    await configure(local)
+    await writeFile(path.join(local, 'obsolete.md'), 'tracked')
+    await git.add('.').commit('initial').branch(['-M', 'main']).addRemote('origin', remote).push('origin', 'main')
+    await rm(path.join(local, 'obsolete.md'))
+    const workspace: WorkspaceProfile = { id: 'workspace', name: 'Notes', path: local, autoSync: true, syncOnFocus: true, state: 'idle', targets: [] }
+    const target: SyncTarget = { id: 'target', name: 'Git', enabled: true, maxFileSizeMb: 100, config: { kind: 'git', remoteUrl: remote, branch: 'main', provider: 'generic' } }
+
+    const plan = await planGitSync(workspace, target)
+    expect(plan.requiresConfirmation).toBe(true)
+    expect(plan.issues).toContainEqual({ path: 'obsolete.md', kind: 'remote-delete' })
+    await expect(runGitSync(workspace, target, plan, { preserveLocalOnly: true })).rejects.toThrow('明确确认')
+  })
 })

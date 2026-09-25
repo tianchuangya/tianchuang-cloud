@@ -131,8 +131,8 @@ export async function runSync(
     let result: string
     onProgress({ workspaceId: workspace.id, targetId: target.id, phase: plan.direction === 'download' ? 'downloading' : 'uploading', title: `正在同步到 ${target.name}`, detail: plan.summary, percent: 48 })
     if (target.config.kind === 'git') result = await runGitSync(workspace, target, plan, decision)
-    else if (target.config.kind === 'local') result = await runLocalSync(workspace, target, decision)
-    else result = await runWebDavSync(workspace, target, decision)
+    else if (target.config.kind === 'local') result = await runLocalSync(workspace, target, plan, decision)
+    else result = await runWebDavSync(workspace, target, plan, decision)
 
     const completedAt = new Date().toISOString()
     updateWorkspace(workspace.id, (item) => ({
@@ -170,6 +170,6 @@ export async function automaticSync(
       onAttention(plan)
       continue
     }
-    if (plan.direction !== 'none') await runSync(plan.id, { preserveLocalOnly: true }, onProgress)
+    if (plan.direction !== 'none') await runSync(plan.id, { preserveLocalOnly: true, deleteRemote: false }, onProgress)
   }
 }

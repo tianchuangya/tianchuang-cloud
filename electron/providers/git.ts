@@ -65,6 +65,7 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
 
   const status = await git.status()
   const localOnly = status.not_added.map((file) => ({ path: file, kind: 'local-only' as const }))
+  const remoteDeletes = status.deleted.map((file) => ({ path: file, kind: 'remote-delete' as const }))
   let ahead = 0
   let behind = 0
   let diverged = false
@@ -79,6 +80,7 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
   const actions: string[] = []
   if (behind > 0) actions.push(`下载 ${behind} 个远端版本`)
   if (dirty) actions.push('保存本地改动为新版本')
+  if (remoteDeletes.length > 0) actions.push(`从远端版本删除 ${remoteDeletes.length} 个文件`)
   if (!remoteSha || ahead > 0 || dirty) actions.push('上传本地版本')
   if (direction === 'none') actions.push('无需传输')
 
@@ -86,8 +88,8 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
     id: crypto.randomUUID(), workspaceId: workspace.id, targetId: target.id,
     targetName: target.name, provider: 'git', direction,
     summary: !remoteSha ? '远端分支为空，准备上传本地版本' : diverged ? '本地与远端历史已经分叉，需要人工检查' : direction === 'none' ? '已是最新版本' : `本地领先 ${ahead}，远端领先 ${behind}`,
-    actions, issues: diverged ? [{ path: config.branch, kind: 'conflict' }, ...localOnly] : localOnly,
-    requiresConfirmation: diverged || (behind > 0 && localOnly.length > 0),
+    actions, issues: diverged ? [{ path: config.branch, kind: 'conflict' }, ...localOnly, ...remoteDeletes] : [...localOnly, ...remoteDeletes],
+    requiresConfirmation: diverged || remoteDeletes.length > 0 || (behind > 0 && localOnly.length > 0),
     createdAt: new Date().toISOString(), metadata: { ahead, behind, dirty, diverged, remoteExists: Boolean(remoteSha) },
   }
 }
@@ -127,6 +129,9 @@ export async function runGitSync(
   decision: SyncDecision,
 ): Promise<string> {
   if (plan.metadata.diverged) throw new Error('分支已经分叉，请先在 Git 工具中解决冲突')
+  if (plan.issues.some((issue) => issue.kind === 'remote-delete') && !decision.deleteRemote) {
+    throw new Error('检测到云端删除操作，需要重新检查并明确确认')
+  }
   const config = target.config as GitTargetConfig
   const git = simpleGit(workspace.path)
   if (!(await git.checkIsRepo())) await git.raw(['init', '--initial-branch', config.branch])

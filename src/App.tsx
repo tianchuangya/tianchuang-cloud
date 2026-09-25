@@ -7,7 +7,7 @@ import {
   Search, Settings, ShieldCheck, Sparkles, SunMedium, Trash2, Waves, X, ZoomIn,
 } from 'lucide-react'
 import type {
-  AppSnapshot, GitHubSession, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
+  AppSnapshot, GitHubSession, ProviderKind, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
 } from '../electron/types'
 import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
@@ -234,7 +234,7 @@ function App() {
         setProgress(undefined)
         setReviewPlan(plan)
       } else {
-        await window.tianchuang.runSync(plan.id, { preserveLocalOnly: true })
+        await window.tianchuang.runSync(plan.id, { preserveLocalOnly: true, deleteRemote: false })
         await refresh()
       }
     } catch (error) {
@@ -242,12 +242,12 @@ function App() {
     }
   }
 
-  const runReviewedPlan = async (preserveLocalOnly: boolean) => {
+  const runReviewedPlan = async (decision: SyncDecision) => {
     if (!reviewPlan || reviewPlan.direction === 'blocked') return
     const plan = reviewPlan
     setReviewPlan(undefined)
     try {
-      await window.tianchuang.runSync(plan.id, { preserveLocalOnly })
+      await window.tianchuang.runSync(plan.id, decision)
       await refresh()
     } catch { /* progress event contains recovery instructions */ }
   }
@@ -478,7 +478,7 @@ function App() {
         {workspaceMenu && <motion.div key="workspace-menu" className="workspace-context-menu glass-modal" style={{ left: workspaceMenu.x, top: workspaceMenu.y }} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} onClick={(event) => event.stopPropagation()}><button className="neutral" onClick={() => void selectWorkspaceCover(workspaceMenu.id)}><ImagePlus size={15} />设置资料库封面</button><button onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); setRemoveWorkspaceDialog(workspace) }}><Trash2 size={15} />从列表移除</button></motion.div>}
         {dragging && <motion.div key="drop-overlay" className="drop-overlay glass-material" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.div initial={{ scale: .96 }} animate={{ scale: 1 }}><FolderInput size={30} /><strong>松开以加入资料库</strong><span>文件夹内容不会被移动</span></motion.div></motion.div>}
         {targetDialog && selected && <TargetDialog key="target-dialog" workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
-        {reviewPlan && <ReviewDialog key="review-dialog" plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
+        {reviewPlan && <ReviewDialog key="review-dialog" plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(decision) => void runReviewedPlan(decision)} />}
         {removeWorkspaceDialog && <RemoveWorkspaceDialog key="remove-workspace-dialog" workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
         {settingsDialog && <CursorSettingsDialog key="settings-dialog" preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onChange={changeCursorPreferences} onClose={closeSettings} />}
         {coverCrop && <CoverCropDialog key="cover-crop-dialog" workspace={coverCrop.workspace} source={coverCrop.source} onClose={() => setCoverCrop(undefined)} onSave={saveCroppedCover} />}
@@ -893,22 +893,26 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   )
 }
 
-function ReviewDialog({ plan, onClose, onRun }: { plan: SyncPlan; onClose: () => void; onRun: (preserve: boolean) => void }) {
+function ReviewDialog({ plan, onClose, onRun }: { plan: SyncPlan; onClose: () => void; onRun: (decision: SyncDecision) => void }) {
   const blocked = plan.direction === 'blocked'
   const localOnly = plan.issues.filter((item) => item.kind === 'local-only')
   const tooLarge = plan.issues.filter((item) => item.kind === 'too-large')
+  const remoteDeletes = plan.issues.filter((item) => item.kind === 'remote-delete')
+  const dangerous = blocked || remoteDeletes.length > 0
   return (
     <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.section className="modal glass-modal review-modal" initial={{ opacity: 0, scale: .97, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .98, y: 8 }} transition={{ type: 'spring', bounce: 0, duration: .32 }}>
-        <header><div className={`review-symbol ${blocked ? 'danger' : ''}`}>{blocked ? <FileWarning size={22} /> : <ArchiveRestore size={22} />}</div><div><h2>{blocked ? '同步暂时无法继续' : '发现本地独有内容'}</h2><p>{plan.summary}</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
+        <header><div className={`review-symbol ${dangerous ? 'danger' : ''}`}>{dangerous ? <FileWarning size={22} /> : <ArchiveRestore size={22} />}</div><div><h2>{blocked ? '同步暂时无法继续' : remoteDeletes.length ? '确认删除云端文件' : '发现本地独有内容'}</h2><p>{plan.summary}</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
         <div className="plan-steps">{plan.actions.map((action, index) => <div key={action}><span>{index + 1}</span>{action}</div>)}</div>
         {localOnly.length > 0 && <div className="issue-list"><strong>仅在这台电脑上发现</strong>{localOnly.slice(0, 8).map((item) => <div key={item.path}><Folder size={15} /><span>{item.path}</span></div>)}{localOnly.length > 8 && <small>以及另外 {localOnly.length - 8} 个文件</small>}</div>}
         {tooLarge.length > 0 && <div className="issue-list danger"><strong>超过目标大小限制</strong>{tooLarge.slice(0, 8).map((item) => <div key={item.path}><FileWarning size={15} /><span>{item.path}</span></div>)}</div>}
-        <div className="recovery-note"><ShieldCheck size={16} /><span>执行前会在应用数据目录生成恢复副本，发生冲突时不会静默覆盖。</span></div>
+        {remoteDeletes.length > 0 && <div className="issue-list danger"><strong>确认后将从“{plan.targetName}”删除</strong>{remoteDeletes.slice(0, 8).map((item) => <div key={item.path}><Trash2 size={15} /><span>{item.path}</span></div>)}{remoteDeletes.length > 8 && <small>以及另外 {remoteDeletes.length - 8} 个文件</small>}</div>}
+        <div className="recovery-note"><ShieldCheck size={16} /><span>{remoteDeletes.length ? '只会删除天创云端清单中记录的文件；此操作可能无法从目标端撤销。' : '发生冲突时不会静默覆盖；Git 同步会先在应用数据目录保留恢复副本。'}</span></div>
         <footer>
           <button className="plain-button" onClick={onClose}>稍后处理</button>
-          {!blocked && localOnly.length > 0 && <button className="secondary-button" onClick={() => onRun(false)}>以远端为准</button>}
-          {!blocked && <button className="primary-button" onClick={() => onRun(true)}><ArchiveRestore size={17} />保留并合并</button>}
+          {!blocked && remoteDeletes.length === 0 && localOnly.length > 0 && <button className="secondary-button" onClick={() => onRun({ preserveLocalOnly: false, deleteRemote: false })}>以远端为准</button>}
+          {!blocked && remoteDeletes.length === 0 && <button className="primary-button" onClick={() => onRun({ preserveLocalOnly: true, deleteRemote: false })}><ArchiveRestore size={17} />保留并合并</button>}
+          {!blocked && remoteDeletes.length > 0 && <button className="danger-button" onClick={() => onRun({ preserveLocalOnly: true, deleteRemote: true })}><Trash2 size={17} />确认删除并同步</button>}
         </footer>
       </motion.section>
     </motion.div>
