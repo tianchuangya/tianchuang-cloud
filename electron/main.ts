@@ -158,7 +158,7 @@ function registerIpc(): void {
     const info = await stat(folderPath).catch(() => undefined)
     if (!info?.isDirectory()) throw new Error('所选路径不是可访问的文件夹')
     let workspace = addWorkspace(folderPath)
-    const coverPath = workspace.coverPath || await findWorkspaceCover(folderPath)
+    const coverPath = await findWorkspaceCover(folderPath)
     if (coverPath && coverPath !== workspace.coverPath) workspace = updateWorkspace(workspace.id, (item) => ({ ...item, coverPath }))
     await refreshWatchers()
     send('app:snapshot-changed')
@@ -167,7 +167,10 @@ function registerIpc(): void {
   ipcMain.handle('workspace:cover:data', async (_event, workspaceId: string) => {
     const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
     if (!workspace) return undefined
-    const coverPath = workspace.coverPath || await findWorkspaceCover(workspace.path)
+    const coverPath = await findWorkspaceCover(workspace.path)
+    if (coverPath !== workspace.coverPath) {
+      updateWorkspace(workspace.id, (item) => ({ ...item, coverPath }))
+    }
     return coverDataUrl(coverPath)
   })
   ipcMain.handle('workspace:cover:pick', async (_event, workspaceId: string) => {

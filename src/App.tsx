@@ -285,7 +285,9 @@ function App() {
         <nav className="workspace-list" aria-label="资料库列表">
           {snapshot.workspaces.map((workspace) => (
             <button key={workspace.id} className={`workspace-nav ${!showOverview && workspace.id === selectedId ? 'active' : ''}`} title="右键管理资料库" onClick={() => { setSelectedId(workspace.id); setShowOverview(false) }} onContextMenu={(event) => { event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: event.clientX, y: event.clientY }) }}>
-              <span className="nav-icon"><Folder size={17} /></span>
+              <span className={`nav-icon ${coverUrls[workspace.id] ? 'has-cover' : ''}`}>
+                {coverUrls[workspace.id] ? <img src={coverUrls[workspace.id]} alt="" /> : <Folder size={17} />}
+              </span>
               <span className="nav-copy"><strong>{workspace.name}</strong><small>{workspace.targets.length} 个目标</small></span>
               <span className={`state-dot ${workspace.state}`} aria-label={workspace.state} />
             </button>

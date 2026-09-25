@@ -24,6 +24,14 @@ describe('workspace covers', () => {
     expect(await findWorkspaceCover(folder)).toBe(path.join(folder, 'cover.png'))
   })
 
+  it('prefers the synchronized Tianchuang cover over a conventional folder image', async () => {
+    const folder = await temporaryFolder()
+    await writeFile(path.join(folder, 'cover.png'), Buffer.from([1]))
+    await writeFile(path.join(folder, '.tianchuang-cover.png'), Buffer.from([2]))
+
+    expect(await findWorkspaceCover(folder)).toBe(path.join(folder, '.tianchuang-cover.png'))
+  })
+
   it('copies a cover into the workspace and replaces an older generated format', async () => {
     const folder = await temporaryFolder()
     const first = path.join(folder, 'first.png')
