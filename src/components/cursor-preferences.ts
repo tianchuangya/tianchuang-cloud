@@ -1,6 +1,6 @@
 export type CursorStyle = 'rectangle' | 'system'
 export type CursorEffect = 'none' | 'fluid' | 'fireworks'
-export type BackgroundEffect = 'static' | 'ripple'
+export type BackgroundEffect = 'none' | 'ripple' | 'rays' | 'particles'
 export type LibraryView = 'glass' | 'motion'
 
 export interface CursorPreferences {
@@ -27,10 +27,13 @@ export function loadCursorPreferences(): CursorPreferences {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Partial<CursorPreferences>
     const color = (value: unknown, fallback: string) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback
+    const storedBackgroundEffect = (stored as { backgroundEffect?: string }).backgroundEffect
     return {
       style: stored.style === 'system' ? 'system' : 'rectangle',
       effect: stored.effect === 'fluid' || stored.effect === 'fireworks' ? stored.effect : 'none',
-      backgroundEffect: stored.backgroundEffect === 'static' ? 'static' : 'ripple',
+      backgroundEffect: storedBackgroundEffect === 'rays' || storedBackgroundEffect === 'particles' || storedBackgroundEffect === 'none' || storedBackgroundEffect === 'static'
+        ? (storedBackgroundEffect === 'static' ? 'none' : storedBackgroundEffect)
+        : 'ripple',
       libraryView: stored.libraryView === 'motion' ? 'motion' : 'glass',
       cursorColor: color(stored.cursorColor, DEFAULT_CURSOR_PREFERENCES.cursorColor),
       cursorTargetColor: color(stored.cursorTargetColor, DEFAULT_CURSOR_PREFERENCES.cursorTargetColor),

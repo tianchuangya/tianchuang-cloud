@@ -3,6 +3,9 @@ import type { SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfil
 
 contextBridge.exposeInMainWorld('tianchuang', {
   getSnapshot: () => ipcRenderer.invoke('app:snapshot'),
+  getCustomBackground: () => ipcRenderer.invoke('appearance:background:get'),
+  selectCustomBackground: () => ipcRenderer.invoke('appearance:background:select'),
+  resetCustomBackground: () => ipcRenderer.invoke('appearance:background:reset'),
   selectFolder: () => ipcRenderer.invoke('folder:select'),
   folderFromFile: (file: File) => webUtils.getPathForFile(file),
   addWorkspace: (folderPath: string) => ipcRenderer.invoke('workspace:add', folderPath),

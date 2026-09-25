@@ -16,6 +16,7 @@ import {
 import { removeWorkspace, updateWorkspace } from './store.js'
 import { createGitHubRepository, githubSession, loginGitHub } from './github.js'
 import { copyWorkspaceCover, coverDataUrl, coverFileFilters, findWorkspaceCover } from './covers.js'
+import { backgroundFileFilters, clearCustomBackground, copyCustomBackground, findCustomBackground, imageDataUrl } from './backgrounds.js'
 import type { GitHubRepositoryDraft, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -135,6 +136,16 @@ function createTray(): void {
 
 function registerIpc(): void {
   ipcMain.handle('app:snapshot', () => snapshot())
+  ipcMain.handle('appearance:background:get', async () => imageDataUrl(await findCustomBackground(path.join(app.getPath('userData'), 'appearance'))))
+  ipcMain.handle('appearance:background:select', async () => {
+    const result = await dialog.showOpenDialog({ title: '选择应用背景图', buttonLabel: '使用此背景', properties: ['openFile'], filters: backgroundFileFilters })
+    if (result.canceled || !result.filePaths[0]) return undefined
+    const filePath = await copyCustomBackground(path.join(app.getPath('userData'), 'appearance'), result.filePaths[0])
+    return imageDataUrl(filePath)
+  })
+  ipcMain.handle('appearance:background:reset', async () => {
+    await clearCustomBackground(path.join(app.getPath('userData'), 'appearance'))
+  })
   ipcMain.handle('folder:select', async () => {
     const result = await dialog.showOpenDialog({
       title: '添加资料库',

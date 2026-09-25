@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, ArrowLeft, Check, ChevronRight, Cloud, CloudUpload,
-  Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, Grid2X2, HardDrive, History, ImagePlus, Layers3, LoaderCircle,
+  Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, Grid2X2, HardDrive, History, Image as ImageIcon, ImagePlus, Layers3, LoaderCircle,
   LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
-  Settings, ShieldCheck, Sparkles, Trash2, Waves, X,
+  Settings, ShieldCheck, Sparkles, SunMedium, Trash2, Waves, X,
 } from 'lucide-react'
 import type {
   AppSnapshot, GitHubSession, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
@@ -80,6 +80,7 @@ function App() {
   const [cursorPreferences, setCursorPreferences] = useState(loadCursorPreferences)
   const [showOverview, setShowOverview] = useState(true)
   const [coverUrls, setCoverUrls] = useState<Record<string, string | undefined>>({})
+  const [customBackground, setCustomBackground] = useState<string>()
 
   const refresh = async () => {
     const next = await window.tianchuang.getSnapshot()
@@ -90,6 +91,7 @@ function App() {
   }
 
   useEffect(() => {
+    void window.tianchuang.getCustomBackground().then(setCustomBackground)
     void window.tianchuang.getSnapshot().then((next) => {
       setSnapshot(next)
       setSelectedId(next.workspaces[0]?.id)
@@ -232,6 +234,22 @@ function App() {
     }
   }
 
+  const selectCustomBackground = async () => {
+    try {
+      const image = await window.tianchuang.selectCustomBackground()
+      if (image) setCustomBackground(image)
+    } catch (reason) {
+      setNoticeError(true)
+      setNotice(`背景图设置失败：${reason instanceof Error ? reason.message : String(reason)}`)
+      window.setTimeout(() => setNotice(undefined), 5200)
+    }
+  }
+
+  const resetCustomBackground = async () => {
+    await window.tianchuang.resetCustomBackground()
+    setCustomBackground(undefined)
+  }
+
   return (
     <div
       className={`app-shell ${dragging ? 'is-dragging' : ''} ${cursorPreferences.style === 'rectangle' ? 'cursor-rectangle' : ''}`}
@@ -240,7 +258,7 @@ function App() {
       onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false) }}
       onDrop={(event) => void dropFolder(event)}
     >
-      <InteractiveBackdrop ripple={cursorPreferences.backgroundEffect === 'ripple' && cursorPreferences.effect !== 'fluid'} />
+      <InteractiveBackdrop effect={cursorPreferences.effect === 'fluid' ? 'none' : cursorPreferences.backgroundEffect} image={customBackground} />
       <CursorExperience preferences={cursorPreferences} />
       <header className="titlebar">
         <div className="brand-mark"><Cloud size={16} strokeWidth={2.3} /></div>
@@ -381,7 +399,7 @@ function App() {
         {targetDialog && selected && <TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
         {reviewPlan && <ReviewDialog plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
         {removeWorkspaceDialog && <RemoveWorkspaceDialog workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
-        {settingsDialog && <CursorSettingsDialog preferences={cursorPreferences} onChange={changeCursorPreferences} onClose={() => setSettingsDialog(false)} />}
+        {settingsDialog && <CursorSettingsDialog preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onChange={changeCursorPreferences} onClose={() => setSettingsDialog(false)} />}
         {progress && <ProgressOverlay progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
@@ -419,7 +437,7 @@ function WorkspaceOverview({ workspaces, covers, view, onChangeView, onSelect, o
   )
 }
 
-function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences: CursorPreferences; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
+function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
@@ -437,6 +455,15 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
             <div className="cursor-choice-grid two">
               <button className={preferences.style === 'rectangle' ? 'active' : ''} onClick={() => setStyle('rectangle')} aria-pressed={preferences.style === 'rectangle'}><span className="cursor-preview rectangle"><i /></span><span><strong>矩形高亮</strong><small>清晰、轻量，适合深色界面</small></span><Check size={15} /></button>
               <button className={preferences.style === 'system' ? 'active' : ''} onClick={() => setStyle('system')} aria-pressed={preferences.style === 'system'}><span className="cursor-preview system"><MousePointer2 size={20} /></span><span><strong>系统原生</strong><small>跟随 Windows、macOS 或 Linux</small></span><Check size={15} /></button>
+            </div>
+          </section>
+          </FadeContent>
+          <FadeContent duration={220} delay={55} blurAmount={4}>
+          <section>
+            <div className="setting-group-heading"><strong>背景图</strong><span>底图与动态效果相互独立</span></div>
+            <div className="background-image-settings">
+              <div className="background-image-preview">{customBackground ? <img src={customBackground} alt="当前自定义背景预览" /> : <img src="/assets/cloud-glass-bg.png" alt="默认背景预览" />}</div>
+              <div><strong>{customBackground ? '自定义背景' : '天创云端默认背景'}</strong><small>{customBackground ? '图片已复制到应用数据目录' : '当前项目内置的玻璃云端背景'}</small><span><button className="secondary-button" onClick={() => void onSelectBackground()}><ImageIcon size={15} />选择图片</button>{customBackground && <button className="plain-button" onClick={() => void onResetBackground()}>恢复默认</button>}</span></div>
             </div>
           </section>
           </FadeContent>
@@ -470,10 +497,12 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
           </FadeContent>
           <FadeContent duration={220} delay={70} blurAmount={4}>
           <section>
-            <div className="setting-group-heading"><strong>背景互动</strong><span>效果只作用于背景，不扭曲文字和控件</span></div>
+            <div className="setting-group-heading"><strong>背景动态效果</strong><span>效果叠加在当前背景图上</span></div>
             <div className="cursor-choice-grid two">
-              <button className={preferences.backgroundEffect === 'static' ? 'active' : ''} onClick={() => setBackgroundEffect('static')} aria-pressed={preferences.backgroundEffect === 'static'}><span className="effect-preview quiet"><Layers3 size={20} /></span><span><strong>静态玻璃</strong><small>保留背景纹理，不进行实时渲染</small></span><Check size={15} /></button>
+              <button className={preferences.backgroundEffect === 'none' ? 'active' : ''} onClick={() => setBackgroundEffect('none')} aria-pressed={preferences.backgroundEffect === 'none'}><span className="effect-preview quiet"><Layers3 size={20} /></span><span><strong>无动态效果</strong><small>只显示背景图与透明玻璃材质</small></span><Check size={15} /></button>
               <button className={preferences.backgroundEffect === 'ripple' ? 'active' : ''} onClick={() => setBackgroundEffect('ripple')} aria-pressed={preferences.backgroundEffect === 'ripple'} disabled={reduceMotion}><span className="effect-preview ripple"><Droplets size={20} /></span><span><strong>水波折射</strong><small>移动和点击时扰动背景材质</small></span><Check size={15} /></button>
+              <button className={preferences.backgroundEffect === 'rays' ? 'active' : ''} onClick={() => setBackgroundEffect('rays')} aria-pressed={preferences.backgroundEffect === 'rays'} disabled={reduceMotion}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光流束</strong><small>缓慢移动的半透明光束</small></span><Check size={15} /></button>
+              <button className={preferences.backgroundEffect === 'particles' ? 'active' : ''} onClick={() => setBackgroundEffect('particles')} aria-pressed={preferences.backgroundEffect === 'particles'} disabled={reduceMotion}><span className="effect-preview particles"><Sparkles size={20} /></span><span><strong>微光粒子</strong><small>低密度白色粒子缓慢漂移</small></span><Check size={15} /></button>
             </div>
           </section>
           </FadeContent>

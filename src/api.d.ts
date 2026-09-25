@@ -14,6 +14,9 @@ declare global {
   interface Window {
     tianchuang: {
       getSnapshot(): Promise<AppSnapshot>
+      getCustomBackground(): Promise<string | undefined>
+      selectCustomBackground(): Promise<string | undefined>
+      resetCustomBackground(): Promise<void>
       selectFolder(): Promise<string | undefined>
       selectMirrorFolder(): Promise<string | undefined>
       folderFromFile(file: File): string

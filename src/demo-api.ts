@@ -26,6 +26,9 @@ export function installDemoApi(): void {
   const noEvent = () => () => undefined
   window.tianchuang = {
     getSnapshot: async () => structuredClone(demoSnapshot),
+    getCustomBackground: async () => undefined,
+    selectCustomBackground: async () => undefined,
+    resetCustomBackground: async () => undefined,
     selectFolder: async () => undefined,
     selectMirrorFolder: async () => undefined,
     folderFromFile: () => '',
