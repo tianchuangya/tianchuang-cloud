@@ -113,6 +113,7 @@ function createWindow(): void {
     show: false,
     title: '天创云端',
     transparent: isWindows || isMac,
+    hasShadow: true,
     backgroundColor: '#00000000',
     backgroundMaterial: isWindows ? 'acrylic' : undefined,
     vibrancy: isMac ? 'sidebar' : undefined,
@@ -131,6 +132,8 @@ function createWindow(): void {
     return { action: 'deny' }
   })
   mainWindow.once('ready-to-show', () => mainWindow?.show())
+  mainWindow.on('maximize', () => send('window:maximized-changed', true))
+  mainWindow.on('unmaximize', () => send('window:maximized-changed', false))
   mainWindow.on('focus', () => {
     for (const workspace of snapshot().workspaces.filter((item) => item.autoSync && item.syncOnFocus)) queueAutomaticSync(workspace.id, 400)
   })
@@ -160,6 +163,7 @@ function createTray(): void {
 
 function registerIpc(): void {
   ipcMain.handle('app:snapshot', () => snapshot())
+  ipcMain.handle('window:maximized', () => mainWindow?.isMaximized() ?? false)
   ipcMain.handle('appearance:background:get', async () => imageDataUrl(await findCustomBackground(path.join(app.getPath('userData'), 'appearance'))))
   ipcMain.handle('appearance:background:select', async () => {
     const result = await dialog.showOpenDialog({ title: '选择应用背景图', buttonLabel: '使用此背景', properties: ['openFile'], filters: backgroundFileFilters })

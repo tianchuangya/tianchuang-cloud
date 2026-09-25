@@ -3,6 +3,7 @@ import type { SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfil
 
 contextBridge.exposeInMainWorld('tianchuang', {
   getSnapshot: () => ipcRenderer.invoke('app:snapshot'),
+  getWindowMaximized: () => ipcRenderer.invoke('window:maximized'),
   getCustomBackground: () => ipcRenderer.invoke('appearance:background:get'),
   selectCustomBackground: () => ipcRenderer.invoke('appearance:background:select'),
   resetCustomBackground: () => ipcRenderer.invoke('appearance:background:reset'),
@@ -37,5 +38,10 @@ contextBridge.exposeInMainWorld('tianchuang', {
     const wrapped = () => listener()
     ipcRenderer.on('app:snapshot-changed', wrapped)
     return () => ipcRenderer.removeListener('app:snapshot-changed', wrapped)
+  },
+  onWindowMaximized: (listener: (maximized: boolean) => void) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, maximized: boolean) => listener(maximized)
+    ipcRenderer.on('window:maximized-changed', wrapped)
+    return () => ipcRenderer.removeListener('window:maximized-changed', wrapped)
   },
 })

@@ -14,6 +14,7 @@ declare global {
   interface Window {
     tianchuang: {
       getSnapshot(): Promise<AppSnapshot>
+      getWindowMaximized(): Promise<boolean>
       getCustomBackground(): Promise<string | undefined>
       selectCustomBackground(): Promise<string | undefined>
       resetCustomBackground(): Promise<void>
@@ -37,6 +38,7 @@ declare global {
       onProgress(listener: (progress: SyncProgress) => void): () => void
       onAttention(listener: (plan: SyncPlan) => void): () => void
       onSnapshot(listener: () => void): () => void
+      onWindowMaximized(listener: (maximized: boolean) => void): () => void
     }
   }
 }

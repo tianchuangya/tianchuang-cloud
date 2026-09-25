@@ -26,6 +26,7 @@ export function installDemoApi(): void {
   const noEvent = () => () => undefined
   window.tianchuang = {
     getSnapshot: async () => structuredClone(demoSnapshot),
+    getWindowMaximized: async () => false,
     getCustomBackground: async () => undefined,
     selectCustomBackground: async () => undefined,
     resetCustomBackground: async () => undefined,
@@ -63,5 +64,6 @@ export function installDemoApi(): void {
     onProgress: noEvent as (listener: (progress: SyncProgress) => void) => () => void,
     onAttention: noEvent,
     onSnapshot: noEvent,
+    onWindowMaximized: noEvent,
   }
 }

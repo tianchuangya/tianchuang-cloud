@@ -67,6 +67,7 @@ function ProviderIcon({ kind }: { kind: ProviderKind }) {
 
 function App() {
   const [snapshot, setSnapshot] = useState<AppSnapshot>(EMPTY_SNAPSHOT)
+  const [windowMaximized, setWindowMaximized] = useState(false)
   const [selectedId, setSelectedId] = useState<string>()
   const [dragging, setDragging] = useState(false)
   const [targetDialog, setTargetDialog] = useState(false)
@@ -129,6 +130,11 @@ function App() {
       ? current
       : next.workspaces[0]?.id)
   }
+
+  useEffect(() => {
+    void window.tianchuang.getWindowMaximized().then(setWindowMaximized)
+    return window.tianchuang.onWindowMaximized(setWindowMaximized)
+  }, [])
 
   useEffect(() => {
     void window.tianchuang.getCustomBackground().then(setCustomBackground)
@@ -324,7 +330,7 @@ function App() {
 
   return (
     <div
-      className={`app-shell ${dragging ? 'is-dragging' : ''} ${cursorPreferences.style === 'rectangle' ? 'cursor-rectangle' : ''}`}
+      className={`app-shell ${windowMaximized ? 'window-maximized' : ''} ${dragging ? 'is-dragging' : ''} ${cursorPreferences.style === 'rectangle' ? 'cursor-rectangle' : ''}`}
       onDragEnter={(event) => { event.preventDefault(); setDragging(true) }}
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false) }}
