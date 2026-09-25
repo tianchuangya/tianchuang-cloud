@@ -176,6 +176,13 @@
 .setting-row input:focus-visible + i { outline: 3px solid rgba(100,219,234,.18); outline-offset: 2px; }
 .setting-row.disabled { cursor: default; opacity: .42; }
 .master-setting-row { margin-top: 8px; border: 1px solid rgba(105,219,233,.14); border-radius: 10px; padding: 0 12px; background: rgba(93,210,225,.055); }
+.setting-range-row { min-height: 66px; display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, 240px) 62px; align-items: center; gap: 14px; padding: 0 4px; border-top: 1px solid var(--line); }
+.setting-range-row > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.setting-range-row strong { font-size: 12px; font-weight: 630; }
+.setting-range-row small { color: var(--quiet); font-size: 10px; }
+.setting-range-row input { width: 100%; accent-color: #8fe5f2; cursor: pointer; }
+.setting-range-row output { color: var(--cyan); font-size: 10px; text-align: right; }
+.setting-range-row.disabled { opacity: .42; }
 .activity-list { border-top: 1px solid var(--line); }
 .activity-row { min-height: 57px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 9px; border-bottom: 1px solid var(--line); }
 .activity-icon { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: var(--cyan); background: rgba(100,215,229,.09); }

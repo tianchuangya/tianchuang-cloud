@@ -40,7 +40,9 @@ export function addWorkspace(folderPath: string): WorkspaceProfile {
   if (existing) return existing
   const workspace: WorkspaceProfile = {
     id: randomUUID(), name: basename(folderPath), path: folderPath,
-    autoSync: true, syncOnChange: true, syncOnFocus: true, state: 'idle', targets: [],
+    autoSync: true, syncOnChange: true, syncOnFocus: true,
+    autoSyncDelaySeconds: 3, errorNotifyCooldownMinutes: 10,
+    state: 'idle', targets: [],
   }
   saveWorkspace(workspace)
   activity(workspace.id, 'info', '资料库已添加', folderPath)
@@ -49,9 +51,14 @@ export function addWorkspace(folderPath: string): WorkspaceProfile {
 
 export function updateWorkspaceSettings(
   workspaceId: string,
-  changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'name'>,
+  changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'autoSyncDelaySeconds' | 'errorNotifyCooldownMinutes' | 'name'>,
 ): WorkspaceProfile {
-  return updateWorkspace(workspaceId, (workspace) => ({ ...workspace, ...changes }))
+  return updateWorkspace(workspaceId, (workspace) => ({
+    ...workspace,
+    ...changes,
+    autoSyncDelaySeconds: Math.min(300, Math.max(3, changes.autoSyncDelaySeconds ?? workspace.autoSyncDelaySeconds ?? 3)),
+    errorNotifyCooldownMinutes: Math.min(120, Math.max(1, changes.errorNotifyCooldownMinutes ?? workspace.errorNotifyCooldownMinutes ?? 10)),
+  }))
 }
 
 export function createTarget(draft: TargetDraft): WorkspaceProfile {

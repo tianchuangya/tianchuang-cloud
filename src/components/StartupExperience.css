@@ -12,8 +12,10 @@
 .startup-status > span { display: inline-flex; align-items: center; gap: 8px; }
 .startup-status i { width: 6px; height: 6px; border-radius: 50%; background: #86dfeb; box-shadow: 0 0 14px rgba(112,222,235,.8); animation: startup-status-breathe 1.3s ease-in-out infinite; }
 .startup-status .ready i { background: #69dca1; box-shadow: 0 0 14px rgba(76,216,145,.7); animation: none; }
-.startup-status button { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-radius: 8px; color: rgba(234,249,251,.68); background: transparent; cursor: pointer; font-size: 10px; }
-.startup-status button:hover { color: #fff; background: rgba(255,255,255,.06); }
+.startup-status button { min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid rgba(220,251,255,.34); border-radius: 10px; color: #071216; background: rgba(210,249,252,.92); box-shadow: 0 9px 28px rgba(70,201,218,.2), inset 0 1px rgba(255,255,255,.7); cursor: pointer; font-size: 10px; font-weight: 680; transition: transform .14s ease, background .16s ease, opacity .16s ease; }
+.startup-status button:hover:not(:disabled) { background: #e9fdff; transform: translateY(-1px); }
+.startup-status button:active:not(:disabled) { transform: scale(.97); }
+.startup-status button:disabled { color: rgba(225,242,244,.48); border-color: rgba(255,255,255,.1); background: rgba(255,255,255,.05); box-shadow: none; cursor: wait; }
 @keyframes startup-light-drift { to { transform: translate3d(18%, 5%, 0) rotate(.7deg); } }
 @keyframes startup-status-breathe { 50% { opacity: .38; transform: scale(.72); } }
 @media (prefers-reduced-motion: reduce) { .startup-light-sweep, .startup-status i { animation: none; } .startup-effect-layer { display: none; } }

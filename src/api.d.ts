@@ -24,7 +24,7 @@ declare global {
       getWorkspaceCover(workspaceId: string): Promise<string | undefined>
       pickWorkspaceCover(workspaceId: string): Promise<string | undefined>
       saveWorkspaceCover(workspaceId: string, dataUrl: string): Promise<WorkspaceProfile>
-      updateWorkspace(workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'name'>): Promise<WorkspaceProfile>
+      updateWorkspace(workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'autoSyncDelaySeconds' | 'errorNotifyCooldownMinutes' | 'name'>): Promise<WorkspaceProfile>
       removeWorkspace(workspaceId: string): Promise<void>
       addTarget(draft: TargetDraft): Promise<WorkspaceProfile>
       getGitHubSession(): Promise<GitHubSession>

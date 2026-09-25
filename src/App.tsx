@@ -261,13 +261,15 @@ function App() {
     }
   }
 
-  const changeSetting = async (changes: Partial<Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'name'>>) => {
+  const changeSetting = async (changes: Partial<Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'autoSyncDelaySeconds' | 'errorNotifyCooldownMinutes' | 'name'>>) => {
     if (!selected) return
     await window.tianchuang.updateWorkspace(selected.id, {
       name: changes.name ?? selected.name,
       autoSync: changes.autoSync ?? selected.autoSync,
       syncOnChange: changes.syncOnChange ?? selected.syncOnChange ?? true,
       syncOnFocus: changes.syncOnFocus ?? selected.syncOnFocus,
+      autoSyncDelaySeconds: changes.autoSyncDelaySeconds ?? selected.autoSyncDelaySeconds ?? 3,
+      errorNotifyCooldownMinutes: changes.errorNotifyCooldownMinutes ?? selected.errorNotifyCooldownMinutes ?? 10,
     })
     await refresh()
   }
@@ -433,8 +435,10 @@ function App() {
             <section className="section-block settings-block">
               <div className="section-heading"><div><h2>自动同步</h2><p>控制这个资料库何时在后台检查并同步</p></div></div>
               <label className="setting-row master-setting-row"><span><strong>自动同步总开关</strong><small>关闭后只保留“立即同步”，不会在后台自动传输</small></span><input type="checkbox" checked={selected.autoSync} onChange={(event) => void changeSetting({ autoSync: event.target.checked })} /><i /></label>
-              <label className={`setting-row ${selected.autoSync ? '' : 'disabled'}`}><span><strong>文件变化后同步</strong><small>连续编辑结束约 3 秒后检查所有目标</small></span><input type="checkbox" disabled={!selected.autoSync} checked={selected.syncOnChange !== false} onChange={(event) => void changeSetting({ syncOnChange: event.target.checked })} /><i /></label>
+              <label className={`setting-row ${selected.autoSync ? '' : 'disabled'}`}><span><strong>文件变化后同步</strong><small>连续编辑结束后，按下面设置的等待时间检查所有目标</small></span><input type="checkbox" disabled={!selected.autoSync} checked={selected.syncOnChange !== false} onChange={(event) => void changeSetting({ syncOnChange: event.target.checked })} /><i /></label>
               <label className={`setting-row ${selected.autoSync ? '' : 'disabled'}`}><span><strong>打开应用时检查</strong><small>回到天创云端时拉取其他电脑的最新版本</small></span><input type="checkbox" disabled={!selected.autoSync} checked={selected.syncOnFocus} onChange={(event) => void changeSetting({ syncOnFocus: event.target.checked })} /><i /></label>
+              <label className={`setting-range-row ${selected.autoSync && selected.syncOnChange !== false ? '' : 'disabled'}`}><span><strong>自动同步频率</strong><small>最后一次文件变化后等待多久再同步</small></span><input aria-label="自动同步频率" type="range" min="3" max="300" step="1" disabled={!selected.autoSync || selected.syncOnChange === false} value={selected.autoSyncDelaySeconds ?? 3} onChange={(event) => void changeSetting({ autoSyncDelaySeconds: Number(event.target.value) })} /><output>{selected.autoSyncDelaySeconds ?? 3} 秒</output></label>
+              <label className={`setting-range-row ${selected.autoSync ? '' : 'disabled'}`}><span><strong>失败告警频率</strong><small>同一资料库持续失败时，限制弹窗与系统通知频率</small></span><input aria-label="失败告警频率" type="range" min="1" max="120" step="1" disabled={!selected.autoSync} value={selected.errorNotifyCooldownMinutes ?? 10} onChange={(event) => void changeSetting({ errorNotifyCooldownMinutes: Number(event.target.value) })} /><output>{selected.errorNotifyCooldownMinutes ?? 10} 分钟</output></label>
             </section>
             </AnimatedContent>
 
@@ -465,15 +469,15 @@ function App() {
       </main>
 
       <AnimatePresence>
-        {workspaceMenu && <motion.div className="workspace-context-menu glass-modal" style={{ left: workspaceMenu.x, top: workspaceMenu.y }} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} onClick={(event) => event.stopPropagation()}><button className="neutral" onClick={() => void selectWorkspaceCover(workspaceMenu.id)}><ImagePlus size={15} />设置资料库封面</button><button onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); setRemoveWorkspaceDialog(workspace) }}><Trash2 size={15} />从列表移除</button></motion.div>}
-        {dragging && <motion.div className="drop-overlay glass-material" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.div initial={{ scale: .96 }} animate={{ scale: 1 }}><FolderInput size={30} /><strong>松开以加入资料库</strong><span>文件夹内容不会被移动</span></motion.div></motion.div>}
-        {targetDialog && selected && <TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
-        {reviewPlan && <ReviewDialog plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
-        {removeWorkspaceDialog && <RemoveWorkspaceDialog workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
-        {settingsDialog && <CursorSettingsDialog preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onChange={changeCursorPreferences} onClose={closeSettings} />}
-        {coverCrop && <CoverCropDialog workspace={coverCrop.workspace} source={coverCrop.source} onClose={() => setCoverCrop(undefined)} onSave={saveCroppedCover} />}
-        {progress && <ProgressOverlay progress={progress} onClose={() => setProgress(undefined)} />}
-        {notice && <motion.div className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
+        {workspaceMenu && <motion.div key="workspace-menu" className="workspace-context-menu glass-modal" style={{ left: workspaceMenu.x, top: workspaceMenu.y }} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} onClick={(event) => event.stopPropagation()}><button className="neutral" onClick={() => void selectWorkspaceCover(workspaceMenu.id)}><ImagePlus size={15} />设置资料库封面</button><button onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); setRemoveWorkspaceDialog(workspace) }}><Trash2 size={15} />从列表移除</button></motion.div>}
+        {dragging && <motion.div key="drop-overlay" className="drop-overlay glass-material" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.div initial={{ scale: .96 }} animate={{ scale: 1 }}><FolderInput size={30} /><strong>松开以加入资料库</strong><span>文件夹内容不会被移动</span></motion.div></motion.div>}
+        {targetDialog && selected && <TargetDialog key="target-dialog" workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
+        {reviewPlan && <ReviewDialog key="review-dialog" plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
+        {removeWorkspaceDialog && <RemoveWorkspaceDialog key="remove-workspace-dialog" workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
+        {settingsDialog && <CursorSettingsDialog key="settings-dialog" preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onChange={changeCursorPreferences} onClose={closeSettings} />}
+        {coverCrop && <CoverCropDialog key="cover-crop-dialog" workspace={coverCrop.workspace} source={coverCrop.source} onClose={() => setCoverCrop(undefined)} onSave={saveCroppedCover} />}
+        {progress && <ProgressOverlay key="progress-overlay" progress={progress} onClose={() => setProgress(undefined)} />}
+        {notice && <motion.div key="notice-toast" className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
     </div>
   )
@@ -567,7 +571,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
                   <button className={preferences.startupEffect === 'light' ? 'active' : ''} onClick={() => setStartupEffect('light')} aria-pressed={preferences.startupEffect === 'light'}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光掠影</strong><small>更克制的缓慢光束</small></span><Check size={15} /></button>
                 </div></div>
                 <div className="startup-settings-preview" data-effect={preferences.startupEffect}><span><Cloud size={22} /><strong>天创云端</strong><small>{preferences.startupEffect === 'aurora' ? '柔光极光' : '侧光掠影'}</small></span></div>
-                <div className="performance-note"><ShieldCheck size={16} /><span>启动动画最短约 1.2 秒；资料库会在动画期间并行加载，可随时按 Esc 或 Enter 跳过。</span></div>
+                <div className="performance-note"><ShieldCheck size={16} /><span>资料库会在动画期间并行加载；准备完成后，需要点击“进入天创云端”或按 Enter 才会进入软件。</span></div>
               </section>
             </FadeContent>}
             {category === 'appearance' && subpage === 'pointer' && <FadeContent key="pointer" duration={220} blurAmount={4}>

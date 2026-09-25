@@ -55,7 +55,12 @@ export async function runLocalSync(
     } catch { /* destination does not exist */ }
     if (shouldCopy) {
       await ensureParent(destination)
-      await copyFile(source.absolutePath, destination)
+      try {
+        await copyFile(source.absolutePath, destination)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
+      }
       copied++
     }
   }

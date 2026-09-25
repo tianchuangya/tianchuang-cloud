@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
-import { Cloud, CornerDownRight } from 'lucide-react'
+import { lazy, Suspense, useEffect } from 'react'
+import { ArrowRight, Cloud } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { StartupEffect } from './cursor-preferences'
 import './StartupExperience.css'
@@ -13,28 +13,15 @@ interface StartupExperienceProps {
 }
 
 export default function StartupExperience({ ready, effect, onComplete }: StartupExperienceProps) {
-  const startedAt = useRef(0)
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   useEffect(() => {
-    startedAt.current = performance.now()
-  }, [])
-
-  useEffect(() => {
-    if (!ready) return
-    const minimum = reduceMotion ? 380 : 1250
-    const remaining = Math.max(0, minimum - (performance.now() - startedAt.current))
-    const timer = window.setTimeout(onComplete, remaining)
-    return () => window.clearTimeout(timer)
-  }, [onComplete, ready, reduceMotion])
-
-  useEffect(() => {
     const skip = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' || event.key === 'Enter') onComplete()
+      if (ready && event.key === 'Enter') onComplete()
     }
     window.addEventListener('keydown', skip)
     return () => window.removeEventListener('keydown', skip)
-  }, [onComplete])
+  }, [onComplete, ready])
 
   return (
     <motion.section
@@ -56,7 +43,7 @@ export default function StartupExperience({ ready, effect, onComplete }: Startup
       </motion.div>
       <div className="startup-status" aria-live="polite">
         <span className={ready ? 'ready' : ''}><i />{ready ? '资料库已准备完成' : '正在准备资料库'}</span>
-        <button onClick={onComplete}>跳过<CornerDownRight size={14} /></button>
+        <button className="startup-enter-button" disabled={!ready} onClick={onComplete}>{ready ? '进入天创云端' : '请稍候'}<ArrowRight size={14} /></button>
       </div>
     </motion.section>
   )

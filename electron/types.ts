@@ -41,6 +41,8 @@ export interface WorkspaceProfile {
   autoSync: boolean
   syncOnChange?: boolean
   syncOnFocus: boolean
+  autoSyncDelaySeconds?: number
+  errorNotifyCooldownMinutes?: number
   state: SyncState
   lastSyncAt?: string
   coverPath?: string

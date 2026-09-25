@@ -25,6 +25,7 @@ let tray: Tray | undefined
 let quitting = false
 const watchers = new Map<string, FSWatcher>()
 const syncTimers = new Map<string, NodeJS.Timeout>()
+const automaticErrorNoticeAt = new Map<string, number>()
 
 function send(channel: string, payload?: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
@@ -47,15 +48,38 @@ function attention(plan: SyncPlan): void {
   }
 }
 
-function queueAutomaticSync(workspaceId: string, delay = 3500): void {
+function automaticProgress(item: SyncProgress): void {
+  if (item.phase === 'error') {
+    const workspace = snapshot().workspaces.find((current) => current.id === item.workspaceId)
+    const cooldown = Math.min(1440, Math.max(1, workspace?.errorNotifyCooldownMinutes ?? 10)) * 60_000
+    const previous = automaticErrorNoticeAt.get(item.workspaceId) || 0
+    if (Date.now() - previous < cooldown) {
+      send('app:snapshot-changed')
+      return
+    }
+    automaticErrorNoticeAt.set(item.workspaceId, Date.now())
+  } else if (item.phase === 'complete') {
+    automaticErrorNoticeAt.delete(item.workspaceId)
+  }
+  progress(item)
+}
+
+function queueAutomaticSync(workspaceId: string, delay?: number): void {
   const existing = syncTimers.get(workspaceId)
   if (existing) clearTimeout(existing)
+  const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+  const configuredDelay = Math.min(300, Math.max(3, workspace?.autoSyncDelaySeconds ?? 3)) * 1000
+  const effectiveDelay = delay ?? configuredDelay
   syncTimers.set(workspaceId, setTimeout(() => {
     syncTimers.delete(workspaceId)
-    void automaticSync(workspaceId, progress, attention).catch((error) => {
-      progress({ workspaceId, phase: 'error', title: '自动同步失败', detail: error instanceof Error ? error.message : String(error), percent: 100 })
+    let reportedError = false
+    void automaticSync(workspaceId, (item) => {
+      if (item.phase === 'error') reportedError = true
+      automaticProgress(item)
+    }, attention).catch((error) => {
+      if (!reportedError) automaticProgress({ workspaceId, phase: 'error', title: '自动同步失败', detail: error instanceof Error ? error.message : String(error), percent: 100 })
     })
-  }, delay))
+  }, effectiveDelay))
 }
 
 async function refreshWatchers(): Promise<void> {
@@ -188,7 +212,7 @@ function registerIpc(): void {
     send('app:snapshot-changed')
     return updated
   })
-  ipcMain.handle('workspace:update', async (_event, id: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'name'>) => {
+  ipcMain.handle('workspace:update', async (_event, id: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'autoSyncDelaySeconds' | 'errorNotifyCooldownMinutes' | 'name'>) => {
     const updated = updateWorkspaceSettings(id, changes)
     const queued = syncTimers.get(id)
     if (queued) {

@@ -53,7 +53,12 @@ export async function runWebDavSync(
     if (!(await client.exists(remoteDirectory))) await client.createDirectory(remoteDirectory, { recursive: true })
     const remoteStat = await client.stat(remoteFile).catch(() => undefined) as { size?: number } | undefined
     if (!remoteStat || remoteStat.size !== file.size) {
-      await client.putFileContents(remoteFile, await readFile(file.absolutePath), { overwrite: true })
+      const contents = await readFile(file.absolutePath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return undefined
+        throw error
+      })
+      if (!contents) continue
+      await client.putFileContents(remoteFile, contents, { overwrite: true })
       uploaded++
     }
   }

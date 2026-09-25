@@ -23,7 +23,8 @@ export async function scanFiles(root: string): Promise<ScannedFile[]> {
       if (entry.isDirectory()) {
         await walk(absolutePath)
       } else if (entry.isFile()) {
-        const info = await stat(absolutePath)
+        const info = await stat(absolutePath).catch(() => undefined)
+        if (!info?.isFile()) continue
         files.push({
           absolutePath,
           relativePath: path.relative(root, absolutePath).split(path.sep).join('/'),
