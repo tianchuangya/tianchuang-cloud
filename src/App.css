@@ -221,6 +221,14 @@
 .settings-panel-stack { display: flex; flex-direction: column; gap: 24px; }
 .settings-about-panel > p { max-width: 620px; margin: 0 0 18px; color: var(--muted); font-size: 10px; line-height: 1.7; }
 .settings-project-loop { height: 92px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(255,255,255,.025); }
+.startup-settings-preview { position: relative; min-height: 138px; overflow: hidden; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: #0a1115 url('/assets/cloud-glass-bg.png') center / cover no-repeat; }
+.startup-settings-preview::before { content: ''; position: absolute; inset: -25%; opacity: .72; filter: blur(14px); background: repeating-linear-gradient(116deg, transparent 0 13%, rgba(203,245,250,.22) 16%, rgba(178,146,221,.1) 20%, transparent 25% 36%); transform: translateX(8%); }
+.startup-settings-preview[data-effect='aurora']::before { background: radial-gradient(ellipse at 35% 65%, rgba(100,220,232,.4), transparent 34%), radial-gradient(ellipse at 68% 35%, rgba(180,126,218,.42), transparent 38%); }
+.startup-settings-preview::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle, transparent, rgba(4,8,11,.68)); }
+.startup-settings-preview > span { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #eefcfd; }
+.startup-settings-preview > span > svg { margin-bottom: 4px; color: #a9edf3; }
+.startup-settings-preview strong { font-size: 15px; }
+.startup-settings-preview small { color: rgba(225,242,244,.58); font-size: 9px; }
 .cursor-settings-modal > footer { flex: 0 0 auto; }
 .setting-group-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 .setting-group-heading strong { font-size: 12px; font-weight: 680; }

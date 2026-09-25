@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, ArrowLeft, Check, ChevronRight, Cloud, CloudUpload, Crop,
@@ -15,8 +15,9 @@ import FadeContent from './components/FadeContent'
 import InteractiveBackdrop from './components/InteractiveBackdrop'
 import GridMotion from './components/GridMotion'
 import LogoLoop, { type LogoLoopItem } from './components/LogoLoop'
+import StartupExperience from './components/StartupExperience'
 import {
-  loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorEffect, type CursorPreferences, type CursorStyle, type LibraryView,
+  loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorEffect, type CursorPreferences, type CursorStyle, type LibraryView, type StartupEffect, type StartupMode,
 } from './components/cursor-preferences'
 import './App.css'
 
@@ -79,6 +80,11 @@ function App() {
   const [removeWorkspaceDialog, setRemoveWorkspaceDialog] = useState<WorkspaceProfile>()
   const [settingsDialog, setSettingsDialog] = useState(false)
   const [cursorPreferences, setCursorPreferences] = useState(loadCursorPreferences)
+  const [appReady, setAppReady] = useState(false)
+  const [showStartup, setShowStartup] = useState(() => {
+    const preferences = loadCursorPreferences()
+    return preferences.startupMode === 'always' || (preferences.startupMode === 'once' && localStorage.getItem('tianchuang.startup-seen.v1') !== 'true')
+  })
   const [showOverview, setShowOverview] = useState(true)
   const [coverUrls, setCoverUrls] = useState<Record<string, string | undefined>>({})
   const [customBackground, setCustomBackground] = useState<string>()
@@ -111,6 +117,11 @@ function App() {
     }
   }
 
+  const completeStartup = useCallback(() => {
+    localStorage.setItem('tianchuang.startup-seen.v1', 'true')
+    setShowStartup(false)
+  }, [])
+
   const refresh = async () => {
     const next = await window.tianchuang.getSnapshot()
     setSnapshot(next)
@@ -124,7 +135,7 @@ function App() {
     void window.tianchuang.getSnapshot().then((next) => {
       setSnapshot(next)
       setSelectedId(next.workspaces[0]?.id)
-    })
+    }).finally(() => setAppReady(true))
     const offProgress = window.tianchuang.onProgress((item) => {
       setProgress(item)
       if (item.phase === 'complete') window.setTimeout(() => setProgress(undefined), 1400)
@@ -319,6 +330,7 @@ function App() {
     >
       <InteractiveBackdrop effect={cursorPreferences.effect === 'fluid' ? 'none' : (backgroundEffectPreview || cursorPreferences.backgroundEffect)} image={customBackground} blur={cursorPreferences.backgroundBlur} opacity={cursorPreferences.backgroundOpacity} />
       <CursorExperience preferences={cursorPreferences} />
+      <AnimatePresence>{showStartup && <StartupExperience ready={appReady} effect={cursorPreferences.startupEffect} onComplete={completeStartup} />}</AnimatePresence>
       <header className="titlebar">
         <div className="brand-mark"><Cloud size={16} strokeWidth={2.3} /></div>
         <span>天创云端</span>
@@ -500,12 +512,14 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, backgroundBlur
 function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [backgroundEffectSearch, setBackgroundEffectSearch] = useState('')
-  const [category, setCategory] = useState<'appearance' | 'library' | 'about'>('appearance')
-  const [subpage, setSubpage] = useState<'pointer' | 'background' | 'view' | 'links'>('pointer')
+  const [category, setCategory] = useState<'startup' | 'appearance' | 'library' | 'about'>('startup')
+  const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'view' | 'links'>('launch')
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
   const setBackgroundEffect = (backgroundEffect: BackgroundEffect) => onChange({ ...preferences, backgroundEffect })
   const setLibraryView = (libraryView: LibraryView) => onChange({ ...preferences, libraryView })
+  const setStartupMode = (startupMode: StartupMode) => onChange({ ...preferences, startupMode })
+  const setStartupEffect = (startupEffect: StartupEffect) => onChange({ ...preferences, startupEffect })
   const backgroundEffects: Array<{ value: BackgroundEffect; title: string; description: string; className: string; icon: React.ReactNode }> = [
     { value: 'none', title: '无动态效果', description: '只显示背景图与透明玻璃材质', className: 'quiet', icon: <Layers3 size={20} /> },
     { value: 'ripple', title: '水波折射', description: '移动或点击时扰动背景材质', className: 'ripple', icon: <Droplets size={20} /> },
@@ -514,9 +528,9 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
     { value: 'aurora', title: '柔光极光', description: 'OGL 柔和光带与色彩流动', className: 'aurora', icon: <Waves size={20} /> },
   ]
   const visibleBackgroundEffects = backgroundEffects.filter((item) => `${item.title}${item.description}${item.value}`.toLowerCase().includes(backgroundEffectSearch.trim().toLowerCase()))
-  const chooseCategory = (next: 'appearance' | 'library' | 'about') => {
+  const chooseCategory = (next: 'startup' | 'appearance' | 'library' | 'about') => {
     setCategory(next)
-    setSubpage(next === 'appearance' ? 'pointer' : next === 'library' ? 'view' : 'links')
+    setSubpage(next === 'startup' ? 'launch' : next === 'appearance' ? 'pointer' : next === 'library' ? 'view' : 'links')
     onPreviewBackgroundEffect(undefined)
   }
 
@@ -525,12 +539,14 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
       <motion.section className="modal glass-modal cursor-settings-modal" initial={{ opacity: 0, transform: 'translateY(10px) scale(.97)' }} animate={{ opacity: 1, transform: 'translateY(0) scale(1)' }} exit={{ opacity: 0, transform: 'translateY(8px) scale(.98)' }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
         <header><div className="settings-symbol"><Settings size={21} /></div><div><h2>设置</h2><p>按大类与子项管理天创云端</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
         <nav className="settings-top-nav" aria-label="设置大类">
+          <button className={category === 'startup' ? 'active' : ''} onClick={() => chooseCategory('startup')}><Cloud size={15} />启动体验</button>
           <button className={category === 'appearance' ? 'active' : ''} onClick={() => chooseCategory('appearance')}><MousePointer2 size={15} />外观与动态</button>
           <button className={category === 'library' ? 'active' : ''} onClick={() => chooseCategory('library')}><Layers3 size={15} />资料库</button>
           <button className={category === 'about' ? 'active' : ''} onClick={() => chooseCategory('about')}><Globe2 size={15} />关于</button>
         </nav>
         <div className="settings-cross-layout">
           <aside className="settings-side-nav" aria-label="设置子类">
+            {category === 'startup' && <button className="active" onClick={() => setSubpage('launch')}>启动动画</button>}
             {category === 'appearance' && <>
               <button className={subpage === 'pointer' ? 'active' : ''} onClick={() => setSubpage('pointer')}>指针与轨迹</button>
               <button className={subpage === 'background' ? 'active' : ''} onClick={() => setSubpage('background')}>背景与效果</button>
@@ -539,6 +555,21 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
             {category === 'about' && <button className="active" onClick={() => setSubpage('links')}>项目与作者</button>}
           </aside>
           <div className="cursor-settings-content">
+            {category === 'startup' && <FadeContent key="startup" duration={220} blurAmount={4}>
+              <section className="settings-panel-stack">
+                <div><div className="setting-group-heading"><strong>显示时机</strong><span>启动动画不会延迟资料库加载</span></div><div className="cursor-choice-grid three">
+                  <button className={preferences.startupMode === 'always' ? 'active' : ''} onClick={() => setStartupMode('always')} aria-pressed={preferences.startupMode === 'always'}><span className="effect-preview aurora"><Sparkles size={20} /></span><span><strong>每次启动</strong><small>每次打开应用时展示</small></span><Check size={15} /></button>
+                  <button className={preferences.startupMode === 'once' ? 'active' : ''} onClick={() => setStartupMode('once')} aria-pressed={preferences.startupMode === 'once'}><span className="effect-preview quiet"><History size={20} /></span><span><strong>仅首次</strong><small>新环境第一次打开时展示</small></span><Check size={15} /></button>
+                  <button className={preferences.startupMode === 'off' ? 'active' : ''} onClick={() => setStartupMode('off')} aria-pressed={preferences.startupMode === 'off'}><span className="effect-preview quiet"><Monitor size={20} /></span><span><strong>关闭</strong><small>直接进入资料库</small></span><Check size={15} /></button>
+                </div></div>
+                <div><div className="setting-group-heading"><strong>动画风格</strong><span>与常驻背景效果相互独立</span></div><div className="cursor-choice-grid two">
+                  <button className={preferences.startupEffect === 'aurora' ? 'active' : ''} onClick={() => setStartupEffect('aurora')} aria-pressed={preferences.startupEffect === 'aurora'} disabled={reduceMotion}><span className="effect-preview aurora"><Waves size={20} /></span><span><strong>柔光极光</strong><small>流动色带与玻璃云层</small></span><Check size={15} /></button>
+                  <button className={preferences.startupEffect === 'light' ? 'active' : ''} onClick={() => setStartupEffect('light')} aria-pressed={preferences.startupEffect === 'light'}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光掠影</strong><small>更克制的缓慢光束</small></span><Check size={15} /></button>
+                </div></div>
+                <div className="startup-settings-preview" data-effect={preferences.startupEffect}><span><Cloud size={22} /><strong>天创云端</strong><small>{preferences.startupEffect === 'aurora' ? '柔光极光' : '侧光掠影'}</small></span></div>
+                <div className="performance-note"><ShieldCheck size={16} /><span>启动动画最短约 1.2 秒；资料库会在动画期间并行加载，可随时按 Esc 或 Enter 跳过。</span></div>
+              </section>
+            </FadeContent>}
             {category === 'appearance' && subpage === 'pointer' && <FadeContent key="pointer" duration={220} blurAmount={4}>
               <section className="settings-panel-stack">
                 <div><div className="setting-group-heading"><strong>指针外观</strong><span>选择日常操作时使用的指针</span></div><div className="cursor-choice-grid two">

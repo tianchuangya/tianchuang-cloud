@@ -2,6 +2,8 @@ export type CursorStyle = 'rectangle' | 'system'
 export type CursorEffect = 'none' | 'fluid' | 'fireworks'
 export type BackgroundEffect = 'none' | 'ripple' | 'rays' | 'particles' | 'aurora'
 export type LibraryView = 'glass' | 'motion'
+export type StartupMode = 'always' | 'once' | 'off'
+export type StartupEffect = 'aurora' | 'light'
 
 export interface CursorPreferences {
   style: CursorStyle
@@ -10,6 +12,8 @@ export interface CursorPreferences {
   backgroundBlur: number
   backgroundOpacity: number
   libraryView: LibraryView
+  startupMode: StartupMode
+  startupEffect: StartupEffect
   cursorColor: string
   cursorTargetColor: string
 }
@@ -21,6 +25,8 @@ export const DEFAULT_CURSOR_PREFERENCES: CursorPreferences = {
   backgroundBlur: 0,
   backgroundOpacity: 1,
   libraryView: 'glass',
+  startupMode: 'always',
+  startupEffect: 'aurora',
   cursorColor: '#dafcff',
   cursorTargetColor: '#b497cf',
 }
@@ -41,6 +47,8 @@ export function loadCursorPreferences(): CursorPreferences {
       backgroundBlur: typeof stored.backgroundBlur === 'number' ? Math.min(24, Math.max(0, stored.backgroundBlur)) : 0,
       backgroundOpacity: typeof stored.backgroundOpacity === 'number' ? Math.min(1, Math.max(.2, stored.backgroundOpacity)) : 1,
       libraryView: stored.libraryView === 'motion' ? 'motion' : 'glass',
+      startupMode: stored.startupMode === 'once' || stored.startupMode === 'off' ? stored.startupMode : 'always',
+      startupEffect: stored.startupEffect === 'light' ? 'light' : 'aurora',
       cursorColor: color(stored.cursorColor, DEFAULT_CURSOR_PREFERENCES.cursorColor),
       cursorTargetColor: color(stored.cursorTargetColor, DEFAULT_CURSOR_PREFERENCES.cursorTargetColor),
     }

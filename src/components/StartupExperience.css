@@ -1,0 +1,19 @@
+.startup-experience { position: fixed; z-index: 900; inset: 0; overflow: hidden; color: #f1fbfc; background: #070c10; transform-origin: center; }
+.startup-image { position: absolute; inset: -3%; background: #0a1115 url('/assets/cloud-glass-bg.png') center / cover no-repeat; filter: saturate(.7) brightness(.52); transform: scale(1.03); }
+.startup-effect-layer, .startup-light-sweep { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.startup-effect-layer { opacity: .82; mix-blend-mode: screen; }
+.startup-light-sweep { inset: -35% -25%; opacity: .7; filter: blur(18px); background: repeating-linear-gradient(116deg, transparent 0 12%, rgba(212,248,252,.24) 15%, rgba(177,209,255,.08) 18%, transparent 23% 34%); animation: startup-light-drift 2.8s cubic-bezier(.45,0,.55,1) infinite alternate; }
+.startup-shade { position: absolute; inset: 0; background: radial-gradient(circle at 50% 46%, transparent 0 12%, rgba(4,8,11,.22) 48%, rgba(4,8,11,.72) 100%), linear-gradient(to bottom, rgba(4,8,11,.08), rgba(4,8,11,.42)); }
+.startup-brand { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 2vh; text-align: center; }
+.startup-mark { width: 78px; height: 78px; display: grid; place-items: center; margin-bottom: 20px; border: 1px solid rgba(220,251,255,.34); border-radius: 24px; color: #071216; background: rgba(196,247,252,.92); box-shadow: 0 22px 70px rgba(71,201,219,.22), inset 0 1px rgba(255,255,255,.82); backdrop-filter: blur(20px); }
+.startup-brand h1 { margin: 0; font-size: 36px; line-height: 1.15; font-weight: 690; letter-spacing: 0; text-shadow: 0 10px 38px rgba(0,0,0,.45); }
+.startup-brand p { margin: 8px 0 0; color: rgba(220,239,242,.62); font-size: 11px; font-weight: 560; }
+.startup-status { position: absolute; right: 28px; bottom: 24px; left: 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; color: rgba(220,239,242,.6); font-size: 10px; }
+.startup-status > span { display: inline-flex; align-items: center; gap: 8px; }
+.startup-status i { width: 6px; height: 6px; border-radius: 50%; background: #86dfeb; box-shadow: 0 0 14px rgba(112,222,235,.8); animation: startup-status-breathe 1.3s ease-in-out infinite; }
+.startup-status .ready i { background: #69dca1; box-shadow: 0 0 14px rgba(76,216,145,.7); animation: none; }
+.startup-status button { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-radius: 8px; color: rgba(234,249,251,.68); background: transparent; cursor: pointer; font-size: 10px; }
+.startup-status button:hover { color: #fff; background: rgba(255,255,255,.06); }
+@keyframes startup-light-drift { to { transform: translate3d(18%, 5%, 0) rotate(.7deg); } }
+@keyframes startup-status-breathe { 50% { opacity: .38; transform: scale(.72); } }
+@media (prefers-reduced-motion: reduce) { .startup-light-sweep, .startup-status i { animation: none; } .startup-effect-layer { display: none; } }
