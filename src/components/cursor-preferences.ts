@@ -7,6 +7,8 @@ export interface CursorPreferences {
   style: CursorStyle
   effect: CursorEffect
   backgroundEffect: BackgroundEffect
+  backgroundBlur: number
+  backgroundOpacity: number
   libraryView: LibraryView
   cursorColor: string
   cursorTargetColor: string
@@ -16,6 +18,8 @@ export const DEFAULT_CURSOR_PREFERENCES: CursorPreferences = {
   style: 'rectangle',
   effect: 'none',
   backgroundEffect: 'ripple',
+  backgroundBlur: 0,
+  backgroundOpacity: 1,
   libraryView: 'glass',
   cursorColor: '#dafcff',
   cursorTargetColor: '#b497cf',
@@ -34,6 +38,8 @@ export function loadCursorPreferences(): CursorPreferences {
       backgroundEffect: storedBackgroundEffect === 'rays' || storedBackgroundEffect === 'particles' || storedBackgroundEffect === 'none' || storedBackgroundEffect === 'static'
         ? (storedBackgroundEffect === 'static' ? 'none' : storedBackgroundEffect)
         : 'ripple',
+      backgroundBlur: typeof stored.backgroundBlur === 'number' ? Math.min(24, Math.max(0, stored.backgroundBlur)) : 0,
+      backgroundOpacity: typeof stored.backgroundOpacity === 'number' ? Math.min(1, Math.max(.2, stored.backgroundOpacity)) : 1,
       libraryView: stored.libraryView === 'motion' ? 'motion' : 'glass',
       cursorColor: color(stored.cursorColor, DEFAULT_CURSOR_PREFERENCES.cursorColor),
       cursorTargetColor: color(stored.cursorTargetColor, DEFAULT_CURSOR_PREFERENCES.cursorTargetColor),

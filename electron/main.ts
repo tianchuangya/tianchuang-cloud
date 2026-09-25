@@ -15,7 +15,7 @@ import {
 } from './sync-service.js'
 import { removeWorkspace, updateWorkspace } from './store.js'
 import { createGitHubRepository, githubSession, loginGitHub } from './github.js'
-import { copyWorkspaceCover, coverDataUrl, coverFileFilters, findWorkspaceCover } from './covers.js'
+import { coverDataUrl, coverFileFilters, findWorkspaceCover, saveWorkspaceCoverData } from './covers.js'
 import { backgroundFileFilters, clearCustomBackground, copyCustomBackground, findCustomBackground, imageDataUrl } from './backgrounds.js'
 import type { GitHubRepositoryDraft, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
 
@@ -170,12 +170,17 @@ function registerIpc(): void {
     const coverPath = workspace.coverPath || await findWorkspaceCover(workspace.path)
     return coverDataUrl(coverPath)
   })
-  ipcMain.handle('workspace:cover:select', async (_event, workspaceId: string) => {
+  ipcMain.handle('workspace:cover:pick', async (_event, workspaceId: string) => {
     const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
     if (!workspace) throw new Error('找不到资料库')
     const result = await dialog.showOpenDialog({ title: `为“${workspace.name}”选择封面`, buttonLabel: '使用此封面', properties: ['openFile'], filters: coverFileFilters })
     if (result.canceled || !result.filePaths[0]) return undefined
-    const coverPath = await copyWorkspaceCover(workspace.path, result.filePaths[0])
+    return coverDataUrl(result.filePaths[0])
+  })
+  ipcMain.handle('workspace:cover:save', async (_event, workspaceId: string, dataUrl: string) => {
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) throw new Error('找不到资料库')
+    const coverPath = await saveWorkspaceCoverData(workspace.path, dataUrl)
     const updated = updateWorkspace(workspaceId, (item) => ({ ...item, coverPath }))
     send('app:snapshot-changed')
     return updated

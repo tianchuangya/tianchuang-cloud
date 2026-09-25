@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  Activity, AlertTriangle, ArchiveRestore, ArrowLeft, Check, ChevronRight, Cloud, CloudUpload,
+  Activity, AlertTriangle, ArchiveRestore, ArrowLeft, Check, ChevronRight, Cloud, CloudUpload, Crop,
   Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, Grid2X2, HardDrive, History, Image as ImageIcon, ImagePlus, Layers3, LoaderCircle,
   LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
-  Settings, ShieldCheck, Sparkles, SunMedium, Trash2, Waves, X,
+  Settings, ShieldCheck, Sparkles, SunMedium, Trash2, Waves, X, ZoomIn,
 } from 'lucide-react'
 import type {
   AppSnapshot, GitHubSession, ProviderKind, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile,
@@ -81,6 +81,8 @@ function App() {
   const [showOverview, setShowOverview] = useState(true)
   const [coverUrls, setCoverUrls] = useState<Record<string, string | undefined>>({})
   const [customBackground, setCustomBackground] = useState<string>()
+  const [backgroundEffectPreview, setBackgroundEffectPreview] = useState<BackgroundEffect>()
+  const [coverCrop, setCoverCrop] = useState<{ workspace: WorkspaceProfile; source: string }>()
 
   const refresh = async () => {
     const next = await window.tianchuang.getSnapshot()
@@ -220,18 +222,27 @@ function App() {
     setWorkspaceMenu(undefined)
     setNoticeError(false)
     try {
-      const updated = await window.tianchuang.selectWorkspaceCover(workspaceId)
-      if (!updated) return
-      await refresh()
-      const cover = await window.tianchuang.getWorkspaceCover(workspaceId)
-      setCoverUrls((current) => ({ ...current, [workspaceId]: cover }))
-      setNotice('封面已保存到资料库根目录，将随资料一起同步')
-      window.setTimeout(() => setNotice(undefined), 3600)
+      const workspace = snapshot.workspaces.find((item) => item.id === workspaceId)
+      const source = await window.tianchuang.pickWorkspaceCover(workspaceId)
+      if (workspace && source) setCoverCrop({ workspace, source })
     } catch (reason) {
       setNoticeError(true)
       setNotice(`设置封面失败：${reason instanceof Error ? reason.message : String(reason)}`)
       window.setTimeout(() => setNotice(undefined), 5200)
     }
+  }
+
+  const saveCroppedCover = async (dataUrl: string) => {
+    if (!coverCrop) return
+    const workspaceId = coverCrop.workspace.id
+    await window.tianchuang.saveWorkspaceCover(workspaceId, dataUrl)
+    setCoverCrop(undefined)
+    await refresh()
+    const cover = await window.tianchuang.getWorkspaceCover(workspaceId)
+    setCoverUrls((current) => ({ ...current, [workspaceId]: cover }))
+    setNoticeError(false)
+    setNotice('封面选区已保存，将随资料一起同步')
+    window.setTimeout(() => setNotice(undefined), 3600)
   }
 
   const selectCustomBackground = async () => {
@@ -258,7 +269,7 @@ function App() {
       onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false) }}
       onDrop={(event) => void dropFolder(event)}
     >
-      <InteractiveBackdrop effect={cursorPreferences.effect === 'fluid' ? 'none' : cursorPreferences.backgroundEffect} image={customBackground} />
+      <InteractiveBackdrop effect={cursorPreferences.effect === 'fluid' ? 'none' : (backgroundEffectPreview || cursorPreferences.backgroundEffect)} image={customBackground} blur={cursorPreferences.backgroundBlur} opacity={cursorPreferences.backgroundOpacity} />
       <CursorExperience preferences={cursorPreferences} />
       <header className="titlebar">
         <div className="brand-mark"><Cloud size={16} strokeWidth={2.3} /></div>
@@ -292,6 +303,7 @@ function App() {
           <WorkspaceOverview
             workspaces={snapshot.workspaces}
             covers={coverUrls}
+            backgroundImage={customBackground}
             view={cursorPreferences.libraryView}
             onChangeView={(libraryView) => changeCursorPreferences({ ...cursorPreferences, libraryView })}
             onSelect={(workspaceId) => { setSelectedId(workspaceId); setShowOverview(false) }}
@@ -399,7 +411,8 @@ function App() {
         {targetDialog && selected && <TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
         {reviewPlan && <ReviewDialog plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(preserve) => void runReviewedPlan(preserve)} />}
         {removeWorkspaceDialog && <RemoveWorkspaceDialog workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
-        {settingsDialog && <CursorSettingsDialog preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onChange={changeCursorPreferences} onClose={() => setSettingsDialog(false)} />}
+        {settingsDialog && <CursorSettingsDialog preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onChange={changeCursorPreferences} onClose={() => { setBackgroundEffectPreview(undefined); setSettingsDialog(false) }} />}
+        {coverCrop && <CoverCropDialog workspace={coverCrop.workspace} source={coverCrop.source} onClose={() => setCoverCrop(undefined)} onSave={saveCroppedCover} />}
         {progress && <ProgressOverlay progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
@@ -407,7 +420,7 @@ function App() {
   )
 }
 
-function WorkspaceOverview({ workspaces, covers, view, onChangeView, onSelect, onAdd }: { workspaces: WorkspaceProfile[]; covers: Record<string, string | undefined>; view: LibraryView; onChangeView: (view: LibraryView) => void; onSelect: (workspaceId: string) => void; onAdd: () => void }) {
+function WorkspaceOverview({ workspaces, covers, backgroundImage, view, onChangeView, onSelect, onAdd }: { workspaces: WorkspaceProfile[]; covers: Record<string, string | undefined>; backgroundImage?: string; view: LibraryView; onChangeView: (view: LibraryView) => void; onSelect: (workspaceId: string) => void; onAdd: () => void }) {
   return (
     <FadeContent className="library-overview" duration={320} blurAmount={7}>
       <section className="library-overview-header">
@@ -420,7 +433,7 @@ function WorkspaceOverview({ workspaces, covers, view, onChangeView, onSelect, o
           <button className="secondary-button" onClick={onAdd}><FolderInput size={16} />添加资料库</button>
         </div>
       </section>
-      {view === 'motion' ? <GridMotion workspaces={workspaces} covers={covers} onSelect={onSelect} /> : (
+      {view === 'motion' ? <GridMotion workspaces={workspaces} covers={covers} backgroundImage={backgroundImage} onSelect={onSelect} /> : (
         <section className="library-glass-grid" aria-label="资料库">
           {workspaces.map((workspace, index) => (
             <motion.button className="library-glass-card" key={workspace.id} onClick={() => onSelect(workspace.id)} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * .035, .18), duration: .24 }}>
@@ -437,7 +450,7 @@ function WorkspaceOverview({ workspaces, covers, view, onChangeView, onSelect, o
   )
 }
 
-function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
+function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
@@ -464,6 +477,10 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
             <div className="background-image-settings">
               <div className="background-image-preview">{customBackground ? <img src={customBackground} alt="当前自定义背景预览" /> : <img src="/assets/cloud-glass-bg.png" alt="默认背景预览" />}</div>
               <div><strong>{customBackground ? '自定义背景' : '天创云端默认背景'}</strong><small>{customBackground ? '图片已复制到应用数据目录' : '当前项目内置的玻璃云端背景'}</small><span><button className="secondary-button" onClick={() => void onSelectBackground()}><ImageIcon size={15} />选择图片</button>{customBackground && <button className="plain-button" onClick={() => void onResetBackground()}>恢复默认</button>}</span></div>
+            </div>
+            <div className="background-tuning-grid">
+              <label><span><strong>背景模糊</strong><small>{preferences.backgroundBlur}px</small></span><input type="range" min="0" max="24" step="1" value={preferences.backgroundBlur} onChange={(event) => onChange({ ...preferences, backgroundBlur: Number(event.target.value) })} /></label>
+              <label><span><strong>背景不透明度</strong><small>{Math.round(preferences.backgroundOpacity * 100)}%</small></span><input type="range" min="20" max="100" step="5" value={preferences.backgroundOpacity * 100} onChange={(event) => onChange({ ...preferences, backgroundOpacity: Number(event.target.value) / 100 })} /></label>
             </div>
           </section>
           </FadeContent>
@@ -499,10 +516,10 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
           <section>
             <div className="setting-group-heading"><strong>背景动态效果</strong><span>效果叠加在当前背景图上</span></div>
             <div className="cursor-choice-grid two">
-              <button className={preferences.backgroundEffect === 'none' ? 'active' : ''} onClick={() => setBackgroundEffect('none')} aria-pressed={preferences.backgroundEffect === 'none'}><span className="effect-preview quiet"><Layers3 size={20} /></span><span><strong>无动态效果</strong><small>只显示背景图与透明玻璃材质</small></span><Check size={15} /></button>
-              <button className={preferences.backgroundEffect === 'ripple' ? 'active' : ''} onClick={() => setBackgroundEffect('ripple')} aria-pressed={preferences.backgroundEffect === 'ripple'} disabled={reduceMotion}><span className="effect-preview ripple"><Droplets size={20} /></span><span><strong>水波折射</strong><small>移动和点击时扰动背景材质</small></span><Check size={15} /></button>
-              <button className={preferences.backgroundEffect === 'rays' ? 'active' : ''} onClick={() => setBackgroundEffect('rays')} aria-pressed={preferences.backgroundEffect === 'rays'} disabled={reduceMotion}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光流束</strong><small>缓慢移动的半透明光束</small></span><Check size={15} /></button>
-              <button className={preferences.backgroundEffect === 'particles' ? 'active' : ''} onClick={() => setBackgroundEffect('particles')} aria-pressed={preferences.backgroundEffect === 'particles'} disabled={reduceMotion}><span className="effect-preview particles"><Sparkles size={20} /></span><span><strong>微光粒子</strong><small>低密度白色粒子缓慢漂移</small></span><Check size={15} /></button>
+              <button className={preferences.backgroundEffect === 'none' ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect('none')} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect('none')} aria-pressed={preferences.backgroundEffect === 'none'}><span className="effect-preview quiet"><Layers3 size={20} /></span><span><strong>无动态效果</strong><small>悬停预览，点击后保存</small></span><Check size={15} /></button>
+              <button className={preferences.backgroundEffect === 'ripple' ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect('ripple')} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect('ripple')} aria-pressed={preferences.backgroundEffect === 'ripple'} disabled={reduceMotion}><span className="effect-preview ripple"><Droplets size={20} /></span><span><strong>水波折射</strong><small>悬停预览，移动或点击扰动</small></span><Check size={15} /></button>
+              <button className={preferences.backgroundEffect === 'rays' ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect('rays')} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect('rays')} aria-pressed={preferences.backgroundEffect === 'rays'} disabled={reduceMotion}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光流束</strong><small>悬停预览，点击后保存</small></span><Check size={15} /></button>
+              <button className={preferences.backgroundEffect === 'particles' ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect('particles')} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect('particles')} aria-pressed={preferences.backgroundEffect === 'particles'} disabled={reduceMotion}><span className="effect-preview particles"><Sparkles size={20} /></span><span><strong>微光粒子</strong><small>悬停预览，点击后保存</small></span><Check size={15} /></button>
             </div>
           </section>
           </FadeContent>
@@ -511,6 +528,103 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
           <div className="performance-note"><Waves size={16} /><span>流体彩雾使用 GPU 实时渲染；在电池模式或远程桌面中，建议选择点击烟花或关闭。</span></div>
         </div>
         <footer><button className="primary-button" onClick={onClose}>完成</button></footer>
+      </motion.section>
+    </motion.div>
+  )
+}
+
+function CoverCropDialog({ workspace, source, onClose, onSave }: { workspace: WorkspaceProfile; source: string; onClose: () => void; onSave: (dataUrl: string) => Promise<void> }) {
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null)
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const update = () => setViewportSize({ width: viewport.clientWidth, height: viewport.clientHeight })
+    const observer = new ResizeObserver(update)
+    observer.observe(viewport)
+    update()
+    return () => observer.disconnect()
+  }, [])
+
+  const baseScale = naturalSize.width && viewportSize.width
+    ? Math.max(viewportSize.width / naturalSize.width, viewportSize.height / naturalSize.height)
+    : 1
+  const displayWidth = naturalSize.width * baseScale
+  const displayHeight = naturalSize.height * baseScale
+  const clampOffset = (x: number, y: number, nextZoom = zoom) => ({
+    x: Math.max(-(displayWidth * nextZoom - viewportSize.width) / 2, Math.min((displayWidth * nextZoom - viewportSize.width) / 2, x)),
+    y: Math.max(-(displayHeight * nextZoom - viewportSize.height) / 2, Math.min((displayHeight * nextZoom - viewportSize.height) / 2, y)),
+  })
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = { x: event.clientX, y: event.clientY, offsetX: offset.x, offsetY: offset.y }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const moveDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return
+    setOffset(clampOffset(
+      dragRef.current.offsetX + event.clientX - dragRef.current.x,
+      dragRef.current.offsetY + event.clientY - dragRef.current.y,
+    ))
+  }
+  const finishDrag = () => { dragRef.current = null }
+  const changeZoom = (nextZoom: number) => {
+    setZoom(nextZoom)
+    setOffset((current) => clampOffset(current.x, current.y, nextZoom))
+  }
+  const save = async () => {
+    if (!naturalSize.width || !viewportSize.width) return
+    setSaving(true)
+    setError('')
+    try {
+      const image = new Image()
+      image.src = source
+      await image.decode()
+      const canvas = document.createElement('canvas')
+      canvas.width = 1280
+      canvas.height = 720
+      const context = canvas.getContext('2d')
+      if (!context) throw new Error('无法创建封面画布')
+      const scale = baseScale * zoom
+      const sourceWidth = viewportSize.width / scale
+      const sourceHeight = viewportSize.height / scale
+      const sourceX = (naturalSize.width - sourceWidth) / 2 - offset.x / scale
+      const sourceY = (naturalSize.height - sourceHeight) / 2 - offset.y / scale
+      context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height)
+      await onSave(canvas.toDataURL('image/png', .92))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+      setSaving(false)
+    }
+  }
+
+  return (
+    <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.section className="modal glass-modal cover-crop-modal" initial={{ opacity: 0, scale: .97, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .98, y: 8 }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
+        <header><div className="settings-symbol"><Crop size={21} /></div><div><h2>调整“{workspace.name}”的封面</h2><p>拖动图片选择区域，使用滑杆调整缩放</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
+        <div className="cover-crop-content">
+          <div ref={viewportRef} className="cover-crop-viewport" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
+            <img
+              src={source}
+              alt="待裁剪封面"
+              draggable={false}
+              onLoad={(event) => setNaturalSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+              style={{ width: displayWidth || 'auto', height: displayHeight || 'auto', transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
+            />
+            <span className="cover-crop-grid" aria-hidden="true" />
+          </div>
+          <label className="cover-zoom-control"><ZoomIn size={16} /><span>缩放</span><input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(event) => changeZoom(Number(event.target.value))} /><output>{Math.round(zoom * 100)}%</output></label>
+          <p className="cover-crop-note">封面将保存为 1280 × 720 PNG，并作为相对路径文件随资料库同步。</p>
+          {error && <p className="form-error"><AlertTriangle size={15} />{error}</p>}
+        </div>
+        <footer><button className="plain-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving || !naturalSize.width} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" size={17} /> : <Crop size={17} />}保存封面</button></footer>
       </motion.section>
     </motion.div>
   )

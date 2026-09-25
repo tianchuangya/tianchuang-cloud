@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { copyWorkspaceCover, coverDataUrl, findWorkspaceCover } from '../electron/covers.js'
+import { copyWorkspaceCover, coverDataUrl, findWorkspaceCover, saveWorkspaceCoverData } from '../electron/covers.js'
 
 const temporaryFolders: string[] = []
 
@@ -46,5 +46,15 @@ describe('workspace covers', () => {
     await writeFile(source, 'not an image')
 
     await expect(copyWorkspaceCover(folder, source)).rejects.toThrow('请选择 PNG')
+  })
+
+  it('saves a cropped PNG result as the portable workspace cover', async () => {
+    const folder = await temporaryFolder()
+    await writeFile(path.join(folder, '.tianchuang-cover.jpg'), Buffer.from([9]))
+
+    const result = await saveWorkspaceCoverData(folder, 'data:image/png;base64,AQID')
+
+    expect(result).toBe(path.join(folder, '.tianchuang-cover.png'))
+    expect((await readdir(folder)).filter((name) => name.startsWith('.tianchuang-cover.'))).toEqual(['.tianchuang-cover.png'])
   })
 })

@@ -1,4 +1,4 @@
-import { copyFile, readFile, readdir, stat, unlink } from 'node:fs/promises'
+import { copyFile, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.svg'])
@@ -28,6 +28,20 @@ export async function copyWorkspaceCover(folderPath: string, sourcePath: string)
     .filter((filePath) => path.resolve(filePath) !== path.resolve(sourcePath) && path.resolve(filePath) !== path.resolve(destination))
     .map((filePath) => unlink(filePath).catch(() => undefined)))
   if (path.resolve(sourcePath) !== path.resolve(destination)) await copyFile(sourcePath, destination)
+  return destination
+}
+
+export async function saveWorkspaceCoverData(folderPath: string, dataUrl: string): Promise<string> {
+  const match = /^data:image\/png;base64,([a-z0-9+/=]+)$/i.exec(dataUrl)
+  if (!match) throw new Error('封面裁剪结果格式无效')
+  const data = Buffer.from(match[1], 'base64')
+  if (!data.length || data.length > 8 * 1024 * 1024) throw new Error('封面裁剪结果不可用或超过 8 MB')
+  const existing = await readdir(folderPath, { withFileTypes: true }).catch(() => [])
+  await Promise.all(existing
+    .filter((item) => item.isFile() && path.parse(item.name).name.toLowerCase() === '.tianchuang-cover')
+    .map((item) => unlink(path.join(folderPath, item.name)).catch(() => undefined)))
+  const destination = path.join(folderPath, '.tianchuang-cover.png')
+  await writeFile(destination, data)
   return destination
 }
 

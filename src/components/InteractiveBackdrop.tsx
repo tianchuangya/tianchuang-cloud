@@ -4,9 +4,13 @@ import type { BackgroundEffect } from './cursor-preferences'
 
 const RippleDistortion = lazy(() => import('./RippleDistortion.jsx'))
 
-export default function InteractiveBackdrop({ effect, image }: { effect: BackgroundEffect; image?: string }) {
+export default function InteractiveBackdrop({ effect, image, blur, opacity }: { effect: BackgroundEffect; image?: string; blur: number; opacity: number }) {
   const source = image || '/assets/cloud-glass-bg.png'
-  const backgroundStyle = { '--background-image': `url("${source}")` } as CSSProperties
+  const backgroundStyle = {
+    '--background-image': `url("${source}")`,
+    '--background-blur': `${blur}px`,
+    '--background-opacity': opacity,
+  } as CSSProperties
   return (
     <div className={`interactive-backdrop effect-${effect}`} style={backgroundStyle} aria-hidden="true">
       {effect === 'ripple' ? (

@@ -6,18 +6,24 @@ import './GridMotion.css'
 interface GridMotionProps {
   workspaces: WorkspaceProfile[]
   covers: Record<string, string | undefined>
+  backgroundImage?: string
   onSelect: (workspaceId: string) => void
 }
 
 const CELL_COUNT = 28
+const FOCUS_POSITIONS = [10, 17, 9, 18, 11, 16, 3, 24, 2, 25, 4, 23, 8, 19, 12, 15, 1, 26, 5, 22, 7, 20, 13, 14, 0, 27, 6, 21]
 
-export default function GridMotion({ workspaces, covers, onSelect }: GridMotionProps) {
+export default function GridMotion({ workspaces, covers, backgroundImage, onSelect }: GridMotionProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<Array<HTMLDivElement | null>>([])
-  const items = useMemo(() => Array.from({ length: CELL_COUNT }, (_, index) => ({
-    workspace: workspaces[index % workspaces.length],
-    duplicate: index >= workspaces.length,
-  })), [workspaces])
+  const items = useMemo(() => {
+    const visible = workspaces.slice(0, CELL_COUNT)
+    const positions = FOCUS_POSITIONS.slice(0, visible.length)
+    return Array.from({ length: CELL_COUNT }, (_, index) => {
+      const workspaceIndex = positions.indexOf(index)
+      return { workspace: workspaceIndex >= 0 ? visible[workspaceIndex] : undefined }
+    })
+  }, [workspaces])
 
   useEffect(() => {
     const root = rootRef.current
@@ -53,19 +59,18 @@ export default function GridMotion({ workspaces, covers, onSelect }: GridMotionP
   if (!workspaces.length) return null
 
   return (
-    <div ref={rootRef} className="library-motion-grid" aria-label="动态资料库网格">
+    <div ref={rootRef} className="library-motion-grid" aria-label="动态资料库网格" style={{ '--motion-background': `url("${backgroundImage || '/assets/cloud-glass-bg.png'}")` } as CSSProperties}>
       {Array.from({ length: 4 }, (_, rowIndex) => (
         <div className="library-motion-row" key={rowIndex} ref={(element) => { rowRefs.current[rowIndex] = element }}>
-          {items.slice(rowIndex * 7, rowIndex * 7 + 7).map(({ workspace, duplicate }, columnIndex) => {
+          {items.slice(rowIndex * 7, rowIndex * 7 + 7).map(({ workspace }, columnIndex) => {
+            if (!workspace) return <span className="library-motion-ambient" aria-hidden="true" key={`${rowIndex}-${columnIndex}-ambient`} style={{ backgroundPosition: `${columnIndex * 16}% ${rowIndex * 30}%` }} />
             const cover = covers[workspace.id]
             return (
               <button
                 className={`library-motion-item ${cover ? 'has-cover' : ''}`}
                 key={`${rowIndex}-${columnIndex}-${workspace.id}`}
                 onClick={() => onSelect(workspace.id)}
-                tabIndex={duplicate ? -1 : 0}
-                aria-hidden={duplicate || undefined}
-                aria-label={duplicate ? undefined : `打开资料库 ${workspace.name}`}
+                aria-label={`打开资料库 ${workspace.name}`}
                 style={cover ? { '--library-cover': `url("${cover}")` } as CSSProperties : undefined}
               >
                 <span className="motion-cover-placeholder"><Folder size={27} /></span>
