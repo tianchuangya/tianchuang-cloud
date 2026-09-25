@@ -1,4 +1,5 @@
-.startup-experience { position: fixed; z-index: 900; inset: 0; overflow: hidden; color: #f1fbfc; background: #070c10; transform-origin: center; }
+.startup-experience { position: fixed; z-index: 900; inset: 0; overflow: hidden; color: #f1fbfc; background: #070c10; transform-origin: center; cursor: wait; }
+.startup-experience.is-ready { cursor: pointer; }
 .startup-image { position: absolute; inset: -3%; background: #0a1115 url('/assets/cloud-glass-bg.png') center / cover no-repeat; filter: saturate(.7) brightness(.52); transform: scale(1.03); }
 .startup-effect-layer, .startup-light-sweep { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .startup-effect-layer { opacity: .82; mix-blend-mode: screen; }

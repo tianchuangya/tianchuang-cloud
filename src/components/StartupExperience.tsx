@@ -27,11 +27,12 @@ export default function StartupExperience({ ready, effect, onComplete }: Startup
 
   return (
     <motion.section
-      className={`startup-experience startup-${effect}`}
+      className={`startup-experience startup-${effect} ${ready ? 'is-ready' : ''}`}
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.012, filter: 'blur(7px)' }}
       transition={{ duration: reduceMotion ? .12 : .52, ease: [0.22, 1, 0.36, 1] }}
       aria-label="天创云端启动画面"
+      onPointerUp={() => { if (ready) onComplete() }}
     >
       <div className="startup-image" />
       {effect === 'aurora' ? (
@@ -49,7 +50,7 @@ export default function StartupExperience({ ready, effect, onComplete }: Startup
         </div>
         <div className="startup-status-row">
           <span className="startup-state"><i />{ready ? '资料库已准备完成' : '正在准备资料库'}</span>
-          <span className="startup-enter-hint">{ready ? '按任意键进入' : '正在加载'}</span>
+          <span className="startup-enter-hint">{ready ? '按任意键或点击进入' : '正在加载'}</span>
         </div>
       </div>
     </motion.section>
