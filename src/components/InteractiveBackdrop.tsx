@@ -4,26 +4,26 @@ const RippleDistortion = lazy(() => import('./RippleDistortion.jsx'))
 
 export default function InteractiveBackdrop({ ripple }: { ripple: boolean }) {
   return (
-    <div className="interactive-backdrop" aria-hidden="true">
+    <div className={`interactive-backdrop ${ripple ? 'ripple-active' : 'static-active'}`} aria-hidden="true">
       {ripple ? (
         <Suspense fallback={<div className="static-backdrop" />}>
           <RippleDistortion
             src="/assets/cloud-glass-bg.png"
-            brushSize={185}
-            strength={0.035}
-            swirl={0.35}
-            rings={2}
-            spread={3.2}
-            fade={1.8}
-            spacing={30}
-            dispersion={0.018}
-            glint={0.16}
+            brushSize={240}
+            strength={0.085}
+            swirl={0.5}
+            rings={3}
+            spread={3.8}
+            fade={2.3}
+            spacing={26}
+            dispersion={0.032}
+            glint={0.28}
             tint="#77dce8"
-            tintAmount={0.08}
+            tintAmount={0.16}
             highlightColor="#e7fbff"
             grayscale={false}
             trigger="both"
-            clickStrength={1.35}
+            clickStrength={1.8}
             quality="low"
             style={{}}
           />

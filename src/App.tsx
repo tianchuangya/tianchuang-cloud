@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  Activity, AlertTriangle, ArchiveRestore, Check, ChevronRight, Cloud, CloudUpload,
+  Activity, AlertTriangle, ArchiveRestore, ArrowLeft, Check, ChevronRight, Cloud, CloudUpload,
   Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, Grid2X2, HardDrive, History, ImagePlus, Layers3, LoaderCircle,
   LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
   Settings, ShieldCheck, Sparkles, Trash2, Waves, X,
@@ -284,6 +284,7 @@ function App() {
             <AnimatedContent key={`${selected.id}-header`} container=".content" direction="horizontal" reverse distance={26} duration={.28} initialOpacity={.15} scale={.995}>
             <section className="workspace-header">
               <div>
+                <button className="workspace-back-button" onClick={() => setShowOverview(true)}><ArrowLeft size={15} />返回资料库</button>
                 <div className="status-line"><span className={`status-pill ${selected.state}`}>{selected.state === 'syncing' ? '同步中' : selected.state === 'attention' ? '需要确认' : selected.state === 'error' ? '发生错误' : '已受保护'}</span><span>{relativeTime(selected.lastSyncAt)}</span></div>
                 <h1>{selected.name}</h1>
                 <p className="path-text" title={selected.path}>{selected.path}</p>
@@ -463,7 +464,7 @@ function CursorSettingsDialog({ preferences, onChange, onClose }: { preferences:
             <div className="cursor-choice-grid three">
               <button className={preferences.effect === 'none' ? 'active' : ''} onClick={() => setEffect('none')} aria-pressed={preferences.effect === 'none'}><span className="effect-preview quiet"><Monitor size={20} /></span><span><strong>关闭</strong><small>性能优先</small></span><Check size={15} /></button>
               <button className={preferences.effect === 'fluid' ? 'active' : ''} onClick={() => setEffect('fluid')} aria-pressed={preferences.effect === 'fluid'} disabled={reduceMotion}><span className="effect-preview fluid"><Waves size={20} /></span><span><strong>流体彩雾</strong><small>移动时产生渐色流体</small></span><Check size={15} /></button>
-              <button className={preferences.effect === 'fireworks' ? 'active' : ''} onClick={() => setEffect('fireworks')} aria-pressed={preferences.effect === 'fireworks'} disabled={reduceMotion}><span className="effect-preview fireworks"><Sparkles size={20} /></span><span><strong>点击烟花</strong><small>点击时短暂绽放</small></span><Check size={15} /></button>
+              <button className={preferences.effect === 'fireworks' ? 'active' : ''} onClick={() => setEffect('fireworks')} aria-pressed={preferences.effect === 'fireworks'} disabled={reduceMotion}><span className="effect-preview fireworks"><Sparkles size={20} /></span><span><strong>白色点击烟花</strong><small>缓慢扩散并柔和消退</small></span><Check size={15} /></button>
             </div>
           </section>
           </FadeContent>

@@ -110,7 +110,6 @@ interface Particle {
   vy: number
   life: number
   size: number
-  color: string
 }
 
 function FireworkCursor() {
@@ -136,38 +135,39 @@ function FireworkCursor() {
       context.clearRect(0, 0, window.innerWidth, window.innerHeight)
       for (let index = particles.length - 1; index >= 0; index -= 1) {
         const particle = particles[index]
-        particle.vy += .055
-        particle.vx *= .985
-        particle.vy *= .985
+        particle.vy += .035
+        particle.vx *= .99
+        particle.vy *= .99
         particle.x += particle.vx
         particle.y += particle.vy
-        particle.life -= .035
+        particle.life -= .018
         if (particle.life <= 0) {
           particles.splice(index, 1)
           continue
         }
         context.globalAlpha = Math.max(0, particle.life)
-        context.fillStyle = particle.color
+        context.fillStyle = '#ffffff'
+        context.shadowColor = 'rgba(255, 255, 255, .72)'
+        context.shadowBlur = 6
         context.beginPath()
         context.arc(particle.x, particle.y, particle.size * particle.life, 0, Math.PI * 2)
         context.fill()
       }
       context.globalAlpha = 1
+      context.shadowBlur = 0
       frame = particles.length ? requestAnimationFrame(draw) : 0
     }
     const burst = (event: PointerEvent) => {
-      const colors = ['#9eeef5', '#ffffff', '#ff9c83', '#74d7e4']
       for (let index = 0; index < 26; index += 1) {
         const angle = (Math.PI * 2 * index) / 26 + Math.random() * .16
-        const speed = 1.8 + Math.random() * 4.2
+        const speed = 1.15 + Math.random() * 2.75
         particles.push({
           x: event.clientX,
           y: event.clientY,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          life: .75 + Math.random() * .25,
-          size: 1.4 + Math.random() * 2.2,
-          color: colors[index % colors.length],
+          life: .82 + Math.random() * .18,
+          size: 1.2 + Math.random() * 1.8,
         })
       }
       if (!frame) frame = requestAnimationFrame(draw)
