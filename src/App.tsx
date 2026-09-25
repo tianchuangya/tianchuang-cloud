@@ -499,12 +499,14 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, backgroundBlur
       {view === 'motion' ? <GridMotion workspaces={workspaces} covers={covers} backgroundImage={backgroundImage} backgroundBlur={backgroundBlur} backgroundOpacity={backgroundOpacity} onSelect={onSelect} /> : (
         <section className="library-glass-grid" aria-label="资料库">
           {workspaces.map((workspace, index) => (
-            <motion.button className="library-glass-card" key={workspace.id} onClick={() => onSelect(workspace.id)} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * .035, .18), duration: .24 }}>
+            <motion.button className={`library-glass-card ${covers[workspace.id] ? 'has-cover' : ''}`} key={workspace.id} onClick={() => onSelect(workspace.id)} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * .035, .18), duration: .24 }}>
               <span className={`library-card-cover ${covers[workspace.id] ? 'has-cover' : ''}`}>
                 {covers[workspace.id] ? <img src={covers[workspace.id]} alt="" /> : <Folder size={34} />}
               </span>
-              <span className="library-card-copy"><strong>{workspace.name}</strong><small>{workspace.path}</small></span>
-              <span className="library-card-meta"><i className={`state-dot ${workspace.state}`} /><span>{workspace.targets.length} 个备份目标</span><ChevronRight size={15} /></span>
+              <span className="library-card-glass">
+                <span className="library-card-copy"><strong>{workspace.name}</strong><small>{workspace.path}</small></span>
+                <span className="library-card-meta"><i className={`state-dot ${workspace.state}`} /><span>{workspace.targets.length} 个备份目标</span><ChevronRight size={15} /></span>
+              </span>
             </motion.button>
           ))}
         </section>
