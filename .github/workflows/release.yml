@@ -16,13 +16,13 @@ jobs:
         include:
           - os: windows-latest
             platform: Windows
-            command: npm run dist -- --win --x64
+            command: npm run dist -- --win --x64 --publish never
           - os: macos-latest
             platform: macOS
-            command: npm run dist -- --mac --x64 --arm64
+            command: npm run dist -- --mac --x64 --arm64 --publish never
           - os: ubuntu-latest
             platform: Linux
-            command: npm run dist -- --linux --x64
+            command: npm run dist -- --linux --x64 --publish never
     runs-on: ${{ matrix.os }}
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
