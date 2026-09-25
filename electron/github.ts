@@ -6,6 +6,13 @@ interface CommandResult {
   stderr: string
 }
 
+const LOGIN_CONFIRMATION_ATTEMPTS = 12
+const LOGIN_CONFIRMATION_DELAY_MS = 1_000
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
 function runGit(args: string[], input?: string): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn('git', args, { windowsHide: true })
@@ -76,16 +83,18 @@ export function validateRepositoryName(name: string): string {
 }
 
 export async function githubSession(): Promise<GitHubSession> {
+  let account: string | undefined
   try {
     const accounts = await accountNames()
     if (!accounts.length) return { available: true, authenticated: false }
-    const auth = await credential(accounts[0])
+    account = accounts[0]
+    const auth = await credential(account)
     const user = await githubRequest<{ login: string; name?: string; avatar_url?: string }>('/user', auth.token)
     return { available: true, authenticated: true, username: user.login, displayName: user.name, avatarUrl: user.avatar_url }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     const unavailable = /credential-manager|not recognized|not found|ENOENT/i.test(message)
-    return { available: !unavailable, authenticated: false, message }
+    return { available: !unavailable, authenticated: false, username: account, message }
   }
 }
 
@@ -99,9 +108,13 @@ export async function loginGitHub(): Promise<GitHubSession> {
     }
     throw error
   }
-  const session = await githubSession()
-  if (!session.authenticated) throw new Error(session.message || 'GitHub 登录未完成')
-  return session
+  let session: GitHubSession = { available: true, authenticated: false }
+  for (let attempt = 0; attempt < LOGIN_CONFIRMATION_ATTEMPTS; attempt++) {
+    session = await githubSession()
+    if (session.authenticated) return session
+    if (attempt < LOGIN_CONFIRMATION_ATTEMPTS - 1) await wait(LOGIN_CONFIRMATION_DELAY_MS)
+  }
+  throw new Error(session.message || 'GitHub 登录尚未写入系统凭据，请返回应用后重新检查')
 }
 
 export async function createGitHubRepository(draft: GitHubRepositoryDraft): Promise<GitHubRepositoryResult> {

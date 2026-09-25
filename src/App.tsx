@@ -753,12 +753,31 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    void window.tianchuang.getGitHubSession()
-      .then(setGitHubAccount)
-      .catch((reason) => setGitHubAccount({ available: false, authenticated: false, message: reason instanceof Error ? reason.message : String(reason) }))
-      .finally(() => setAccountLoading(false))
+  const refreshGitHubAccount = useCallback(async (showLoading = false) => {
+    if (showLoading) setAccountLoading(true)
+    try {
+      const account = await window.tianchuang.getGitHubSession()
+      setGitHubAccount(account)
+      if (account.authenticated) setError('')
+      return account
+    } catch (reason) {
+      const account = { available: false, authenticated: false, message: reason instanceof Error ? reason.message : String(reason) }
+      setGitHubAccount(account)
+      return account
+    } finally {
+      if (showLoading) setAccountLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    const initialCheck = window.setTimeout(() => { void refreshGitHubAccount(true) }, 0)
+    const refreshAfterBrowserLogin = () => { void refreshGitHubAccount() }
+    window.addEventListener('focus', refreshAfterBrowserLogin)
+    return () => {
+      window.clearTimeout(initialCheck)
+      window.removeEventListener('focus', refreshAfterBrowserLogin)
+    }
+  }, [refreshGitHubAccount])
 
   const selectKind = (next: ProviderKind) => {
     setKind(next)
@@ -770,7 +789,8 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
     try {
       setGitHubAccount(await window.tianchuang.loginGitHub())
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
+      const account = await refreshGitHubAccount()
+      if (!account.authenticated) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
       setLoginPending(false)
     }
@@ -829,8 +849,8 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
             {provider === 'github' && <>
               <div className="github-account full">
                 <span className={`account-symbol ${githubAccount?.authenticated ? 'connected' : ''}`}>{githubAccount?.authenticated ? <ShieldCheck size={17} /> : <LogIn size={17} />}</span>
-                <span><strong>{accountLoading ? '正在检查 GitHub 登录' : githubAccount?.authenticated ? githubAccount.displayName || githubAccount.username : '尚未登录 GitHub'}</strong><small>{githubAccount?.authenticated ? `@${githubAccount.username} · 凭据保存在系统中` : githubAccount?.available === false ? '需要安装 Git Credential Manager' : '登录后可直接创建仓库'}</small></span>
-                {!accountLoading && !githubAccount?.authenticated && <button type="button" disabled={loginPending || githubAccount?.available === false} onClick={() => void login()}>{loginPending ? <LoaderCircle className="spin" size={15} /> : <LogIn size={15} />}登录</button>}
+                <span><strong>{accountLoading ? '正在检查 GitHub 登录' : githubAccount?.authenticated ? githubAccount.displayName || githubAccount.username : githubAccount?.username ? `已找到 @${githubAccount.username}` : '尚未登录 GitHub'}</strong><small>{githubAccount?.authenticated ? `@${githubAccount.username} · 凭据保存在系统中` : githubAccount?.available === false ? '需要安装 Git Credential Manager' : githubAccount?.username ? '正在确认授权状态，返回应用后会自动刷新' : '登录后可直接创建仓库'}</small></span>
+                {!accountLoading && !githubAccount?.authenticated && <button type="button" disabled={loginPending || githubAccount?.available === false} onClick={() => void (githubAccount?.username ? refreshGitHubAccount(true) : login())}>{loginPending || accountLoading ? <LoaderCircle className="spin" size={15} /> : <LogIn size={15} />}{githubAccount?.username ? '重新检查' : '登录'}</button>}
               </div>
               <div className="repository-mode full" role="group" aria-label="仓库来源">
                 <button type="button" className={repositoryMode === 'create' ? 'active' : ''} onClick={() => setRepositoryMode('create')}>新建仓库</button>
