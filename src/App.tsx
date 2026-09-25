@@ -341,7 +341,7 @@ function App() {
       <CursorExperience preferences={cursorPreferences} />
       <AnimatePresence>{showStartup && <StartupExperience key="startup-experience" ready={appReady} effect={cursorPreferences.startupEffect} onComplete={completeStartup} />}</AnimatePresence>
       <header className="titlebar">
-        <div className="brand-mark"><Cloud size={16} strokeWidth={2.3} /></div>
+        <div className="brand-mark"><img src="/assets/app-icon.png" alt="" /></div>
         <span>天创云端</span>
         <span className="titlebar-subtitle">Tianchuang Cloud</span>
       </header>
@@ -580,7 +580,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
                   <button className={preferences.startupEffect === 'aurora' ? 'active' : ''} onClick={() => setStartupEffect('aurora')} aria-pressed={preferences.startupEffect === 'aurora'} disabled={reduceMotion}><span className="effect-preview aurora"><Waves size={20} /></span><span><strong>柔光极光</strong><small>流动色带与玻璃云层</small></span><Check size={15} /></button>
                   <button className={preferences.startupEffect === 'light' ? 'active' : ''} onClick={() => setStartupEffect('light')} aria-pressed={preferences.startupEffect === 'light'}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光掠影</strong><small>更克制的缓慢光束</small></span><Check size={15} /></button>
                 </div></div>
-                <div className="startup-settings-preview" data-effect={preferences.startupEffect}><span><Cloud size={22} /><strong>天创云端</strong><small>{preferences.startupEffect === 'aurora' ? '柔光极光' : '侧光掠影'}</small></span></div>
+                <div className="startup-settings-preview" data-effect={preferences.startupEffect}><span><img src="/assets/app-icon.png" alt="" /><strong>天创云端</strong><small>{preferences.startupEffect === 'aurora' ? '柔光极光' : '侧光掠影'}</small></span></div>
                 <div className="performance-note"><ShieldCheck size={16} /><span>资料库会在动画期间并行加载；进度完成后按任意键或点击画面进入软件。</span></div>
               </section>
             </FadeContent>}

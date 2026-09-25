@@ -6,7 +6,8 @@
 .startup-light-sweep { inset: -35% -25%; opacity: .7; filter: blur(18px); background: repeating-linear-gradient(116deg, transparent 0 12%, rgba(212,248,252,.24) 15%, rgba(177,209,255,.08) 18%, transparent 23% 34%); animation: startup-light-drift 2.8s cubic-bezier(.45,0,.55,1) infinite alternate; }
 .startup-shade { position: absolute; inset: 0; background: radial-gradient(circle at 50% 46%, transparent 0 12%, rgba(4,8,11,.22) 48%, rgba(4,8,11,.72) 100%), linear-gradient(to bottom, rgba(4,8,11,.08), rgba(4,8,11,.42)); }
 .startup-brand { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 2vh; text-align: center; }
-.startup-mark { width: 78px; height: 78px; display: grid; place-items: center; margin-bottom: 20px; border: 1px solid rgba(220,251,255,.34); border-radius: 24px; color: #071216; background: rgba(196,247,252,.92); box-shadow: 0 22px 70px rgba(71,201,219,.22), inset 0 1px rgba(255,255,255,.82); backdrop-filter: blur(20px); }
+.startup-mark { width: 92px; height: 92px; display: grid; place-items: center; margin-bottom: 18px; }
+.startup-mark img { width: 100%; height: 100%; display: block; object-fit: contain; filter: drop-shadow(0 18px 28px rgba(0,0,0,.34)); }
 .startup-brand h1 { margin: 0; font-size: 36px; line-height: 1.15; font-weight: 690; letter-spacing: 0; text-shadow: 0 10px 38px rgba(0,0,0,.45); }
 .startup-brand p { margin: 8px 0 0; color: rgba(220,239,242,.62); font-size: 11px; font-weight: 560; }
 .startup-loader { position: absolute; z-index: 2; left: 50%; bottom: 30px; width: min(480px, calc(100% - 56px)); transform: translateX(-50%); }

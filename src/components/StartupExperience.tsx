@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Cloud } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { StartupEffect } from './cursor-preferences'
 import './StartupExperience.css'
@@ -40,7 +39,7 @@ export default function StartupExperience({ ready, effect, onComplete }: Startup
       ) : <div className="startup-light-sweep" />}
       <div className="startup-shade" />
       <motion.div className="startup-brand" initial={{ opacity: 0, y: 12, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: reduceMotion ? 0 : .18, duration: .58, ease: [0.22, 1, 0.36, 1] }}>
-        <span className="startup-mark"><Cloud size={31} strokeWidth={2.1} /></span>
+        <span className="startup-mark"><img src="/assets/app-icon.png" alt="" /></span>
         <h1>天创云端</h1>
         <p>Tianchuang Cloud</p>
       </motion.div>

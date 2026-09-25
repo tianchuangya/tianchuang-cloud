@@ -105,6 +105,7 @@ async function refreshWatchers(): Promise<void> {
 function createWindow(): void {
   const isMac = process.platform === 'darwin'
   const isWindows = process.platform === 'win32'
+  const icon = nativeImage.createFromPath(path.join(app.getAppPath(), process.env.VITE_DEV_SERVER_URL ? 'public/assets/app-icon.png' : 'dist/assets/app-icon.png'))
   mainWindow = new BrowserWindow({
     width: 1240,
     height: 790,
@@ -112,6 +113,7 @@ function createWindow(): void {
     minHeight: 650,
     show: false,
     title: '天创云端',
+    icon,
     transparent: isWindows || isMac,
     hasShadow: true,
     backgroundColor: '#00000000',
@@ -148,8 +150,7 @@ function createWindow(): void {
 }
 
 function createTray(): void {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="9" fill="#2979ff"/><path d="M9 19.5a5 5 0 0 1 1-9.9A7 7 0 0 1 23.4 12 4.2 4.2 0 0 1 23 20.4H10.2" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>`
-  const icon = nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`).resize({ width: 18, height: 18 })
+  const icon = nativeImage.createFromPath(path.join(app.getAppPath(), process.env.VITE_DEV_SERVER_URL ? 'public/assets/app-icon.png' : 'dist/assets/app-icon.png')).resize({ width: 18, height: 18 })
   tray = new Tray(icon)
   tray.setToolTip('天创云端')
   tray.setContextMenu(Menu.buildFromTemplate([
