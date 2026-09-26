@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { gsap } from 'gsap'
 import { ChevronLeft, ChevronRight, Folder } from 'lucide-react'
 import type { WorkspaceProfile } from '../../electron/types'
 
@@ -50,22 +51,64 @@ export function AccordionWorkspaceView({ workspaces, covers, onSelect }: Props) 
   const [page, setPage] = useState(0)
   const [direction, setDirection] = useState<1 | -1>(1)
   const [active, setActive] = useState(0)
+  const panelRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const coverRefs = useRef<Array<HTMLSpanElement | null>>([])
+  const copyRefs = useRef<Array<HTMLSpanElement | null>>([])
+  const timelineRef = useRef<gsap.core.Timeline | undefined>(undefined)
+  const firstRunRef = useRef(true)
   const pageCount = Math.max(1, Math.ceil(workspaces.length / pageSize))
   const safePage = Math.min(page, pageCount - 1)
   const safeActive = Math.min(active, Math.max(0, workspaces.length - safePage * pageSize - 1))
   const visible = workspaces.slice(safePage * pageSize, safePage * pageSize + pageSize)
   const move = (delta: number) => { setDirection(delta > 0 ? 1 : -1); setPage((value) => (value + delta + pageCount) % pageCount); setActive(0) }
   const wheelRef = useWheelSteps((delta) => pageCount > 1 && move(delta))
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  // 移植自参考组件 AccordionGallery：gsap 时间线驱动，悬停可随时打断并从当前值
+  // 平滑重定向；非激活卡片呈 3D 扇形倾斜，内部封面视差漂移，文字编排出入场。
+  const applyLayout = useCallback((animate: boolean) => {
+    const panels = panelRefs.current
+    const count = visible.length
+    if (!panels.length || count < 2) return
+    const grow = (0.52 * (count - 1)) / (1 - 0.52)
+    timelineRef.current?.kill()
+    const duration = animate && !reduceMotion ? 0.6 : 0
+    const tl = gsap.timeline()
+    panels.forEach((panel, index) => {
+      if (!panel) return
+      const isActive = index === safeActive
+      const cover = coverRefs.current[index]
+      const copy = copyRefs.current[index]
+      const tilt = isActive ? 0 : index < safeActive ? 8 : -8
+      tl.to(panel, { flexGrow: isActive ? grow : 1, rotateY: tilt, duration, ease: 'power3.out' }, 0)
+      if (cover) {
+        const drift = Math.max(-1.5, Math.min(1.5, safeActive - index))
+        tl.to(cover, { x: drift * 10, duration, ease: 'power3.out' }, 0)
+      }
+      if (copy) {
+        if (isActive) tl.to(copy, { opacity: 1, x: 0, y: 0, duration, ease: 'power3.out' }, 0)
+        else tl.to(copy, { opacity: 0, x: -14, duration: duration * 0.6, ease: 'power3.out' }, 0)
+      }
+    })
+    timelineRef.current = tl
+  }, [visible.length, safeActive, reduceMotion])
+
+  useEffect(() => {
+    applyLayout(!firstRunRef.current)
+    firstRunRef.current = false
+  }, [applyLayout])
+
+  useEffect(() => () => { timelineRef.current?.kill() }, [])
 
   if (!workspaces.length) return <div className="showcase-empty"><Folder size={26} /><span>添加资料库后即可使用手风琴封面视图</span></div>
   return <section className="accordion-workspaces" ref={wheelRef} tabIndex={0} onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') move(-1); if (event.key === 'ArrowRight' || event.key === 'ArrowDown') move(1) }}>
     <div className="showcase-toolbar"><span>{safePage + 1} / {pageCount}</span><button onClick={() => move(-1)} disabled={pageCount < 2} aria-label="上一组资料库"><ChevronLeft size={17} /></button><button onClick={() => move(1)} disabled={pageCount < 2} aria-label="下一组资料库"><ChevronRight size={17} /></button></div>
     <div key={safePage} className={`accordion-page-slide ${direction > 0 ? 'slide-next' : 'slide-prev'}`}>
       <div className="accordion-workspace-track">
-        {visible.map((workspace, index) => <button key={workspace.id} className={safeActive === index ? 'active' : ''} onPointerEnter={() => setActive(index)} onFocus={() => setActive(index)} onClick={() => safeActive === index ? onSelect(workspace.id) : setActive(index)}>
-          <span className="accordion-cover"><Cover workspace={workspace} cover={covers[workspace.id]} /></span>
+        {visible.map((workspace, index) => <button key={workspace.id} ref={(el) => { panelRefs.current[index] = el }} className={safeActive === index ? 'active' : ''} onPointerEnter={() => setActive(index)} onFocus={() => setActive(index)} onClick={() => safeActive === index ? onSelect(workspace.id) : setActive(index)}>
+          <span className="accordion-cover" ref={(el) => { coverRefs.current[index] = el }}><Cover workspace={workspace} cover={covers[workspace.id]} /></span>
           <span className="accordion-shade" />
-          <span className="accordion-copy"><strong>{workspace.name}</strong><small>{workspace.targets.length} 个备份目标</small></span>
+          <span className="accordion-copy" ref={(el) => { copyRefs.current[index] = el }}><strong>{workspace.name}</strong><small>{workspace.targets.length} 个备份目标</small></span>
         </button>)}
       </div>
     </div>

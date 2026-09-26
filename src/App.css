@@ -123,17 +123,17 @@
 .showcase-toolbar button, .depth-arrow { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; color: var(--ink); background: rgba(11,18,22,.62); box-shadow: inset 0 1px rgba(255,255,255,.06); cursor: pointer; }
 .showcase-toolbar button:disabled { opacity: .32; cursor: default; }
 .accordion-workspace-track { height: 368px; display: flex; gap: 9px; perspective: 1100px; }
-.accordion-workspace-track > button { position: relative; min-width: 52px; flex: 1 1 0; overflow: hidden; padding: 0; border: 1px solid rgba(255,255,255,.11); border-radius: 12px; color: white; background: #0b1216; cursor: pointer; isolation: isolate; transition: flex-grow .55s cubic-bezier(.23,1,.32,1), transform .4s cubic-bezier(.23,1,.32,1), border-color .2s ease; }
-.accordion-workspace-track > button.active { flex-grow: 5.3; border-color: rgba(147,231,241,.34); transform: translateY(-3px); }
+.accordion-workspace-track > button { position: relative; min-width: 52px; flex: 1 1 0; overflow: hidden; padding: 0; border: 1px solid rgba(255,255,255,.11); border-radius: 12px; color: white; background: #0b1216; cursor: pointer; isolation: isolate; transition: border-color .2s ease; }
+.accordion-workspace-track > button.active { border-color: rgba(147,231,241,.34); }
 .accordion-cover, .depth-cover { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; }
+.accordion-workspace-track .accordion-cover { inset: 0 -14px; }
 .accordion-cover img, .depth-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform .65s cubic-bezier(.23,1,.32,1), filter .4s ease; }
 .accordion-workspace-track > button:not(.active) .accordion-cover img { filter: grayscale(.72) brightness(.66); transform: scale(1.08); }
 .accordion-workspace-track > button.active .accordion-cover img { transform: scale(1.025); }
 .showcase-fallback { width: 100%; height: 100%; display: grid; place-content: center; justify-items: center; gap: 8px; color: rgba(211,242,245,.68); background: radial-gradient(circle at 70% 18%, rgba(101,211,225,.18), transparent 34%), linear-gradient(145deg, #18272e, #091014); }
 .showcase-fallback small { font-size: 18px; font-weight: 720; }
 .accordion-shade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgba(3,8,11,.82)); }
-.accordion-copy { position: absolute; z-index: 1; right: 15px; bottom: 15px; left: 15px; display: flex; flex-direction: column; gap: 4px; opacity: 0; transform: translateY(9px); text-align: left; transition: opacity .25s ease .08s, transform .35s cubic-bezier(.23,1,.32,1) .08s; }
-.accordion-workspace-track > button.active .accordion-copy { opacity: 1; transform: none; }
+.accordion-copy { position: absolute; z-index: 1; right: 15px; bottom: 15px; left: 15px; display: flex; flex-direction: column; gap: 4px; opacity: 0; transform: translateY(9px); text-align: left; }
 .accordion-copy strong { font-size: 15px; }
 .accordion-copy small { color: rgba(229,242,244,.66); font-size: 9px; }
 .depth-workspaces { position: relative; min-height: 430px; overflow: hidden; outline: 0; perspective: 1200px; }
@@ -620,8 +620,9 @@
 [data-theme='neumorphism'] .showcase-fallback { color: var(--quiet); background: var(--surface); }
 [data-theme='neumorphism'] .showcase-empty { border-color: transparent; color: var(--muted); background: var(--surface); box-shadow: var(--shadow-inset); }
 [data-theme='neumorphism'] .showcase-toolbar button, [data-theme='neumorphism'] .depth-arrow { border-color: transparent; color: var(--ink); background: var(--surface); box-shadow: var(--shadow-raised); }
-[data-theme='neumorphism'] .accordion-workspace-track > button, [data-theme='neumorphism'] .depth-stage > button { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface); }
-[data-theme='neumorphism'] .accordion-workspace-track > button.active { transform: none; border-color: transparent; box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .depth-stage > button { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface); }
+[data-theme='neumorphism'] .accordion-workspace-track > button { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: border-color .3s ease, box-shadow .3s ease; }
+[data-theme='neumorphism'] .accordion-workspace-track > button.active { border-color: transparent; box-shadow: var(--shadow-raised); }
 [data-theme='neumorphism'] .depth-copy { color: var(--ink); border-top-color: transparent; background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 [data-theme='neumorphism'] .depth-copy small { color: var(--muted); }
 [data-theme='neumorphism'] .depth-dots button { background: var(--shadow-dark); }
