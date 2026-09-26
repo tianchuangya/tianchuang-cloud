@@ -692,3 +692,29 @@
 [data-theme='neumorphism'] .workspace-nav { box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); }
 [data-theme='neumorphism'] .workspace-nav:hover { box-shadow: 2px 2px 5px var(--shadow-dark), -2px -2px 5px var(--shadow-light); }
 [data-theme='neumorphism'] .workspace-nav.active { box-shadow: var(--shadow-pressed); }
+
+/* 新拟物补遗 4：Soft Molding 动效层。
+   规则内允许的动感来源只有两种：scale 收拢（提示词允许 hover:scale-[0.98]）
+   与 300ms ease-in-out 软塑过渡；位移与 bounce 仍然禁止。 */
+[data-theme='neumorphism'] .primary-button, [data-theme='neumorphism'] .secondary-button, [data-theme='neumorphism'] .sync-button, [data-theme='neumorphism'] .icon-button, [data-theme='neumorphism'] .danger-button { transition: var(--transition-surface), transform 300ms ease-in-out, color 300ms ease-in-out; }
+[data-theme='neumorphism'] .primary-button:hover, [data-theme='neumorphism'] .secondary-button:hover, [data-theme='neumorphism'] .sync-button:hover, [data-theme='neumorphism'] .icon-button:hover { transform: scale(.99); }
+[data-theme='neumorphism'] .primary-button:active, [data-theme='neumorphism'] .secondary-button:active, [data-theme='neumorphism'] .sync-button:active, [data-theme='neumorphism'] .danger-button:active, [data-theme='neumorphism'] .icon-button:active { transform: scale(.97); box-shadow: var(--shadow-pressed); }
+
+/* 卡片类：按下时凹陷 + 轻微收拢，像按进软塑料 */
+[data-theme='neumorphism'] .workspace-nav, [data-theme='neumorphism'] .target-row, [data-theme='neumorphism'] .theme-card, [data-theme='neumorphism'] .library-glass-card, [data-theme='neumorphism'] .summary-strip > div, [data-theme='neumorphism'] .sidebar-action, [data-theme='neumorphism'] .inline-empty { transition: var(--transition-surface), transform 300ms ease-in-out, color 300ms ease-in-out; }
+[data-theme='neumorphism'] .workspace-nav:active, [data-theme='neumorphism'] .target-row:active, [data-theme='neumorphism'] .theme-card:active, [data-theme='neumorphism'] .library-glass-card:active, [data-theme='neumorphism'] .inline-empty:active { box-shadow: var(--shadow-pressed); transform: scale(.99); }
+[data-theme='neumorphism'] .workspace-nav:hover, [data-theme='neumorphism'] .sidebar-action:hover { transform: scale(.995); }
+
+/* 开关滑块与滑杆：软塑滑动 */
+[data-theme='neumorphism'] .setting-row i { transition: var(--transition-surface); }
+[data-theme='neumorphism'] .setting-row i::after { transition: transform 300ms ease-in-out, background 300ms ease-in-out; }
+
+/* 文字颜色也纳入软塑过渡，避免悬停时颜色突跳 */
+[data-theme='neumorphism'] .workspace-context-menu button, [data-theme='neumorphism'] .context-menu button { transition: background 300ms ease-in-out, box-shadow 300ms ease-in-out, color 300ms ease-in-out; }
+
+/* 主题切换本身也有柔塑过渡（表面颜色与阴影平滑变化） */
+[data-theme='neumorphism'] .app-shell, [data-theme='neumorphism'] .sidebar, [data-theme='neumorphism'] .modal, [data-theme='neumorphism'] .glass-material, [data-theme='neumorphism'] .content { transition: background-color 300ms ease-in-out, box-shadow 300ms ease-in-out; }
+@media (prefers-reduced-motion: reduce) {
+  [data-theme='neumorphism'] .primary-button, [data-theme='neumorphism'] .secondary-button, [data-theme='neumorphism'] .sync-button, [data-theme='neumorphism'] .icon-button, [data-theme='neumorphism'] .danger-button, [data-theme='neumorphism'] .workspace-nav, [data-theme='neumorphism'] .target-row, [data-theme='neumorphism'] .theme-card, [data-theme='neumorphism'] .library-glass-card, [data-theme='neumorphism'] .sidebar-action, [data-theme='neumorphism'] .inline-empty { transition: none; }
+  [data-theme='neumorphism'] .setting-row i::after { transition: none; }
+}
