@@ -20,4 +20,14 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // gsap 体积较大且与业务代码无耦合，独立成块便于浏览器缓存
+        manualChunks(id) {
+          if (id.includes('node_modules/gsap')) return 'gsap'
+        },
+      },
+    },
+  },
 })
