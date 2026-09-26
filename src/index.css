@@ -20,7 +20,20 @@
   --glass: rgba(10, 16, 20, .58);
   --window-mask: rgba(7, 12, 16, .48);
   --shadow: 0 24px 70px rgba(0, 0, 0, .45), 0 4px 16px rgba(0, 0, 0, .26);
+  /* 主题令牌（玻璃基底默认值）：新拟物等主题通过 documentElement 内联样式覆盖 */
+  --bg-page: #0b1014;
+  --shadow-dark: rgba(0, 0, 0, .45);
+  --shadow-light: rgba(255, 255, 255, .1);
+  --shadow-raised: 0 18px 40px rgba(0, 0, 0, .14);
+  --shadow-raised-hover: 0 24px 48px rgba(0, 0, 0, .22);
+  --shadow-pressed: inset 0 2px 8px rgba(0, 0, 0, .4);
+  --shadow-inset: inset 0 2px 10px rgba(0, 0, 0, .3);
+  --shadow-inset-focus: inset 0 1px 6px rgba(0, 0, 0, .35);
+  --radius: 14px;
+  --radius-small: 10px;
+  --transition-surface: box-shadow .2s ease, background .2s ease, border-color .2s ease, transform .18s ease;
 }
+:root[data-theme='neumorphism'] { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body, #root { width: 100%; min-width: 0; height: 100%; margin: 0; overflow: hidden; }
 body { background: transparent; }

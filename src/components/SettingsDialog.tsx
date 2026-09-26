@@ -3,9 +3,14 @@ import { motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, Bell, Check, Cloud, Droplets, GitBranch, Globe2, Grid2X2, History,
   Image as ImageIcon, Laptop, Layers3, LoaderCircle, LogIn, Monitor, MousePointer2,
-  Search, Settings, ShieldCheck, Sparkles, SunMedium, Upload, UserRound, Waves, X,
+  Download, Palette, Search, Settings, ShieldCheck, Sparkles, SunMedium, Upload, UserRound, Waves, X,
 } from 'lucide-react'
 import { DEFAULT_NOTIFICATION_PREFERENCES, type CloudConfigDocument, type CloudConfigStatus, type NotificationPreferences } from '../../electron/types'
+import {
+  BUILT_IN_THEMES, applyTheme, getSavedThemeSelection, listCustomThemes, parseThemeDocument,
+  removeCustomTheme, resolveTheme, saveCustomTheme, saveThemeSelection,
+  type SavedThemeSelection, type ThemeDocument,
+} from '../themes'
 import FadeContent from './FadeContent'
 import LogoLoop, { type LogoLoopItem } from './LogoLoop'
 import { useBackgroundPreview } from './background-preview'
@@ -36,7 +41,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [backgroundEffectSearch, setBackgroundEffectSearch] = useState('')
   const [category, setCategory] = useState<'startup' | 'appearance' | 'library' | 'notifications' | 'account' | 'about'>('startup')
-  const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'view' | 'alerts' | 'devices' | 'links'>('launch')
+  const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'theme' | 'view' | 'alerts' | 'devices' | 'links'>('launch')
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   useEffect(() => {
     let active = true
@@ -45,6 +50,34 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
     }).catch(() => { /* 保持默认值，打开面板时会重试 */ })
     return () => { active = false }
   }, [])
+  const [customThemes, setCustomThemes] = useState<ThemeDocument[]>(() => listCustomThemes())
+  const [themeSelection, setThemeSelection] = useState<SavedThemeSelection>(() => getSavedThemeSelection())
+  const [themeError, setThemeError] = useState('')
+  const chooseTheme = (theme: ThemeDocument, kind: 'builtin' | 'custom') => {
+    applyTheme(theme)
+    const selection: SavedThemeSelection = kind === 'builtin' ? { kind: 'builtin', id: theme.name } : { kind: 'custom', theme }
+    saveThemeSelection(selection)
+    setThemeSelection(selection)
+    setThemeError('')
+  }
+  const importTheme = async () => {
+    try {
+      const raw = await window.tianchuang.openThemeFile()
+      if (!raw) return
+      const result = parseThemeDocument(raw)
+      if (!result.ok || !result.theme) {
+        setThemeError(result.errors.join('；'))
+        return
+      }
+      setCustomThemes(saveCustomTheme(result.theme))
+      chooseTheme(result.theme, 'custom')
+    } catch (reason) {
+      setThemeError(`主题文件解析失败：${reason instanceof Error ? reason.message : String(reason)}`)
+    }
+  }
+  const exportTheme = async () => {
+    await window.tianchuang.saveThemeFile(resolveTheme(themeSelection).name, resolveTheme(themeSelection))
+  }
   const changeNotificationPrefs = (changes: Partial<NotificationPreferences>) => {
     const next = { ...notificationPrefs, ...changes }
     setNotificationPrefs(next)
@@ -93,6 +126,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
             {category === 'appearance' && <>
               <button className={subpage === 'pointer' ? 'active' : ''} onClick={() => setSubpage('pointer')}>指针与轨迹</button>
               <button className={subpage === 'background' ? 'active' : ''} onClick={() => setSubpage('background')}>背景与效果</button>
+              <button className={subpage === 'theme' ? 'active' : ''} onClick={() => setSubpage('theme')}>主题</button>
             </>}
             {category === 'library' && <button className="active" onClick={() => setSubpage('view')}>浏览方式</button>}
             {category === 'notifications' && <button className="active" onClick={() => setSubpage('alerts')}>同步通知</button>}
@@ -147,6 +181,32 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
                 </div>{!visibleBackgroundEffects.length && <div className="effect-search-empty">没有匹配的背景效果</div>}</div>
                 {preferences.backgroundEffect === 'ripple' && preferences.effect === 'fluid' && <div className="motion-safety-note"><ShieldCheck size={16} /><span>流体彩雾启用期间，水波背景会自动暂停，避免同时占用 GPU。</span></div>}
                 <div className="performance-note"><Waves size={16} /><span>实时背景使用 GPU 渲染；电池模式或远程桌面中建议降低动态效果。</span></div>
+              </section>
+            </FadeContent>}
+            {category === 'appearance' && subpage === 'theme' && <FadeContent key="theme" duration={220} blurAmount={4}>
+              <section className="settings-panel-stack">
+                <div>
+                  <div className="setting-group-heading"><strong>主题</strong><span>切换界面样式基底；主题文件只包含颜色与阴影令牌，不执行任何代码</span></div>
+                  <div className="theme-grid">
+                    {BUILT_IN_THEMES.map((theme) => <button key={theme.name} className={`theme-card ${(themeSelection.kind === 'builtin' && themeSelection.id === theme.name) ? 'active' : ''}`} onClick={() => chooseTheme(theme, 'builtin')}>
+                      <span className="theme-swatch" style={{ background: theme.tokens['bg-page'] || (theme.style === 'neumorphism' ? '#e0e5ec' : '#0b1014') }} />
+                      <strong>{theme.name}</strong>
+                      <small>{theme.style === 'neumorphism' ? '新拟物派 · 浅色软浮雕' : '云玻璃 · 深色毛玻璃'}</small>
+                    </button>)}
+                    {customThemes.map((theme) => <span key={theme.name} className={`theme-card ${(themeSelection.kind === 'custom' && themeSelection.theme.name === theme.name) ? 'active' : ''}`} role="button" tabIndex={0} onClick={() => chooseTheme(theme, 'custom')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') chooseTheme(theme, 'custom') }}>
+                      <span className="theme-swatch" style={{ background: theme.tokens['bg-page'] || (theme.style === 'neumorphism' ? '#e0e5ec' : '#0b1014') }} />
+                      <strong>{theme.name}</strong>
+                      <small>{theme.style === 'neumorphism' ? '自定义 · 新拟物基底' : '自定义 · 云玻璃基底'}</small>
+                      <button className="icon-button" title="删除此主题" onClick={(event) => { event.stopPropagation(); setCustomThemes(removeCustomTheme(theme.name)); if (themeSelection.kind === 'custom' && themeSelection.theme.name === theme.name) chooseTheme(BUILT_IN_THEMES[0], 'builtin') }}><X size={14} /></button>
+                    </span>)}
+                  </div>
+                  {themeError && <div className="form-error theme-import-error" role="alert"><AlertTriangle size={15} />{themeError}</div>}
+                  <div className="theme-actions">
+                    <button className="secondary-button" onClick={() => void importTheme()}><Upload size={15} />导入主题文件</button>
+                    <button className="secondary-button" onClick={() => void exportTheme()}><Download size={15} />导出当前主题</button>
+                  </div>
+                </div>
+                <div className="performance-note"><Palette size={16} /><span>新拟物主题使用纯色浅底，会暂时隐藏背景图与动态效果；切换回云玻璃立即恢复。主题编写指南见项目 docs/theme-system.md。</span></div>
               </section>
             </FadeContent>}
             {category === 'library' && <FadeContent key="library" duration={220} blurAmount={4}><section><div className="setting-group-heading"><strong>资料库视图</strong><span>进入资料库首页时的浏览方式</span></div><div className="cursor-choice-grid two">

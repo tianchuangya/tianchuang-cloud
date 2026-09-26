@@ -20,6 +20,8 @@ declare global {
   interface Window {
     tianchuang: {
       getSnapshot(): Promise<AppSnapshot>
+      openThemeFile(): Promise<unknown | undefined>
+      saveThemeFile(name: string, document: unknown): Promise<string | undefined>
       getNotificationPreferences(): Promise<NotificationPreferences>
       saveNotificationPreferences(preferences: NotificationPreferences): Promise<NotificationPreferences>
       getWindowMaximized(): Promise<boolean>

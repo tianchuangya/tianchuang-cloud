@@ -3,6 +3,8 @@ import type { SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfil
 
 contextBridge.exposeInMainWorld('tianchuang', {
   getSnapshot: () => ipcRenderer.invoke('app:snapshot'),
+  openThemeFile: () => ipcRenderer.invoke('dialog:open-theme'),
+  saveThemeFile: (name: string, document: unknown) => ipcRenderer.invoke('theme:save', name, document),
   getNotificationPreferences: () => ipcRenderer.invoke('notifications:get'),
   saveNotificationPreferences: (preferences: import('./types.js').NotificationPreferences) => ipcRenderer.invoke('notifications:set', preferences),
   getWindowMaximized: () => ipcRenderer.invoke('window:maximized'),

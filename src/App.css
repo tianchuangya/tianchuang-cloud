@@ -501,3 +501,170 @@
 
 /* ── 资料库视图提示 ── */
 .showcase-hint { margin: 10px 2px 0; color: var(--quiet); font-size: 9px; text-align: center; }
+/* ══════════════════════════════════════════════════════════════════
+   新拟物派主题（Neumorphism / Soft UI）结构覆盖块
+   规则：光源固定左上（-X/-Y 亮、+X/+Y 暗）；悬停阴影缩小；按下外凸转内凹；
+   禁止 translate 位移；无渐变、无纯黑纯白、无粗边框；全部颜色走令牌，
+   导入主题（style: neumorphism）可通过令牌整体换色。
+   ══════════════════════════════════════════════════════════════════ */
+[data-theme='neumorphism'] { color-scheme: light; }
+[data-theme='neumorphism'] .app-shell { background-color: var(--bg-page); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55); }
+[data-theme='neumorphism'] .interactive-backdrop { display: none; }
+[data-theme='neumorphism'] .content { background: transparent; scrollbar-color: var(--shadow-dark) transparent; }
+[data-theme='neumorphism'] .titlebar { color: var(--ink); }
+[data-theme='neumorphism'] .titlebar-subtitle { color: var(--quiet); }
+
+/* 面板：实心表面 + 双光源凸起，去掉模糊与半透明 */
+[data-theme='neumorphism'] .glass-material { background: var(--surface); border-color: transparent; box-shadow: var(--shadow-raised); -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-theme='neumorphism'] .sidebar { background: var(--surface); border-color: transparent; }
+[data-theme='neumorphism'] .library-home-button { color: var(--ink); background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface); }
+[data-theme='neumorphism'] .library-home-button.active { box-shadow: var(--shadow-pressed); color: var(--cyan); }
+[data-theme='neumorphism'] .workspace-nav { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface); }
+[data-theme='neumorphism'] .workspace-nav:hover { box-shadow: var(--shadow-raised-hover); transform: none; }
+[data-theme='neumorphism'] .workspace-nav.active { box-shadow: var(--shadow-pressed); border-color: transparent; }
+[data-theme='neumorphism'] .workspace-nav.bulk-selected { border-color: transparent !important; box-shadow: var(--shadow-pressed); background: var(--surface) !important; }
+[data-theme='neumorphism'] .sidebar-action { color: var(--muted); background: transparent; }
+[data-theme='neumorphism'] .sidebar-action:hover { color: var(--ink); background: transparent; box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .sidebar-action.add-library-action { color: var(--cyan); }
+[data-theme='neumorphism'] .sidebar-action .count { border-color: transparent; color: var(--muted); background: var(--surface); box-shadow: var(--shadow-inset); }
+
+/* 内容块与卡片 */
+[data-theme='neumorphism'] .section-block { color: var(--ink); }
+[data-theme='neumorphism'] .section-heading h2 { color: var(--ink); }
+[data-theme='neumorphism'] .section-heading p { color: var(--muted); }
+[data-theme='neumorphism'] .summary-strip > div { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .summary-strip svg { color: var(--cyan); filter: none; }
+[data-theme='neumorphism'] .summary-strip strong { color: var(--ink); }
+[data-theme='neumorphism'] .summary-strip span { color: var(--muted); }
+[data-theme='neumorphism'] .target-row { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface); }
+[data-theme='neumorphism'] .target-row:hover { transform: none; border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised-hover); }
+[data-theme='neumorphism'] .target-row::before { display: none; }
+[data-theme='neumorphism'] .target-row:has(.context-menu) { border-color: transparent; box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .provider-icon { border-color: transparent; color: var(--cyan); background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .provider-icon.git, [data-theme='neumorphism'] .provider-icon.webdav, [data-theme='neumorphism'] .provider-icon.local { color: var(--cyan); background: var(--surface); }
+[data-theme='neumorphism'] .target-title span { border-color: transparent; color: var(--muted); background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .target-main p { color: var(--muted); }
+[data-theme='neumorphism'] .target-health { color: var(--muted); }
+[data-theme='neumorphism'] .inline-empty { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .inline-empty:hover { transform: none; box-shadow: var(--shadow-inset-focus); }
+
+/* 控件按钮：凸起 → 悬停缩小 → 按下内凹，禁止位移 */
+[data-theme='neumorphism'] .primary-button, [data-theme='neumorphism'] .secondary-button, [data-theme='neumorphism'] .plain-button, [data-theme='neumorphism'] .sync-button, [data-theme='neumorphism'] .danger-button, [data-theme='neumorphism'] .icon-button { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface); color: var(--ink); }
+[data-theme='neumorphism'] .primary-button { color: var(--cyan); font-weight: 720; }
+[data-theme='neumorphism'] .danger-button { color: var(--red); font-weight: 700; }
+[data-theme='neumorphism'] .plain-button { box-shadow: none; background: transparent; }
+[data-theme='neumorphism'] .plain-button:hover { box-shadow: var(--shadow-raised); background: var(--surface); }
+[data-theme='neumorphism'] .primary-button:hover, [data-theme='neumorphism'] .secondary-button:hover, [data-theme='neumorphism'] .sync-button:hover, [data-theme='neumorphism'] .danger-button:hover, [data-theme='neumorphism'] .icon-button:hover { border-color: transparent; box-shadow: var(--shadow-raised-hover); }
+[data-theme='neumorphism'] .primary-button:active, [data-theme='neumorphism'] .secondary-button:active, [data-theme='neumorphism'] .sync-button:active, [data-theme='neumorphism'] .danger-button:active { transform: none; box-shadow: var(--shadow-pressed); }
+[data-theme='neumorphism'] .primary-button.large { color: var(--cyan); }
+[data-theme='neumorphism'] .view-switch { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .view-switch button { color: var(--muted); background: transparent; }
+[data-theme='neumorphism'] .view-switch button:hover { color: var(--ink); box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .view-switch button.active { color: var(--cyan); background: var(--surface); box-shadow: var(--shadow-inset); }
+
+/* 输入类：凹陷槽；聚焦时内凹变浅（通道打开） */
+[data-theme='neumorphism'] .field input, [data-theme='neumorphism'] .field select, [data-theme='neumorphism'] .effect-search input, [data-theme='neumorphism'] .field .input-action input { border-color: transparent; color: var(--ink); background: var(--surface); box-shadow: var(--shadow-inset); transition: var(--transition-surface); }
+[data-theme='neumorphism'] .field input:focus, [data-theme='neumorphism'] .field select:focus, [data-theme='neumorphism'] .effect-search input:focus { border-color: transparent; box-shadow: var(--shadow-inset-focus); outline: none; }
+[data-theme='neumorphism'] .field span { color: var(--muted); }
+[data-theme='neumorphism'] .form-note, [data-theme='neumorphism'] .performance-note, [data-theme='neumorphism'] .recovery-note { border-color: transparent; color: var(--muted); background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .form-error { border-color: transparent; color: var(--red); background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .form-success { color: var(--green); }
+[data-theme='neumorphism'] .setting-row { border-color: transparent; }
+[data-theme='neumorphism'] .setting-row strong { color: var(--ink); }
+[data-theme='neumorphism'] .setting-row small { color: var(--muted); }
+[data-theme='neumorphism'] .setting-row i { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .setting-row input:checked + i { box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .setting-row i::after { background: var(--surface); box-shadow: 2px 2px 6px var(--shadow-dark), -2px -2px 6px var(--shadow-light); }
+[data-theme='neumorphism'] .setting-row input:checked + i::after { background: var(--cyan); transform: translateX(17px); }
+[data-theme='neumorphism'] input[type='range'] { accent-color: var(--cyan); }
+[data-theme='neumorphism'] .setting-range-row output { color: var(--muted); }
+
+/* 弹窗与浮层 */
+[data-theme='neumorphism'] .modal-backdrop { background: rgba(140, 148, 160, .4); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+[data-theme='neumorphism'] .modal, [data-theme='neumorphism'] .glass-modal { background: var(--surface); border-color: transparent; box-shadow: var(--shadow-raised); -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-theme='neumorphism'] .modal h2, [data-theme='neumorphism'] .modal h1 { color: var(--ink); }
+[data-theme='neumorphism'] .modal p { color: var(--muted); }
+[data-theme='neumorphism'] .settings-symbol, [data-theme='neumorphism'] .review-symbol { background: var(--surface); box-shadow: var(--shadow-inset); color: var(--cyan); }
+[data-theme='neumorphism'] .review-symbol.danger { color: var(--red); }
+[data-theme='neumorphism'] .issue-list { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .issue-list > div { border-color: rgba(184, 188, 194, .35); color: var(--ink); }
+[data-theme='neumorphism'] .issue-list > strong { color: var(--muted); }
+[data-theme='neumorphism'] .issue-list.danger svg { color: var(--red); }
+[data-theme='neumorphism'] .plan-steps > div { border-color: transparent; color: var(--muted); background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .plan-steps span { color: var(--cyan); }
+[data-theme='neumorphism'] .recovery-note span, [data-theme='neumorphism'] .performance-note span { color: var(--muted); }
+[data-theme='neumorphism'] .toast { color: var(--ink); background: var(--surface); border-color: transparent; box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .toast.error { color: var(--red); }
+[data-theme='neumorphism'] .toast svg { color: var(--green); }
+[data-theme='neumorphism'] .toast.error svg { color: var(--red); }
+
+/* 菜单与批量栏 */
+[data-theme='neumorphism'] .workspace-context-menu, [data-theme='neumorphism'] .context-menu { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .workspace-context-menu button, [data-theme='neumorphism'] .context-menu button { color: var(--ink); }
+[data-theme='neumorphism'] .workspace-context-menu button:hover, [data-theme='neumorphism'] .context-menu button:hover { background: transparent; box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .workspace-context-menu button.danger, [data-theme='neumorphism'] .context-menu button.danger { color: var(--red); }
+[data-theme='neumorphism'] .bulk-bar { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .bulk-check { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-inset); color: var(--cyan); }
+[data-theme='neumorphism'] .bulk-check.on { background: var(--surface); box-shadow: var(--shadow-pressed); }
+[data-theme='neumorphism'] .confirm-ring rect { stroke: var(--red); }
+
+/* 资料库卡片与视图 */
+[data-theme='neumorphism'] .library-glass-card { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .library-glass-card:hover { transform: none; border-color: transparent; box-shadow: var(--shadow-raised-hover); }
+[data-theme='neumorphism'] .library-card-cover { color: var(--quiet); background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .library-card-cover::after { background: none; }
+[data-theme='neumorphism'] .library-card-glass { color: var(--ink); border-top-color: transparent; background: var(--surface); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-theme='neumorphism'] .library-card-copy small { color: var(--muted); }
+[data-theme='neumorphism'] .library-card-copy strong { text-shadow: none; }
+[data-theme='neumorphism'] .library-card-meta { border-top-color: rgba(184, 188, 194, .35); color: var(--muted); }
+[data-theme='neumorphism'] .showcase-fallback { color: var(--quiet); background: var(--surface); }
+[data-theme='neumorphism'] .showcase-empty { border-color: transparent; color: var(--muted); background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .showcase-toolbar button, [data-theme='neumorphism'] .depth-arrow { border-color: transparent; color: var(--ink); background: var(--surface); box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .accordion-workspace-track > button, [data-theme='neumorphism'] .depth-stage > button { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface); }
+[data-theme='neumorphism'] .accordion-workspace-track > button.active { transform: none; border-color: transparent; box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .depth-copy { color: var(--ink); border-top-color: transparent; background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-theme='neumorphism'] .depth-copy small { color: var(--muted); }
+[data-theme='neumorphism'] .depth-dots button { background: var(--shadow-dark); }
+[data-theme='neumorphism'] .depth-dots button.active { background: var(--cyan); }
+[data-theme='neumorphism'] .status-pill, [data-theme='neumorphism'] .status-pill.attention, [data-theme='neumorphism'] .status-pill.error { border-color: transparent; box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .activity-row strong { color: var(--ink); }
+[data-theme='neumorphism'] .activity-row p { color: var(--muted); }
+[data-theme='neumorphism'] .cloud-account-card, [data-theme='neumorphism'] .cloud-config-card, [data-theme='neumorphism'] .github-account { border-color: transparent; box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .visibility-options button, [data-theme='neumorphism'] .repository-mode button { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface); }
+[data-theme='neumorphism'] .visibility-options button.active, [data-theme='neumorphism'] .repository-mode button.active { box-shadow: var(--shadow-pressed); color: var(--cyan); }
+[data-theme='neumorphism'] .random-cover-grid button { border-color: transparent; box-shadow: var(--shadow-raised); }
+[data-theme='neumorphism'] .settings-top-nav button { color: var(--muted); }
+[data-theme='neumorphism'] .settings-top-nav button.active { color: var(--cyan); }
+[data-theme='neumorphism'] .settings-side-nav button { color: var(--muted); }
+[data-theme='neumorphism'] .settings-side-nav button.active { color: var(--cyan); box-shadow: var(--shadow-pressed); }
+[data-theme='neumorphism'] .setting-group-heading strong { color: var(--ink); }
+[data-theme='neumorphism'] .setting-group-heading span { color: var(--muted); }
+[data-theme='neumorphism'] .workspace-header h1 { color: var(--ink); text-shadow: none; }
+[data-theme='neumorphism'] .workspace-back-button { color: var(--muted); }
+[data-theme='neumorphism'] .path-text { color: var(--muted); }
+[data-theme='neumorphism'] .status-line { color: var(--muted); }
+
+/* 主题选择器（设置 → 外观与动态 → 主题） */
+.theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.theme-card { display: flex; flex-direction: column; gap: 7px; padding: 12px; border: 0; border-radius: var(--radius-small, 12px); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-raised); cursor: pointer; text-align: left; transition: var(--transition-surface); }
+.theme-card:hover { box-shadow: var(--shadow-raised-hover); }
+.theme-card.active { box-shadow: var(--shadow-pressed); }
+.theme-card strong { font-size: 12px; }
+.theme-card small { color: var(--muted); font-size: 10px; }
+.theme-card .theme-swatch { height: 44px; border-radius: 9px; box-shadow: var(--shadow-inset); }
+.theme-actions { display: flex; gap: 9px; margin-top: 4px; }
+.theme-import-error { margin-top: 8px; }
+
+/* 新拟物补遗：手风琴/深度轮播卡内的深色遮罩与白色文字（2 次视觉检查发现的遗漏） */
+[data-theme='neumorphism'] .accordion-shade { background: linear-gradient(180deg, transparent 45%, rgba(140, 148, 160, .38)); }
+[data-theme='neumorphism'] .accordion-workspace-track > button, [data-theme='neumorphism'] .depth-stage > button { color: var(--ink); }
+[data-theme='neumorphism'] .accordion-copy strong, [data-theme='neumorphism'] .depth-copy strong { color: var(--ink); }
+[data-theme='neumorphism'] .accordion-copy small { color: var(--muted); }
+[data-theme='neumorphism'] .accordion-workspace-track > button:not(.active) .accordion-cover img { filter: grayscale(.35) brightness(.92); }
+[data-theme='neumorphism'] .accordion-workspace-track > button.active .accordion-cover img { filter: none; }
+[data-theme='neumorphism'] .library-card-cover.has-cover { box-shadow: none; }
+[data-theme='neumorphism'] .overview-eyebrow { color: var(--cyan); }
+[data-theme='neumorphism'] .library-overview-header h1 { color: var(--ink); }
+[data-theme='neumorphism'] .library-overview-header p { color: var(--muted); }
+[data-theme='neumorphism'] .header-actions .primary-button, [data-theme='neumorphism'] .header-actions .secondary-button { color: var(--cyan); }
+[data-theme='neumorphism'] .header-actions .danger-button { color: var(--red); }

@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { installDemoApi } from './demo-api.ts'
+import { applySavedTheme } from './themes.ts'
 
 if (import.meta.env.DEV && !window.tianchuang) installDemoApi()
+applySavedTheme()
 
 const bridgeUnavailable = (
   <main className="startup-error">

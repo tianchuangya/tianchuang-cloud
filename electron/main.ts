@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { stat } from 'node:fs/promises'
+import { readFile, stat, writeFile } from 'node:fs/promises'
 import chokidar, { type FSWatcher } from 'chokidar'
 import {
   addWorkspace,
@@ -167,6 +167,17 @@ function createTray(): void {
 
 function registerIpc(): void {
   ipcMain.handle('app:snapshot', () => snapshot())
+  ipcMain.handle('dialog:open-theme', async () => {
+    const result = await dialog.showOpenDialog({ title: '导入主题文件', buttonLabel: '导入', properties: ['openFile'], filters: [{ name: '天创云端主题', extensions: ['json'] }] })
+    if (result.canceled || !result.filePaths[0]) return undefined
+    return JSON.parse(await readFile(result.filePaths[0], 'utf8'))
+  })
+  ipcMain.handle('theme:save', async (_event, name: string, document: unknown) => {
+    const result = await dialog.showSaveDialog({ title: '导出主题文件', defaultPath: `${name || 'tianchuang-theme'}.json`, filters: [{ name: '天创云端主题', extensions: ['json'] }] })
+    if (result.canceled || !result.filePath) return undefined
+    await writeFile(result.filePath, JSON.stringify(document, null, 2), 'utf8')
+    return result.filePath
+  })
   ipcMain.handle('notifications:get', () => getNotificationPreferences())
   ipcMain.handle('notifications:set', (_event, preferences: NotificationPreferences) => saveNotificationPreferences(preferences))
   ipcMain.handle('window:maximized', () => mainWindow?.isMaximized() ?? false)
