@@ -14,10 +14,12 @@ function RectangleCursor({ preferences }: { preferences: CursorPreferences }) {
     const cursor = cursorRef.current
     if (!cursor) return
     let frame = 0
+    let trackFrame = 0
     let x = window.innerWidth / 2
     let y = window.innerHeight / 2
     let activeTarget: HTMLElement | null = null
     let feedbackTimer = 0
+    let lastRect = { left: 0, top: 0, width: 0, height: 0 }
 
     const interactiveSelector = [
       'button:not(:disabled)',
@@ -33,22 +35,34 @@ function RectangleCursor({ preferences }: { preferences: CursorPreferences }) {
     const render = () => {
       if (activeTarget?.isConnected) {
         const rect = activeTarget.getBoundingClientRect()
-        const padding = 3
-        const radius = Number.parseFloat(getComputedStyle(activeTarget).borderRadius) || 0
-        cursor.style.width = `${Math.max(18, rect.width + padding * 2)}px`
-        cursor.style.height = `${Math.max(18, rect.height + padding * 2)}px`
-        cursor.style.borderRadius = `${Math.min((rect.height + padding * 2) / 2, radius + padding)}px`
-        cursor.style.transform = `translate3d(${rect.left + rect.width / 2}px, ${rect.top + rect.height / 2}px, 0) translate(-50%, -50%)`
+        if (rect.left !== lastRect.left || rect.top !== lastRect.top || rect.width !== lastRect.width || rect.height !== lastRect.height) {
+          lastRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+          const padding = 3
+          const radius = Number.parseFloat(getComputedStyle(activeTarget).borderRadius) || 0
+          cursor.style.width = `${Math.max(18, rect.width + padding * 2)}px`
+          cursor.style.height = `${Math.max(18, rect.height + padding * 2)}px`
+          cursor.style.borderRadius = `${Math.min((rect.height + padding * 2) / 2, radius + padding)}px`
+          cursor.style.transform = `translate3d(${rect.left + rect.width / 2}px, ${rect.top + rect.height / 2}px, 0) translate(-50%, -50%)`
+        }
       } else {
         cursor.style.removeProperty('width')
         cursor.style.removeProperty('height')
         cursor.style.removeProperty('border-radius')
         cursor.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`
       }
-      frame = 0
     }
     const scheduleRender = () => {
-      if (!frame) frame = requestAnimationFrame(render)
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; render() })
+    }
+    // 悬停目标存在时逐帧追踪其边界：布局动画（如手风琴展开）会让元素持续变形，
+    // 只靠 pointermove 调度会让指针框停留在过期的位置上。
+    const track = () => {
+      if (!activeTarget?.isConnected) { trackFrame = 0; return }
+      render()
+      trackFrame = requestAnimationFrame(track)
+    }
+    const ensureTracking = () => {
+      if (!trackFrame) trackFrame = requestAnimationFrame(track)
     }
     const findTarget = (eventTarget: EventTarget | null) => {
       const element = eventTarget instanceof Element ? eventTarget.closest<HTMLElement>(interactiveSelector) : null
@@ -61,9 +75,11 @@ function RectangleCursor({ preferences }: { preferences: CursorPreferences }) {
       const nextTarget = findTarget(event.target)
       if (nextTarget !== activeTarget) {
         activeTarget = nextTarget
+        lastRect = { left: 0, top: 0, width: 0, height: 0 }
         cursor.classList.toggle('targeting', Boolean(activeTarget))
       }
-      scheduleRender()
+      if (activeTarget) ensureTracking()
+      else scheduleRender()
     }
     const down = (event: PointerEvent) => {
       cursor.classList.add('pressed')
@@ -89,6 +105,7 @@ function RectangleCursor({ preferences }: { preferences: CursorPreferences }) {
     render()
     return () => {
       if (frame) cancelAnimationFrame(frame)
+      if (trackFrame) cancelAnimationFrame(trackFrame)
       window.clearTimeout(feedbackTimer)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerdown', down)
