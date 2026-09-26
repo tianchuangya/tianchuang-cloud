@@ -10,6 +10,7 @@ import type {
   AppSnapshot, CloudConfigDocument, CloudConfigStatus, CloudRestoreSelection, GitHubCollaborator, GitHubCollaboratorPermission, GitHubSession, ProviderKind, SyncDecision, SyncPlan, SyncProgress, SyncTarget, TargetDraft, WorkspaceProfile,
 } from '../electron/types'
 import AnimatedContent from './components/AnimatedContent'
+import { useBackgroundPreview } from './components/background-preview'
 import CursorExperience from './components/CursorExperience'
 import FadeContent from './components/FadeContent'
 import InteractiveBackdrop from './components/InteractiveBackdrop'
@@ -543,15 +544,13 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, backgroundBlur
 function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onRequestRestore, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onRequestRestore: (config: CloudConfigDocument) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [backgroundEffectSearch, setBackgroundEffectSearch] = useState('')
-  const [immersivePreview, setImmersivePreview] = useState<BackgroundEffect>()
-  const previewTimerRef = useRef<number | undefined>(undefined)
-  const immersivePreviewRef = useRef(false)
   const [category, setCategory] = useState<'startup' | 'appearance' | 'library' | 'account' | 'about'>('startup')
   const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'view' | 'devices' | 'links'>('launch')
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
   const setBackgroundEffect = (backgroundEffect: BackgroundEffect) => onChange({ ...preferences, backgroundEffect })
   const setLibraryView = (libraryView: LibraryView) => onChange({ ...preferences, libraryView })
+  const { immersivePreview, startPreview, cancelPreview, commitPreview } = useBackgroundPreview({ onPreviewChange: onPreviewBackgroundEffect, onCommit: setBackgroundEffect })
   const setStartupMode = (startupMode: StartupMode) => onChange({ ...preferences, startupMode })
   const setStartupEffect = (startupEffect: StartupEffect) => onChange({ ...preferences, startupEffect })
   const backgroundEffects: Array<{ value: BackgroundEffect; title: string; description: string; className: string; icon: React.ReactNode }> = [
@@ -568,39 +567,8 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
   const chooseCategory = (next: 'startup' | 'appearance' | 'library' | 'account' | 'about') => {
     setCategory(next)
     setSubpage(next === 'startup' ? 'launch' : next === 'appearance' ? 'pointer' : next === 'library' ? 'view' : next === 'account' ? 'devices' : 'links')
-    onPreviewBackgroundEffect(undefined)
+    cancelPreview()
   }
-
-  const stopBackgroundPreview = useCallback(() => {
-    if (previewTimerRef.current) window.clearTimeout(previewTimerRef.current)
-    previewTimerRef.current = undefined
-    immersivePreviewRef.current = false
-    setImmersivePreview(undefined)
-    onPreviewBackgroundEffect(undefined)
-  }, [onPreviewBackgroundEffect])
-
-  const startBackgroundPreview = (effect: BackgroundEffect) => {
-    if (reduceMotion || effect === 'none') return
-    if (previewTimerRef.current) window.clearTimeout(previewTimerRef.current)
-    previewTimerRef.current = window.setTimeout(() => {
-      immersivePreviewRef.current = true
-      onPreviewBackgroundEffect(effect)
-      setImmersivePreview(effect)
-      previewTimerRef.current = undefined
-    }, 1000)
-  }
-
-  useEffect(() => {
-    if (!immersivePreview) return
-    const restore = () => stopBackgroundPreview()
-    window.addEventListener('pointermove', restore, { once: true })
-    return () => window.removeEventListener('pointermove', restore)
-  }, [immersivePreview, stopBackgroundPreview])
-
-  useEffect(() => () => {
-    if (previewTimerRef.current) window.clearTimeout(previewTimerRef.current)
-    onPreviewBackgroundEffect(undefined)
-  }, [onPreviewBackgroundEffect])
 
   return (
     <motion.div className={`modal-backdrop settings-backdrop${immersivePreview ? ' is-immersive-preview' : ''}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -669,7 +637,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
                   <label><span><strong>背景不透明度</strong><small>{Math.round(preferences.backgroundOpacity * 100)}%</small></span><input type="range" min="20" max="100" step="5" value={preferences.backgroundOpacity * 100} onChange={(event) => onChange({ ...preferences, backgroundOpacity: Number(event.target.value) / 100 })} /></label>
                 </div></div>
                 <div><div className="setting-group-heading"><strong>背景动态效果</strong><span>悬停 1 秒进入沉浸预览</span></div><label className="effect-search"><Search size={15} /><input value={backgroundEffectSearch} onChange={(event) => setBackgroundEffectSearch(event.target.value)} placeholder="搜索背景效果" /></label><div className="cursor-choice-grid two">
-                  {visibleBackgroundEffects.map((item) => <button key={item.value} className={preferences.backgroundEffect === item.value ? 'active' : ''} onPointerEnter={() => startBackgroundPreview(item.value)} onPointerLeave={() => { if (!immersivePreviewRef.current && previewTimerRef.current) { window.clearTimeout(previewTimerRef.current); previewTimerRef.current = undefined } }} onClick={() => { stopBackgroundPreview(); setBackgroundEffect(item.value) }} aria-pressed={preferences.backgroundEffect === item.value} disabled={reduceMotion && item.value !== 'none'}><span className={`effect-preview ${item.className}`}>{item.icon}</span><span><strong>{item.title}</strong><small>{item.description} · 停留预览</small></span><Check size={15} /></button>)}
+                  {visibleBackgroundEffects.map((item) => <button key={item.value} className={preferences.backgroundEffect === item.value ? 'active' : ''} onPointerEnter={() => { if (!reduceMotion) startPreview(item.value) }} onPointerLeave={cancelPreview} onClick={() => commitPreview(item.value)} aria-pressed={preferences.backgroundEffect === item.value} disabled={reduceMotion && item.value !== 'none'}><span className={`effect-preview ${item.className}`}>{item.icon}</span><span><strong>{item.title}</strong><small>{item.description} · 停留预览</small></span><Check size={15} /></button>)}
                 </div>{!visibleBackgroundEffects.length && <div className="effect-search-empty">没有匹配的背景效果</div>}</div>
                 {preferences.backgroundEffect === 'ripple' && preferences.effect === 'fluid' && <div className="motion-safety-note"><ShieldCheck size={16} /><span>流体彩雾启用期间，水波背景会自动暂停，避免同时占用 GPU。</span></div>}
                 <div className="performance-note"><Waves size={16} /><span>实时背景使用 GPU 渲染；电池模式或远程桌面中建议降低动态效果。</span></div>
