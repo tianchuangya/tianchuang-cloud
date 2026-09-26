@@ -144,3 +144,40 @@ export interface GitHubCollaboratorDraft {
   username: string
   permission: GitHubCollaboratorPermission
 }
+
+export interface CloudWorkspaceConfig {
+  id: string
+  name: string
+  folderName: string
+  pathHint: string
+  autoSync: boolean
+  syncOnChange: boolean
+  syncOnFocus: boolean
+  autoSyncDelaySeconds: number
+  errorNotifyCooldownMinutes: number
+  targets: SyncTarget[]
+}
+
+export interface CloudConfigDocument {
+  schemaVersion: 1
+  updatedAt: string
+  deviceName: string
+  workspaces: CloudWorkspaceConfig[]
+}
+
+export interface CloudConfigStatus {
+  authenticated: boolean
+  username?: string
+  repositoryExists: boolean
+  repositoryUrl?: string
+  hasRemoteConfig: boolean
+  updatedAt?: string
+  workspaceCount: number
+  config?: CloudConfigDocument
+  message?: string
+}
+
+export interface CloudRestoreSelection {
+  workspaceId: string
+  localPath: string
+}

@@ -52,7 +52,7 @@ async function credential(username?: string): Promise<{ username: string; token:
   return parseCredential((await runGit(['credential', 'fill'], input)).stdout)
 }
 
-async function githubRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+export async function githubRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`https://api.github.com${path}`, {
     ...init,
     headers: {
@@ -80,7 +80,7 @@ export function parseGitHubRepository(remoteUrl: string): { owner: string; repos
   return { owner: match[1], repository: match[2] }
 }
 
-async function primaryCredential(): Promise<{ username: string; token: string }> {
+export async function primaryCredential(): Promise<{ username: string; token: string }> {
   const accounts = await accountNames()
   if (!accounts.length) throw new Error('请先登录 GitHub')
   return credential(accounts[0])

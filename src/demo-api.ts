@@ -1,4 +1,4 @@
-import type { AppSnapshot, SyncPlan, SyncProgress, TargetDraft } from '../electron/types'
+import type { AppSnapshot, CloudConfigDocument, SyncPlan, SyncProgress, TargetDraft } from '../electron/types'
 
 const now = new Date().toISOString()
 let demoSnapshot: AppSnapshot = {
@@ -19,6 +19,24 @@ let demoSnapshot: AppSnapshot = {
   activity: [
     { id: 'activity-1', workspaceId: 'demo-workspace', level: 'success', title: 'GitHub 主备份同步完成', detail: '已经是最新版本，没有重复上传', createdAt: now },
   ],
+}
+
+const demoCloudConfig: CloudConfigDocument = {
+  schemaVersion: 1,
+  updatedAt: now,
+  deviceName: 'Tianchuang Laptop',
+  workspaces: [{
+    id: 'remote-workspace',
+    name: '课程笔记',
+    folderName: '课程笔记',
+    pathHint: 'D:\\Documents\\课程笔记',
+    autoSync: true,
+    syncOnChange: true,
+    syncOnFocus: true,
+    autoSyncDelaySeconds: 8,
+    errorNotifyCooldownMinutes: 15,
+    targets: [{ id: 'remote-git', name: 'GitHub', enabled: true, maxFileSizeMb: 100, config: { kind: 'git', remoteUrl: 'https://github.com/tianchuangya/course-notes.git', branch: 'main', provider: 'github' } }],
+  }],
 }
 
 export function installDemoApi(): void {
@@ -55,6 +73,9 @@ export function installDemoApi(): void {
     }),
     listGitHubCollaborators: async () => [{ username: 'teammate', permission: 'push', pending: false }],
     inviteGitHubCollaborator: async () => undefined,
+    getCloudConfigStatus: async () => ({ authenticated: true, username: 'tianchuangya', repositoryExists: true, repositoryUrl: 'https://github.com/tianchuangya/tianchuang-cloud-config', hasRemoteConfig: true, updatedAt: now, workspaceCount: demoCloudConfig.workspaces.length, config: demoCloudConfig }),
+    publishCloudConfig: async () => ({ authenticated: true, username: 'tianchuangya', repositoryExists: true, repositoryUrl: 'https://github.com/tianchuangya/tianchuang-cloud-config', hasRemoteConfig: true, updatedAt: now, workspaceCount: demoSnapshot.workspaces.length, config: demoCloudConfig }),
+    restoreCloudConfig: async (_config: CloudConfigDocument) => undefined,
     removeTarget: async () => demoSnapshot.workspaces[0],
     planSync: async (workspaceId, targetId): Promise<SyncPlan> => ({
       id: 'demo-plan', workspaceId, targetId, targetName: 'GitHub 主备份', provider: 'git',

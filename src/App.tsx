@@ -3,11 +3,11 @@ import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, ArrowLeft, Check, ChevronRight, Cloud, CloudUpload, Crop,
   Droplets, FileWarning, Folder, FolderInput, GitBranch, Globe2, Grid2X2, HardDrive, History, Image as ImageIcon, ImagePlus, Layers3, LoaderCircle,
-  LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
-  Search, Settings, Share2, ShieldCheck, Sparkles, SunMedium, Trash2, UserPlus, Waves, X, ZoomIn,
+  Laptop, LockKeyhole, LogIn, Monitor, MoreHorizontal, MousePointer2, Plus, RefreshCw, Server,
+  Search, Settings, Share2, ShieldCheck, Sparkles, SunMedium, Trash2, Upload, UserPlus, UserRound, Waves, X, ZoomIn,
 } from 'lucide-react'
 import type {
-  AppSnapshot, GitHubCollaborator, GitHubCollaboratorPermission, GitHubSession, ProviderKind, SyncDecision, SyncPlan, SyncProgress, SyncTarget, TargetDraft, WorkspaceProfile,
+  AppSnapshot, CloudConfigDocument, CloudConfigStatus, CloudRestoreSelection, GitHubCollaborator, GitHubCollaboratorPermission, GitHubSession, ProviderKind, SyncDecision, SyncPlan, SyncProgress, SyncTarget, TargetDraft, WorkspaceProfile,
 } from '../electron/types'
 import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
@@ -92,6 +92,7 @@ function App() {
   const [backgroundEffectPreview, setBackgroundEffectPreview] = useState<BackgroundEffect>()
   const [coverCrop, setCoverCrop] = useState<{ workspace: WorkspaceProfile; source: string }>()
   const [collaborationTarget, setCollaborationTarget] = useState<SyncTarget>()
+  const [cloudRestore, setCloudRestore] = useState<CloudConfigDocument>()
 
   const applyNavigation = (state: AppNavigationState) => {
     setShowOverview(state.view === 'overview')
@@ -142,6 +143,12 @@ function App() {
     void window.tianchuang.getSnapshot().then((next) => {
       setSnapshot(next)
       setSelectedId(next.workspaces[0]?.id)
+      void window.tianchuang.getCloudConfigStatus().then((status) => {
+        const config = status.config
+        const hasUnseenWorkspace = config?.workspaces.some((remote) => !next.workspaces.some((local) => local.id === remote.id))
+        const dismissed = config ? localStorage.getItem('tianchuang.cloud-config-dismissed') === config.updatedAt : true
+        if (config && hasUnseenWorkspace && !dismissed) setCloudRestore(config)
+      })
     }).finally(() => setAppReady(true))
     const offProgress = window.tianchuang.onProgress((item) => {
       setProgress(item)
@@ -481,9 +488,10 @@ function App() {
         {targetDialog && selected && <TargetDialog key="target-dialog" workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} />}
         {reviewPlan && <ReviewDialog key="review-dialog" plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(decision) => void runReviewedPlan(decision)} />}
         {removeWorkspaceDialog && <RemoveWorkspaceDialog key="remove-workspace-dialog" workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} />}
-        {settingsDialog && <CursorSettingsDialog key="settings-dialog" preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onChange={changeCursorPreferences} onClose={closeSettings} />}
+        {settingsDialog && <CursorSettingsDialog key="settings-dialog" preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onRequestRestore={setCloudRestore} onChange={changeCursorPreferences} onClose={closeSettings} />}
         {coverCrop && <CoverCropDialog key="cover-crop-dialog" workspace={coverCrop.workspace} source={coverCrop.source} onClose={() => setCoverCrop(undefined)} onSave={saveCroppedCover} />}
         {collaborationTarget?.config.kind === 'git' && <CollaborationDialog key="collaboration-dialog" targetName={collaborationTarget.name} remoteUrl={collaborationTarget.config.remoteUrl} onClose={() => setCollaborationTarget(undefined)} />}
+        {cloudRestore && <CloudRestoreDialog key="cloud-restore-dialog" config={cloudRestore} onClose={() => { localStorage.setItem('tianchuang.cloud-config-dismissed', cloudRestore.updatedAt); setCloudRestore(undefined) }} onRestored={async () => { localStorage.setItem('tianchuang.cloud-config-dismissed', cloudRestore.updatedAt); setCloudRestore(undefined); await refresh(); setNoticeError(false); setNotice('其他设备的资料库配置已恢复，请检查凭据与本机路径'); window.setTimeout(() => setNotice(undefined), 5200) }} />}
         {progress && <ProgressOverlay key="progress-overlay" progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div key="notice-toast" className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
@@ -523,11 +531,11 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, backgroundBlur
   )
 }
 
-function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
+function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onRequestRestore, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onRequestRestore: (config: CloudConfigDocument) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [backgroundEffectSearch, setBackgroundEffectSearch] = useState('')
-  const [category, setCategory] = useState<'startup' | 'appearance' | 'library' | 'about'>('startup')
-  const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'view' | 'links'>('launch')
+  const [category, setCategory] = useState<'startup' | 'appearance' | 'library' | 'account' | 'about'>('startup')
+  const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'view' | 'devices' | 'links'>('launch')
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
   const setBackgroundEffect = (backgroundEffect: BackgroundEffect) => onChange({ ...preferences, backgroundEffect })
@@ -542,9 +550,9 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
     { value: 'aurora', title: '柔光极光', description: 'OGL 柔和光带与色彩流动', className: 'aurora', icon: <Waves size={20} /> },
   ]
   const visibleBackgroundEffects = backgroundEffects.filter((item) => `${item.title}${item.description}${item.value}`.toLowerCase().includes(backgroundEffectSearch.trim().toLowerCase()))
-  const chooseCategory = (next: 'startup' | 'appearance' | 'library' | 'about') => {
+  const chooseCategory = (next: 'startup' | 'appearance' | 'library' | 'account' | 'about') => {
     setCategory(next)
-    setSubpage(next === 'startup' ? 'launch' : next === 'appearance' ? 'pointer' : next === 'library' ? 'view' : 'links')
+    setSubpage(next === 'startup' ? 'launch' : next === 'appearance' ? 'pointer' : next === 'library' ? 'view' : next === 'account' ? 'devices' : 'links')
     onPreviewBackgroundEffect(undefined)
   }
 
@@ -556,6 +564,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
           <button className={category === 'startup' ? 'active' : ''} onClick={() => chooseCategory('startup')}><Cloud size={15} />启动体验</button>
           <button className={category === 'appearance' ? 'active' : ''} onClick={() => chooseCategory('appearance')}><MousePointer2 size={15} />外观与动态</button>
           <button className={category === 'library' ? 'active' : ''} onClick={() => chooseCategory('library')}><Layers3 size={15} />资料库</button>
+          <button className={category === 'account' ? 'active' : ''} onClick={() => chooseCategory('account')}><UserRound size={15} />账户与设备</button>
           <button className={category === 'about' ? 'active' : ''} onClick={() => chooseCategory('about')}><Globe2 size={15} />关于</button>
         </nav>
         <div className="settings-cross-layout">
@@ -566,6 +575,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
               <button className={subpage === 'background' ? 'active' : ''} onClick={() => setSubpage('background')}>背景与效果</button>
             </>}
             {category === 'library' && <button className="active" onClick={() => setSubpage('view')}>浏览方式</button>}
+            {category === 'account' && <button className="active" onClick={() => setSubpage('devices')}>主配置仓库</button>}
             {category === 'about' && <button className="active" onClick={() => setSubpage('links')}>项目与作者</button>}
           </aside>
           <div className="cursor-settings-content">
@@ -622,10 +632,143 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
               <button className={preferences.libraryView === 'glass' ? 'active' : ''} onClick={() => setLibraryView('glass')} aria-pressed={preferences.libraryView === 'glass'}><span className="effect-preview quiet"><Grid2X2 size={20} /></span><span><strong>玻璃图标</strong><small>清晰直观，适合日常管理</small></span><Check size={15} /></button>
               <button className={preferences.libraryView === 'motion' ? 'active' : ''} onClick={() => setLibraryView('motion')} aria-pressed={preferences.libraryView === 'motion'} disabled={reduceMotion}><span className="effect-preview ripple"><Layers3 size={20} /></span><span><strong>动态网格</strong><small>使用封面构成有序运动网格</small></span><Check size={15} /></button>
             </div></section></FadeContent>}
+            {category === 'account' && <FadeContent key="account" duration={220} blurAmount={4}><CloudAccountSettings onRequestRestore={onRequestRestore} /></FadeContent>}
             {category === 'about' && <FadeContent key="about" duration={220} blurAmount={4}><section className="settings-about-panel"><div className="setting-group-heading"><strong>项目与作者</strong><span>个人主页与项目链接</span></div><p>这里集中展示天创云端项目、作者主页以及后续加入的个人作品。</p><div className="settings-project-loop"><LogoLoop logos={PROJECT_LINKS} speed={28} hoverSpeed={5} gap={10} ariaLabel="天创云端项目与作者链接" /></div></section></FadeContent>}
           </div>
         </div>
         <footer><button className="primary-button" onClick={onClose}>完成</button></footer>
+      </motion.section>
+    </motion.div>
+  )
+}
+
+function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config: CloudConfigDocument) => void }) {
+  const [status, setStatus] = useState<CloudConfigStatus>()
+  const [loading, setLoading] = useState(true)
+  const [publishing, setPublishing] = useState(false)
+  const [error, setError] = useState('')
+
+  const refreshStatus = async (showLoading = true) => {
+    if (showLoading) setLoading(true)
+    try {
+      const next = await window.tianchuang.getCloudConfigStatus()
+      setStatus(next)
+      setError(next.authenticated ? '' : next.message || '')
+      return next
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+      return undefined
+    } finally {
+      if (showLoading) setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let active = true
+    void window.tianchuang.getCloudConfigStatus().then((next) => {
+      if (!active) return
+      setStatus(next)
+      setError(next.authenticated ? '' : next.message || '')
+    }).catch((reason) => {
+      if (active) setError(reason instanceof Error ? reason.message : String(reason))
+    }).finally(() => {
+      if (active) setLoading(false)
+    })
+    return () => { active = false }
+  }, [])
+
+  const login = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      await window.tianchuang.loginGitHub()
+      await refreshStatus(false)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const publish = async () => {
+    setPublishing(true)
+    setError('')
+    try {
+      const next = await window.tianchuang.publishCloudConfig()
+      setStatus(next)
+      if (next.updatedAt) localStorage.setItem('tianchuang.cloud-config-dismissed', next.updatedAt)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  return (
+    <section className="settings-panel-stack cloud-account-settings">
+      <div>
+        <div className="setting-group-heading"><strong>GitHub 主账户</strong><span>凭据由系统 Git Credential Manager 保存</span></div>
+        <div className="cloud-account-card">
+          <span className={`account-symbol ${status?.authenticated ? 'connected' : ''}`}>{status?.authenticated ? <ShieldCheck size={18} /> : <LogIn size={18} />}</span>
+          <span><strong>{loading ? '正在检查登录状态' : status?.authenticated ? `@${status.username}` : '尚未登录 GitHub'}</strong><small>{status?.authenticated ? '可创建私人配置仓库并同步设备配置' : '登录后才能备份或发现其他设备配置'}</small></span>
+          {!status?.authenticated && <button className="secondary-button" disabled={loading} onClick={() => void login()}>{loading ? <LoaderCircle className="spin" size={15} /> : <LogIn size={15} />}登录</button>}
+        </div>
+      </div>
+      <div>
+        <div className="setting-group-heading"><strong>私人主配置仓库</strong><span>固定名称：tianchuang-cloud-config</span></div>
+        <div className="cloud-config-card">
+          <div className="cloud-config-copy"><span className="cloud-config-icon"><Laptop size={21} /></span><span><strong>{status?.repositoryExists ? '主配置仓库已连接' : '尚未建立主配置仓库'}</strong><small>{status?.hasRemoteConfig ? `${status.workspaceCount} 个资料库 · 更新于 ${new Date(status.updatedAt || '').toLocaleString()}` : '保存资料库名称、目标地址和同步偏好，不保存密码或访问令牌'}</small></span></div>
+          <div className="cloud-config-actions">
+            {status?.repositoryUrl && <button className="plain-button" onClick={() => window.open(status.repositoryUrl)}>打开仓库</button>}
+            {status?.config && <button className="secondary-button" onClick={() => onRequestRestore(status.config!)}><ArchiveRestore size={15} />查看恢复内容</button>}
+            <button className="primary-button" disabled={!status?.authenticated || publishing} onClick={() => void publish()}>{publishing ? <LoaderCircle className="spin" size={15} /> : <Upload size={15} />}{status?.hasRemoteConfig ? '更新云端配置' : '创建并备份'}</button>
+          </div>
+        </div>
+      </div>
+      <div className="performance-note"><ShieldCheck size={16} /><span>恢复操作只合并你明确选择的资料库，不会静默覆盖本机数据。WebDAV 密码、GitHub 令牌和系统凭据不会写入仓库。</span></div>
+      {error && <div className="form-error cloud-config-error"><AlertTriangle size={15} />{error}</div>}
+    </section>
+  )
+}
+
+function CloudRestoreDialog({ config, onClose, onRestored }: { config: CloudConfigDocument; onClose: () => void; onRestored: () => Promise<void> }) {
+  const [paths, setPaths] = useState<Record<string, string>>({})
+  const [restoring, setRestoring] = useState(false)
+  const [error, setError] = useState('')
+  const selections: CloudRestoreSelection[] = config.workspaces.flatMap((workspace) => paths[workspace.id] ? [{ workspaceId: workspace.id, localPath: paths[workspace.id] }] : [])
+
+  const chooseFolder = async (workspaceId: string) => {
+    const folderPath = await window.tianchuang.selectFolder()
+    if (folderPath) setPaths((current) => ({ ...current, [workspaceId]: folderPath }))
+  }
+
+  const restore = async () => {
+    if (!selections.length) return
+    setRestoring(true)
+    setError('')
+    try {
+      await window.tianchuang.restoreCloudConfig(config, selections)
+      await onRestored()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setRestoring(false)
+    }
+  }
+
+  return (
+    <motion.div className="modal-backdrop cloud-restore-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.section className="modal glass-modal cloud-restore-modal" initial={{ opacity: 0, y: 14, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: .98 }}>
+        <header><div className="settings-symbol"><Laptop size={21} /></div><div><h2>发现其他设备的资料库</h2><p>{config.deviceName} 于 {new Date(config.updatedAt).toLocaleString()} 上传了配置</p></div><button className="icon-button" title="稍后处理" onClick={onClose}><X size={18} /></button></header>
+        <div className="cloud-restore-body">
+          <div className="recovery-note"><ShieldCheck size={16} /><span>请选择这些资料库在当前电脑上的文件夹。未选择的项目不会恢复，本机已有内容不会被覆盖。</span></div>
+          <div className="cloud-workspace-list">
+            {config.workspaces.map((workspace) => <article key={workspace.id}><span className="cloud-workspace-icon"><Folder size={18} /></span><span><strong>{workspace.name}</strong><small>{workspace.targets.length} 个同步目标 · 原路径 {workspace.pathHint}</small></span><button className={paths[workspace.id] ? 'selected' : ''} onClick={() => void chooseFolder(workspace.id)}>{paths[workspace.id] ? paths[workspace.id] : '选择本机文件夹'}</button></article>)}
+          </div>
+          <p className="cloud-restore-footnote">恢复后自动同步默认关闭；WebDAV 与磁盘目标需要检查凭据或路径后手动启用。</p>
+          {error && <div className="form-error cloud-config-error"><AlertTriangle size={15} />{error}</div>}
+        </div>
+        <footer><button className="plain-button" disabled={restoring} onClick={onClose}>暂不恢复</button><button className="primary-button" disabled={!selections.length || restoring} onClick={() => void restore()}>{restoring ? <LoaderCircle className="spin" size={16} /> : <ArchiveRestore size={16} />}恢复已选择的 {selections.length} 个资料库</button></footer>
       </motion.section>
     </motion.div>
   )

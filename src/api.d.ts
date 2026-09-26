@@ -1,5 +1,8 @@
 import type {
   AppSnapshot,
+  CloudConfigDocument,
+  CloudConfigStatus,
+  CloudRestoreSelection,
   GitHubRepositoryDraft,
   GitHubRepositoryResult,
   GitHubCollaborator,
@@ -35,6 +38,9 @@ declare global {
       createGitHubRepository(draft: GitHubRepositoryDraft): Promise<GitHubRepositoryResult>
       listGitHubCollaborators(remoteUrl: string): Promise<GitHubCollaborator[]>
       inviteGitHubCollaborator(draft: GitHubCollaboratorDraft): Promise<void>
+      getCloudConfigStatus(): Promise<CloudConfigStatus>
+      publishCloudConfig(): Promise<CloudConfigStatus>
+      restoreCloudConfig(config: CloudConfigDocument, selections: CloudRestoreSelection[]): Promise<void>
       removeTarget(workspaceId: string, targetId: string): Promise<WorkspaceProfile>
       planSync(workspaceId: string, targetId: string): Promise<SyncPlan>
       runSync(planId: string, decision: SyncDecision): Promise<AppSnapshot>
