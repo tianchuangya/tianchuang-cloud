@@ -4,6 +4,7 @@ import type { BackgroundEffect } from './cursor-preferences'
 
 const RippleDistortion = lazy(() => import('./RippleDistortion.jsx'))
 const SoftAurora = lazy(() => import('./effects/SoftAurora.jsx'))
+const OglBackdrop = lazy(() => import('./effects/OglBackdrop.jsx'))
 
 export default function InteractiveBackdrop({ effect, image, blur, opacity }: { effect: BackgroundEffect; image?: string; blur: number; opacity: number }) {
   const source = image || '/assets/cloud-glass-bg.png'
@@ -42,6 +43,7 @@ export default function InteractiveBackdrop({ effect, image, blur, opacity }: { 
       {effect === 'rays' && <div className="background-effect-rays" />}
       {effect === 'particles' && <div className="background-effect-particles"><i /><i /><i /></div>}
       {effect === 'aurora' && <div className="background-effect-gpu aurora"><Suspense fallback={null}><SoftAurora speed={0.35} scale={1.7} brightness={.94} color1="#dffcff" color2="#c58cff" noiseFrequency={2.2} noiseAmplitude={.85} bandHeight={.46} bandSpread={1.25} octaveDecay={.16} colorSpeed={.45} enableMouseInteraction={false} /></Suspense></div>}
+      {(effect === 'iridescence' || effect === 'threads' || effect === 'topography') && <div className={`background-effect-gpu ${effect}`}><Suspense fallback={null}><OglBackdrop variant={effect} /></Suspense></div>}
     </div>
   )
 }

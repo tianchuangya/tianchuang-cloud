@@ -16,7 +16,7 @@
 | Git / GitHub / Gitee | 完成 | 版本规划、登录、建仓库、首次推送与冲突拦截 |
 | WebDAV / 本地 / 移动 / 网络磁盘 | 完成 | 多目标配置、真实类型显示与同步 |
 | 资料库封面 | 完成 | 自动识别、右键设置、16:9 拖动裁剪、相对路径保存 |
-| 资料库首页 | 部分完成 | 玻璃卡片、动态网格和少量资料库环境块；其他视图待接入 |
+| 资料库首页 | 部分完成 | 玻璃卡片、动态网格、手风琴封面、深度轮播和少量资料库环境块；其他视图待接入 |
 | 指针系统 | 部分完成 | 自适应矩形、系统指针、白色烟花、流体彩雾与配色；完整参数面板待补 |
 | 背景系统 | 部分完成 | 背景图与动态效果分离、自定义图片、模糊度、不透明度、水波、侧光、粒子 |
 | 动效基础 | 完成 | AnimatedContent、FadeContent、LogoLoop、减少动态效果适配 |
@@ -38,8 +38,8 @@
 
 | 需求 | 状态 | 参考组件 |
 | --- | --- | --- |
-| 深度轮播视图 | 待实现 | DepthCarousel |
-| 手风琴封面视图 | 待实现 | AccordionGallery |
+| 深度轮播视图 | 完成 | DepthCarousel；接入真实封面、方向键、滚轮、按钮和指示器 |
+| 手风琴封面视图 | 完成 | AccordionGallery；真实资料库分组、悬停展开和翻组控制 |
 | 弧形唱片视图 | 待实现 | OptionWheel |
 | 有序无限画布 | 待实现 | InfiniteMenu；必须保持可预测的线性浏览顺序 |
 | 文件夹悬浮预览 | 待实现 | FolderFloat；支持按大小、名称、修改日期和自定义顺序 |
@@ -90,11 +90,11 @@
 | 侧光流束 | 完成 | 轻量 CSS 版本；SideRays/LightRays 的 GPU 版本待接入 |
 | 微光粒子 | 完成 | 轻量 CSS 版本；Particles GPU 版本待接入 |
 | SoftAurora | 完成 | OGL，按需加载并叠加于当前背景图 |
-| Iridescence | 待实现 | OGL，用户以内联源码提供 |
+| Iridescence | 完成 | OGL，按需加载并适配当前背景图 |
 | MoltenMetal | 待实现 | OGL |
 | AeroShards | 待实现 | 大型着色器，需单独性能预算 |
-| WebThreads | 待实现 | OGL |
-| Topography | 待实现 | OGL |
+| WebThreads | 完成 | OGL，按需加载的轻量光丝版本 |
+| Topography | 完成 | OGL，按需加载的动态等高线版本 |
 | Scanner | 待实现 | OGL |
 | Ferrofluid | 待实现 | OGL |
 | LiquidEther | 待实现 | Three.js，需新增依赖并单独性能验证 |

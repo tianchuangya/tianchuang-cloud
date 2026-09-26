@@ -16,6 +16,7 @@ import InteractiveBackdrop from './components/InteractiveBackdrop'
 import GridMotion from './components/GridMotion'
 import LogoLoop, { type LogoLoopItem } from './components/LogoLoop'
 import StartupExperience from './components/StartupExperience'
+import { AccordionWorkspaceView, DepthWorkspaceView } from './components/WorkspaceShowcases'
 import {
   loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorEffect, type CursorPreferences, type CursorStyle, type LibraryView, type StartupEffect, type StartupMode,
 } from './components/cursor-preferences'
@@ -35,6 +36,12 @@ const PROJECT_LINKS: LogoLoopItem[] = [
     ariaLabel: '打开是天创呀的 GitHub 主页',
     href: 'https://github.com/tianchuangya',
     node: <><img className="loop-avatar" src="/assets/author-avatar.png" alt="是天创呀头像" /><span><strong>是天创呀</strong><small>项目作者</small></span></>,
+  },
+  {
+    title: '天创域',
+    ariaLabel: '打开是天创呀的个人博客',
+    href: 'https://tianchuangya.cc/welcome',
+    node: <><Globe2 size={17} /><span><strong>天创域</strong><small>个人博客</small></span></>,
   },
 ]
 
@@ -508,11 +515,13 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, backgroundBlur
           <div className="view-switch" aria-label="资料库显示方式">
             <button className={view === 'glass' ? 'active' : ''} title="玻璃图标" aria-label="玻璃图标视图" aria-pressed={view === 'glass'} onClick={() => onChangeView('glass')}><Grid2X2 size={16} /></button>
             <button className={view === 'motion' ? 'active' : ''} title="动态网格" aria-label="动态网格视图" aria-pressed={view === 'motion'} onClick={() => onChangeView('motion')}><Layers3 size={16} /></button>
+            <button className={view === 'accordion' ? 'active' : ''} title="手风琴封面" aria-label="手风琴封面视图" aria-pressed={view === 'accordion'} onClick={() => onChangeView('accordion')}><ImageIcon size={16} /></button>
+            <button className={view === 'depth' ? 'active' : ''} title="深度轮播" aria-label="深度轮播视图" aria-pressed={view === 'depth'} onClick={() => onChangeView('depth')}><Waves size={16} /></button>
           </div>
           <button className="secondary-button" onClick={onAdd}><FolderInput size={16} />添加资料库</button>
         </div>
       </section>
-      {view === 'motion' ? <GridMotion workspaces={workspaces} covers={covers} backgroundImage={backgroundImage} backgroundBlur={backgroundBlur} backgroundOpacity={backgroundOpacity} onSelect={onSelect} /> : (
+      {view === 'motion' ? <GridMotion workspaces={workspaces} covers={covers} backgroundImage={backgroundImage} backgroundBlur={backgroundBlur} backgroundOpacity={backgroundOpacity} onSelect={onSelect} /> : view === 'accordion' ? <AccordionWorkspaceView workspaces={workspaces} covers={covers} onSelect={onSelect} /> : view === 'depth' ? <DepthWorkspaceView workspaces={workspaces} covers={covers} onSelect={onSelect} /> : (
         <section className="library-glass-grid" aria-label="资料库">
           {workspaces.map((workspace, index) => (
             <motion.button className={`library-glass-card ${covers[workspace.id] ? 'has-cover' : ''}`} key={workspace.id} onClick={() => onSelect(workspace.id)} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * .035, .18), duration: .24 }}>
@@ -534,6 +543,9 @@ function WorkspaceOverview({ workspaces, covers, backgroundImage, backgroundBlur
 function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onRequestRestore, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onRequestRestore: (config: CloudConfigDocument) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [backgroundEffectSearch, setBackgroundEffectSearch] = useState('')
+  const [immersivePreview, setImmersivePreview] = useState<BackgroundEffect>()
+  const previewTimerRef = useRef<number | undefined>(undefined)
+  const immersivePreviewRef = useRef(false)
   const [category, setCategory] = useState<'startup' | 'appearance' | 'library' | 'account' | 'about'>('startup')
   const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'view' | 'devices' | 'links'>('launch')
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
@@ -548,6 +560,9 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
     { value: 'rays', title: '侧光流束', description: '缓慢移动的半透明光束', className: 'rays', icon: <SunMedium size={20} /> },
     { value: 'particles', title: '微光粒子', description: '低密度白色粒子缓慢漂移', className: 'particles', icon: <Sparkles size={20} /> },
     { value: 'aurora', title: '柔光极光', description: 'OGL 柔和光带与色彩流动', className: 'aurora', icon: <Waves size={20} /> },
+    { value: 'iridescence', title: '虹彩流光', description: '跟随指针缓慢折射的丝滑光泽', className: 'iridescence', icon: <Droplets size={20} /> },
+    { value: 'threads', title: '光丝网络', description: '由中心展开的半透明流动丝线', className: 'threads', icon: <Waves size={20} /> },
+    { value: 'topography', title: '动态地形', description: '连续变形的发光等高线', className: 'topography', icon: <Activity size={20} /> },
   ]
   const visibleBackgroundEffects = backgroundEffects.filter((item) => `${item.title}${item.description}${item.value}`.toLowerCase().includes(backgroundEffectSearch.trim().toLowerCase()))
   const chooseCategory = (next: 'startup' | 'appearance' | 'library' | 'account' | 'about') => {
@@ -556,8 +571,40 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
     onPreviewBackgroundEffect(undefined)
   }
 
+  const stopBackgroundPreview = useCallback(() => {
+    if (previewTimerRef.current) window.clearTimeout(previewTimerRef.current)
+    previewTimerRef.current = undefined
+    immersivePreviewRef.current = false
+    setImmersivePreview(undefined)
+    onPreviewBackgroundEffect(undefined)
+  }, [onPreviewBackgroundEffect])
+
+  const startBackgroundPreview = (effect: BackgroundEffect) => {
+    if (reduceMotion || effect === 'none') return
+    if (previewTimerRef.current) window.clearTimeout(previewTimerRef.current)
+    previewTimerRef.current = window.setTimeout(() => {
+      immersivePreviewRef.current = true
+      onPreviewBackgroundEffect(effect)
+      setImmersivePreview(effect)
+      previewTimerRef.current = undefined
+    }, 1000)
+  }
+
+  useEffect(() => {
+    if (!immersivePreview) return
+    const restore = () => stopBackgroundPreview()
+    window.addEventListener('pointermove', restore, { once: true })
+    return () => window.removeEventListener('pointermove', restore)
+  }, [immersivePreview, stopBackgroundPreview])
+
+  useEffect(() => () => {
+    if (previewTimerRef.current) window.clearTimeout(previewTimerRef.current)
+    onPreviewBackgroundEffect(undefined)
+  }, [onPreviewBackgroundEffect])
+
   return (
-    <motion.div className="modal-backdrop settings-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <motion.div className={`modal-backdrop settings-backdrop${immersivePreview ? ' is-immersive-preview' : ''}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <div className="immersive-preview-hint"><span />正在预览背景效果，移动鼠标返回设置</div>
       <motion.section className="modal glass-modal cursor-settings-modal" initial={{ opacity: 0, transform: 'translateY(10px) scale(.97)' }} animate={{ opacity: 1, transform: 'translateY(0) scale(1)' }} exit={{ opacity: 0, transform: 'translateY(8px) scale(.98)' }} transition={{ type: 'spring', bounce: 0, duration: .28 }}>
         <header><div className="settings-symbol"><Settings size={21} /></div><div><h2>设置</h2><p>按大类与子项管理天创云端</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
         <nav className="settings-top-nav" aria-label="设置大类">
@@ -621,8 +668,8 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
                   <label><span><strong>背景模糊</strong><small>{preferences.backgroundBlur}px</small></span><input aria-label="背景模糊" type="range" min="0" max="24" step="1" value={preferences.backgroundBlur} onInput={(event) => onChange({ ...preferences, backgroundBlur: Number(event.currentTarget.value) })} /></label>
                   <label><span><strong>背景不透明度</strong><small>{Math.round(preferences.backgroundOpacity * 100)}%</small></span><input type="range" min="20" max="100" step="5" value={preferences.backgroundOpacity * 100} onChange={(event) => onChange({ ...preferences, backgroundOpacity: Number(event.target.value) / 100 })} /></label>
                 </div></div>
-                <div><div className="setting-group-heading"><strong>背景动态效果</strong><span>悬停即可预览</span></div><label className="effect-search"><Search size={15} /><input value={backgroundEffectSearch} onChange={(event) => setBackgroundEffectSearch(event.target.value)} placeholder="搜索背景效果" /></label><div className="cursor-choice-grid two">
-                  {visibleBackgroundEffects.map((item) => <button key={item.value} className={preferences.backgroundEffect === item.value ? 'active' : ''} onPointerEnter={() => onPreviewBackgroundEffect(item.value)} onPointerLeave={() => onPreviewBackgroundEffect(undefined)} onClick={() => setBackgroundEffect(item.value)} aria-pressed={preferences.backgroundEffect === item.value} disabled={reduceMotion && item.value !== 'none'}><span className={`effect-preview ${item.className}`}>{item.icon}</span><span><strong>{item.title}</strong><small>{item.description} · 悬停预览</small></span><Check size={15} /></button>)}
+                <div><div className="setting-group-heading"><strong>背景动态效果</strong><span>悬停 1 秒进入沉浸预览</span></div><label className="effect-search"><Search size={15} /><input value={backgroundEffectSearch} onChange={(event) => setBackgroundEffectSearch(event.target.value)} placeholder="搜索背景效果" /></label><div className="cursor-choice-grid two">
+                  {visibleBackgroundEffects.map((item) => <button key={item.value} className={preferences.backgroundEffect === item.value ? 'active' : ''} onPointerEnter={() => startBackgroundPreview(item.value)} onPointerLeave={() => { if (!immersivePreviewRef.current && previewTimerRef.current) { window.clearTimeout(previewTimerRef.current); previewTimerRef.current = undefined } }} onClick={() => { stopBackgroundPreview(); setBackgroundEffect(item.value) }} aria-pressed={preferences.backgroundEffect === item.value} disabled={reduceMotion && item.value !== 'none'}><span className={`effect-preview ${item.className}`}>{item.icon}</span><span><strong>{item.title}</strong><small>{item.description} · 停留预览</small></span><Check size={15} /></button>)}
                 </div>{!visibleBackgroundEffects.length && <div className="effect-search-empty">没有匹配的背景效果</div>}</div>
                 {preferences.backgroundEffect === 'ripple' && preferences.effect === 'fluid' && <div className="motion-safety-note"><ShieldCheck size={16} /><span>流体彩雾启用期间，水波背景会自动暂停，避免同时占用 GPU。</span></div>}
                 <div className="performance-note"><Waves size={16} /><span>实时背景使用 GPU 渲染；电池模式或远程桌面中建议降低动态效果。</span></div>
@@ -631,6 +678,8 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
             {category === 'library' && <FadeContent key="library" duration={220} blurAmount={4}><section><div className="setting-group-heading"><strong>资料库视图</strong><span>进入资料库首页时的浏览方式</span></div><div className="cursor-choice-grid two">
               <button className={preferences.libraryView === 'glass' ? 'active' : ''} onClick={() => setLibraryView('glass')} aria-pressed={preferences.libraryView === 'glass'}><span className="effect-preview quiet"><Grid2X2 size={20} /></span><span><strong>玻璃图标</strong><small>清晰直观，适合日常管理</small></span><Check size={15} /></button>
               <button className={preferences.libraryView === 'motion' ? 'active' : ''} onClick={() => setLibraryView('motion')} aria-pressed={preferences.libraryView === 'motion'} disabled={reduceMotion}><span className="effect-preview ripple"><Layers3 size={20} /></span><span><strong>动态网格</strong><small>使用封面构成有序运动网格</small></span><Check size={15} /></button>
+              <button className={preferences.libraryView === 'accordion' ? 'active' : ''} onClick={() => setLibraryView('accordion')} aria-pressed={preferences.libraryView === 'accordion'} disabled={reduceMotion}><span className="effect-preview iridescence"><ImageIcon size={20} /></span><span><strong>手风琴封面</strong><small>分组浏览，悬停展开当前资料库</small></span><Check size={15} /></button>
+              <button className={preferences.libraryView === 'depth' ? 'active' : ''} onClick={() => setLibraryView('depth')} aria-pressed={preferences.libraryView === 'depth'} disabled={reduceMotion}><span className="effect-preview topography"><Waves size={20} /></span><span><strong>深度轮播</strong><small>滚轮、方向键与按钮切换封面</small></span><Check size={15} /></button>
             </div></section></FadeContent>}
             {category === 'account' && <FadeContent key="account" duration={220} blurAmount={4}><CloudAccountSettings onRequestRestore={onRequestRestore} /></FadeContent>}
             {category === 'about' && <FadeContent key="about" duration={220} blurAmount={4}><section className="settings-about-panel"><div className="setting-group-heading"><strong>项目与作者</strong><span>个人主页与项目链接</span></div><p>这里集中展示天创云端项目、作者主页以及后续加入的个人作品。</p><div className="settings-project-loop"><LogoLoop logos={PROJECT_LINKS} speed={28} hoverSpeed={5} gap={10} ariaLabel="天创云端项目与作者链接" /></div></section></FadeContent>}
