@@ -718,3 +718,34 @@
   [data-theme='neumorphism'] .primary-button, [data-theme='neumorphism'] .secondary-button, [data-theme='neumorphism'] .sync-button, [data-theme='neumorphism'] .icon-button, [data-theme='neumorphism'] .danger-button, [data-theme='neumorphism'] .workspace-nav, [data-theme='neumorphism'] .target-row, [data-theme='neumorphism'] .theme-card, [data-theme='neumorphism'] .library-glass-card, [data-theme='neumorphism'] .sidebar-action, [data-theme='neumorphism'] .inline-empty { transition: none; }
   [data-theme='neumorphism'] .setting-row i::after { transition: none; }
 }
+
+/* ── 侧栏滚动与查找 ── */
+.workspace-list { flex: 1 1 0; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(153, 214, 222, .25) transparent; scrollbar-gutter: stable; }
+.workspace-search { min-height: 31px; margin: 0 2px 10px; padding: 0 10px; border: 1px solid rgba(255, 255, 255, .09); border-radius: 9px; color: var(--ink); background: rgba(0, 0, 0, .22); outline: none; font-size: 11px; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+.workspace-search::placeholder { color: var(--quiet); }
+.workspace-search:focus { border-color: rgba(140, 226, 237, .3); }
+.workspace-search-empty { padding: 14px 10px; color: var(--quiet); font-size: 10px; text-align: center; }
+
+/* 手风琴切组滑动动画（方向感知） */
+.accordion-page-slide { display: block; }
+.accordion-page-slide.slide-next { animation: accordion-slide-next .5s cubic-bezier(.23, 1, .32, 1); }
+.accordion-page-slide.slide-prev { animation: accordion-slide-prev .5s cubic-bezier(.23, 1, .32, 1); }
+@keyframes accordion-slide-next { from { opacity: 0; transform: translateX(64px); } to { opacity: 1; transform: none; } }
+@keyframes accordion-slide-prev { from { opacity: 0; transform: translateX(-64px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .accordion-page-slide { animation: none !important; } }
+
+/* ── 新拟物补遗 5：动态网格视图适配 ── */
+[data-theme='neumorphism'] .library-motion-grid { border-color: transparent; background-color: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .library-motion-grid::before { display: none; }
+[data-theme='neumorphism'] .library-motion-ambient { border-color: transparent; background-color: var(--surface); background-image: none; box-shadow: var(--shadow-inset); filter: none; opacity: 1; }
+[data-theme='neumorphism'] .library-motion-ambient::after { display: none; }
+[data-theme='neumorphism'] .library-motion-vignette { display: none; }
+[data-theme='neumorphism'] .library-motion-item { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-raised); transition: var(--transition-surface), transform 300ms ease-in-out; }
+[data-theme='neumorphism'] .library-motion-item:hover { transform: scale(1.02); border-color: transparent; box-shadow: var(--shadow-raised-hover); }
+[data-theme='neumorphism'] .library-motion-item:active { transform: scale(.99); box-shadow: var(--shadow-pressed); }
+[data-theme='neumorphism'] .library-motion-item.has-cover::after { background: linear-gradient(transparent 30%, rgba(90, 98, 110, .5)); }
+[data-theme='neumorphism'] .motion-cover-placeholder { color: var(--quiet); }
+[data-theme='neumorphism'] .motion-item-copy small { color: var(--muted); }
+[data-theme='neumorphism'] .workspace-search { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .workspace-search:focus { border-color: transparent; box-shadow: var(--shadow-inset-focus); }
+[data-theme='neumorphism'] .workspace-list { scrollbar-color: var(--shadow-dark) transparent; }

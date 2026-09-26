@@ -73,6 +73,7 @@ function App() {
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkSelected, setBulkSelected] = useState<string[]>([])
   const [bulkRemoveDialog, setBulkRemoveDialog] = useState(false)
+  const [workspaceFilter, setWorkspaceFilter] = useState('')
 
   const applyNavigation = (state: AppNavigationState) => {
     setShowOverview(state.view === 'overview')
@@ -189,6 +190,12 @@ function App() {
     () => snapshot.workspaces.find((item) => item.id === selectedId),
     [snapshot.workspaces, selectedId],
   )
+
+  const visibleWorkspaces = useMemo(() => {
+    const query = workspaceFilter.trim().toLowerCase()
+    if (!query) return snapshot.workspaces
+    return snapshot.workspaces.filter((workspace) => workspace.name.toLowerCase().includes(query))
+  }, [snapshot.workspaces, workspaceFilter])
 
   const addFolder = async (folderPath?: string) => {
     if (selectingFolder) return
@@ -360,8 +367,9 @@ function App() {
           <button className={`library-home-button ${showOverview ? 'active' : ''}`} onClick={() => navigate({ view: 'overview' })}><Grid2X2 size={13} /><span>资料库</span></button>
           <button className="icon-button" title="添加资料库" aria-label="添加资料库" disabled={selectingFolder} onClick={(event) => { event.stopPropagation(); void addFolder() }}>{selectingFolder ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}</button>
         </div>
+        <input className="workspace-search" type="search" placeholder="查找资料库" aria-label="查找资料库" value={workspaceFilter} onChange={(event) => setWorkspaceFilter(event.target.value)} />
         <nav className="workspace-list" aria-label="资料库列表">
-          {snapshot.workspaces.map((workspace) => (
+          {visibleWorkspaces.map((workspace) => (
             <button key={workspace.id} className={`workspace-nav ${!showOverview && workspace.id === selectedId ? 'active' : ''} ${bulkMode && bulkSelected.includes(workspace.id) ? 'bulk-selected' : ''}`} title={bulkMode ? '点击选择或取消选择' : '右键管理资料库'} onClick={() => { if (bulkMode) { setBulkSelected((current) => current.includes(workspace.id) ? current.filter((id) => id !== workspace.id) : [...current, workspace.id]); return } navigate({ view: 'workspace', workspaceId: workspace.id }) }} onContextMenu={(event) => { if (bulkMode) { event.preventDefault(); setBulkSelected((current) => current.includes(workspace.id) ? current.filter((id) => id !== workspace.id) : [...current, workspace.id]); return } event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: event.clientX, y: event.clientY }) }}>
               <span className={`nav-icon ${coverUrls[workspace.id] ? 'has-cover' : ''}`}>
                 {coverUrls[workspace.id] ? <img src={coverUrls[workspace.id]} alt="" /> : <Folder size={17} />}
@@ -371,6 +379,7 @@ function App() {
               {!bulkMode && <span className={`state-dot ${workspace.state}`} aria-label={workspace.state} />}
             </button>
           ))}
+          {!visibleWorkspaces.length && <div className="workspace-search-empty">没有匹配“{workspaceFilter.trim()}”的资料库</div>}
         </nav>
         <div className="sidebar-footer">
           <button className="sidebar-action add-library-action" disabled={selectingFolder} onClick={() => void addFolder()}><FolderInput size={17} /><span>添加资料库</span></button>

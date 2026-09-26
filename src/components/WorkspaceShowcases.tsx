@@ -20,10 +20,9 @@ function useWheelSteps(onStep: (delta: 1 | -1) => void, options?: { threshold?: 
   const cooldownMs = options?.cooldownMs ?? 240
   const stepRef = useRef(onStep)
   useEffect(() => { stepRef.current = onStep })
-  const wheelRef = useRef<HTMLElement | null>(null)
+  const [element, setElement] = useState<HTMLElement | null>(null)
   const stateRef = useRef({ accumulated: 0, lockedUntil: 0 })
   useEffect(() => {
-    const element = wheelRef.current
     if (!element) return
     const onWheel = (event: WheelEvent) => {
       const state = stateRef.current
@@ -42,30 +41,33 @@ function useWheelSteps(onStep: (delta: 1 | -1) => void, options?: { threshold?: 
     }
     element.addEventListener('wheel', onWheel, { passive: false })
     return () => element.removeEventListener('wheel', onWheel)
-  }, [threshold, cooldownMs])
-  return wheelRef
+  }, [element, threshold, cooldownMs])
+  return setElement
 }
 
 export function AccordionWorkspaceView({ workspaces, covers, onSelect }: Props) {
   const pageSize = 5
   const [page, setPage] = useState(0)
+  const [direction, setDirection] = useState<1 | -1>(1)
   const [active, setActive] = useState(0)
   const pageCount = Math.max(1, Math.ceil(workspaces.length / pageSize))
   const safePage = Math.min(page, pageCount - 1)
   const safeActive = Math.min(active, Math.max(0, workspaces.length - safePage * pageSize - 1))
   const visible = workspaces.slice(safePage * pageSize, safePage * pageSize + pageSize)
-  const move = (delta: number) => { setPage((value) => (value + delta + pageCount) % pageCount); setActive(0) }
+  const move = (delta: number) => { setDirection(delta > 0 ? 1 : -1); setPage((value) => (value + delta + pageCount) % pageCount); setActive(0) }
   const wheelRef = useWheelSteps((delta) => pageCount > 1 && move(delta))
 
   if (!workspaces.length) return <div className="showcase-empty"><Folder size={26} /><span>添加资料库后即可使用手风琴封面视图</span></div>
   return <section className="accordion-workspaces" ref={wheelRef} tabIndex={0} onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') move(-1); if (event.key === 'ArrowRight' || event.key === 'ArrowDown') move(1) }}>
     <div className="showcase-toolbar"><span>{safePage + 1} / {pageCount}</span><button onClick={() => move(-1)} disabled={pageCount < 2} aria-label="上一组资料库"><ChevronLeft size={17} /></button><button onClick={() => move(1)} disabled={pageCount < 2} aria-label="下一组资料库"><ChevronRight size={17} /></button></div>
-    <div className="accordion-workspace-track">
-      {visible.map((workspace, index) => <button key={workspace.id} className={safeActive === index ? 'active' : ''} onPointerEnter={() => setActive(index)} onFocus={() => setActive(index)} onClick={() => safeActive === index ? onSelect(workspace.id) : setActive(index)}>
-        <span className="accordion-cover"><Cover workspace={workspace} cover={covers[workspace.id]} /></span>
-        <span className="accordion-shade" />
-        <span className="accordion-copy"><strong>{workspace.name}</strong><small>{workspace.targets.length} 个备份目标</small></span>
-      </button>)}
+    <div key={safePage} className={`accordion-page-slide ${direction > 0 ? 'slide-next' : 'slide-prev'}`}>
+      <div className="accordion-workspace-track">
+        {visible.map((workspace, index) => <button key={workspace.id} className={safeActive === index ? 'active' : ''} onPointerEnter={() => setActive(index)} onFocus={() => setActive(index)} onClick={() => safeActive === index ? onSelect(workspace.id) : setActive(index)}>
+          <span className="accordion-cover"><Cover workspace={workspace} cover={covers[workspace.id]} /></span>
+          <span className="accordion-shade" />
+          <span className="accordion-copy"><strong>{workspace.name}</strong><small>{workspace.targets.length} 个备份目标</small></span>
+        </button>)}
+      </div>
     </div>
     <p className="showcase-hint">滚动滚轮或使用方向键切换分组，悬停展开，再次点击打开资料库</p>
   </section>
