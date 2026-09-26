@@ -13,12 +13,13 @@ import {
   snapshot,
   updateWorkspaceSettings,
 } from './sync-service.js'
-import { removeWorkspace, updateWorkspace } from './store.js'
+import { removeWorkspace, updateWorkspace, getNotificationPreferences, saveNotificationPreferences } from './store.js'
+import { shouldShowSystemNotification } from './notify.js'
 import { createGitHubRepository, githubSession, inviteGitHubCollaborator, listGitHubCollaborators, loginGitHub } from './github.js'
 import { cloudConfigStatus, publishCloudConfig, restoreCloudConfig } from './config-service.js'
 import { coverDataUrl, coverFileFilters, findWorkspaceCover, saveWorkspaceCoverData } from './covers.js'
 import { backgroundFileFilters, clearCustomBackground, copyCustomBackground, findCustomBackground, imageDataUrl } from './backgrounds.js'
-import type { CloudConfigDocument, CloudRestoreSelection, GitHubCollaboratorDraft, GitHubRepositoryDraft, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
+import type { CloudConfigDocument, CloudRestoreSelection, GitHubCollaboratorDraft, GitHubRepositoryDraft, NotificationPreferences, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 let mainWindow: BrowserWindow | undefined
@@ -34,9 +35,9 @@ function send(channel: string, payload?: unknown): void {
 
 function progress(item: SyncProgress): void {
   send('sync:progress', item)
-  if (item.phase === 'complete' || item.phase === 'error') {
+  if (item.phase === 'complete' || item.phase === 'error') send('app:snapshot-changed')
+  if (shouldShowSystemNotification(getNotificationPreferences(), item.phase)) {
     new Notification({ title: item.title, body: item.detail }).show()
-    send('app:snapshot-changed')
   }
 }
 
@@ -165,6 +166,8 @@ function createTray(): void {
 
 function registerIpc(): void {
   ipcMain.handle('app:snapshot', () => snapshot())
+  ipcMain.handle('notifications:get', () => getNotificationPreferences())
+  ipcMain.handle('notifications:set', (_event, preferences: NotificationPreferences) => saveNotificationPreferences(preferences))
   ipcMain.handle('window:maximized', () => mainWindow?.isMaximized() ?? false)
   ipcMain.handle('appearance:background:get', async () => imageDataUrl(await findCustomBackground(path.join(app.getPath('userData'), 'appearance'))))
   ipcMain.handle('appearance:background:select', async () => {

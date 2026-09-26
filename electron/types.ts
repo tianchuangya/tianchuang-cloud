@@ -181,3 +181,13 @@ export interface CloudRestoreSelection {
   workspaceId: string
   localPath: string
 }
+
+export interface NotificationPreferences {
+  syncSuccess: boolean
+  syncFailure: boolean
+}
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  syncSuccess: true,
+  syncFailure: true,
+}

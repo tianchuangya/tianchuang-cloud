@@ -8,6 +8,7 @@ import type {
   GitHubCollaborator,
   GitHubCollaboratorDraft,
   GitHubSession,
+  NotificationPreferences,
   SyncDecision,
   SyncPlan,
   SyncProgress,
@@ -19,6 +20,8 @@ declare global {
   interface Window {
     tianchuang: {
       getSnapshot(): Promise<AppSnapshot>
+      getNotificationPreferences(): Promise<NotificationPreferences>
+      saveNotificationPreferences(preferences: NotificationPreferences): Promise<NotificationPreferences>
       getWindowMaximized(): Promise<boolean>
       getCustomBackground(): Promise<string | undefined>
       selectCustomBackground(): Promise<string | undefined>

@@ -44,6 +44,8 @@ export function installDemoApi(): void {
   const noEvent = () => () => undefined
   window.tianchuang = {
     getSnapshot: async () => structuredClone(demoSnapshot),
+    getNotificationPreferences: async () => ({ syncSuccess: true, syncFailure: true }),
+    saveNotificationPreferences: async (preferences) => preferences,
     getWindowMaximized: async () => false,
     getCustomBackground: async () => undefined,
     selectCustomBackground: async () => undefined,

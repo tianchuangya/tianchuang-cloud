@@ -1,17 +1,36 @@
 import Store from 'electron-store'
 import { safeStorage } from 'electron'
-import type { ActivityItem, AppSnapshot, SyncTarget, TargetConfig, WorkspaceProfile } from './types.js'
+import type { ActivityItem, AppSnapshot, NotificationPreferences, SyncTarget, TargetConfig, WorkspaceProfile } from './types.js'
+import { DEFAULT_NOTIFICATION_PREFERENCES } from './types.js'
 
 interface StoreData {
   workspaces: WorkspaceProfile[]
   activity: ActivityItem[]
   secrets: Record<string, string>
+  notifications?: NotificationPreferences
 }
 
 const store = new Store<StoreData>({
   name: 'tianchuang-cloud',
   defaults: { workspaces: [], activity: [], secrets: {} },
 })
+
+export function getNotificationPreferences(): NotificationPreferences {
+  const stored = store.get('notifications')
+  return {
+    syncSuccess: stored?.syncSuccess ?? DEFAULT_NOTIFICATION_PREFERENCES.syncSuccess,
+    syncFailure: stored?.syncFailure ?? DEFAULT_NOTIFICATION_PREFERENCES.syncFailure,
+  }
+}
+
+export function saveNotificationPreferences(preferences: NotificationPreferences): NotificationPreferences {
+  const normalized: NotificationPreferences = {
+    syncSuccess: preferences.syncSuccess !== false,
+    syncFailure: preferences.syncFailure !== false,
+  }
+  store.set('notifications', normalized)
+  return normalized
+}
 
 export function getSnapshot(): AppSnapshot {
   const targetName = (config: TargetConfig): string => {

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import {
-  Activity, AlertTriangle, ArchiveRestore, Check, Cloud, Droplets, GitBranch, Globe2, History,
-  Image as ImageIcon, Grid2X2, Laptop, Layers3, LoaderCircle, LogIn, Monitor, MousePointer2,
+  Activity, AlertTriangle, ArchiveRestore, Bell, Check, Cloud, Droplets, GitBranch, Globe2, Grid2X2, History,
+  Image as ImageIcon, Laptop, Layers3, LoaderCircle, LogIn, Monitor, MousePointer2,
   Search, Settings, ShieldCheck, Sparkles, SunMedium, Upload, UserRound, Waves, X,
 } from 'lucide-react'
-import type { CloudConfigDocument, CloudConfigStatus } from '../../electron/types'
+import { DEFAULT_NOTIFICATION_PREFERENCES, type CloudConfigDocument, type CloudConfigStatus, type NotificationPreferences } from '../../electron/types'
 import FadeContent from './FadeContent'
 import LogoLoop, { type LogoLoopItem } from './LogoLoop'
 import { useBackgroundPreview } from './background-preview'
@@ -35,8 +35,21 @@ const PROJECT_LINKS: LogoLoopItem[] = [
 function CursorSettingsDialog({ preferences, customBackground, onSelectBackground, onResetBackground, onPreviewBackgroundEffect, onRequestRestore, onChange, onClose }: { preferences: CursorPreferences; customBackground?: string; onSelectBackground: () => Promise<void>; onResetBackground: () => Promise<void>; onPreviewBackgroundEffect: (effect?: BackgroundEffect) => void; onRequestRestore: (config: CloudConfigDocument) => void; onChange: (preferences: CursorPreferences) => void; onClose: () => void }) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const [backgroundEffectSearch, setBackgroundEffectSearch] = useState('')
-  const [category, setCategory] = useState<'startup' | 'appearance' | 'library' | 'account' | 'about'>('startup')
-  const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'view' | 'devices' | 'links'>('launch')
+  const [category, setCategory] = useState<'startup' | 'appearance' | 'library' | 'notifications' | 'account' | 'about'>('startup')
+  const [subpage, setSubpage] = useState<'launch' | 'pointer' | 'background' | 'view' | 'alerts' | 'devices' | 'links'>('launch')
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
+  useEffect(() => {
+    let active = true
+    void window.tianchuang.getNotificationPreferences().then((next) => {
+      if (active) setNotificationPrefs(next)
+    }).catch(() => { /* 保持默认值，打开面板时会重试 */ })
+    return () => { active = false }
+  }, [])
+  const changeNotificationPrefs = (changes: Partial<NotificationPreferences>) => {
+    const next = { ...notificationPrefs, ...changes }
+    setNotificationPrefs(next)
+    void window.tianchuang.saveNotificationPreferences(next).then(setNotificationPrefs)
+  }
   const setStyle = (style: CursorStyle) => onChange({ ...preferences, style })
   const setEffect = (effect: CursorEffect) => onChange({ ...preferences, effect })
   const setBackgroundEffect = (backgroundEffect: BackgroundEffect) => onChange({ ...preferences, backgroundEffect })
@@ -55,9 +68,9 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
     { value: 'topography', title: '动态地形', description: '连续变形的发光等高线', className: 'topography', icon: <Activity size={20} /> },
   ]
   const visibleBackgroundEffects = backgroundEffects.filter((item) => `${item.title}${item.description}${item.value}`.toLowerCase().includes(backgroundEffectSearch.trim().toLowerCase()))
-  const chooseCategory = (next: 'startup' | 'appearance' | 'library' | 'account' | 'about') => {
+  const chooseCategory = (next: 'startup' | 'appearance' | 'library' | 'notifications' | 'account' | 'about') => {
     setCategory(next)
-    setSubpage(next === 'startup' ? 'launch' : next === 'appearance' ? 'pointer' : next === 'library' ? 'view' : next === 'account' ? 'devices' : 'links')
+    setSubpage(next === 'startup' ? 'launch' : next === 'appearance' ? 'pointer' : next === 'library' ? 'view' : next === 'notifications' ? 'alerts' : next === 'account' ? 'devices' : 'links')
     cancelPreview()
   }
 
@@ -70,6 +83,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
           <button className={category === 'startup' ? 'active' : ''} onClick={() => chooseCategory('startup')}><Cloud size={15} />启动体验</button>
           <button className={category === 'appearance' ? 'active' : ''} onClick={() => chooseCategory('appearance')}><MousePointer2 size={15} />外观与动态</button>
           <button className={category === 'library' ? 'active' : ''} onClick={() => chooseCategory('library')}><Layers3 size={15} />资料库</button>
+          <button className={category === 'notifications' ? 'active' : ''} onClick={() => chooseCategory('notifications')}><Bell size={15} />通知</button>
           <button className={category === 'account' ? 'active' : ''} onClick={() => chooseCategory('account')}><UserRound size={15} />账户与设备</button>
           <button className={category === 'about' ? 'active' : ''} onClick={() => chooseCategory('about')}><Globe2 size={15} />关于</button>
         </nav>
@@ -81,6 +95,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
               <button className={subpage === 'background' ? 'active' : ''} onClick={() => setSubpage('background')}>背景与效果</button>
             </>}
             {category === 'library' && <button className="active" onClick={() => setSubpage('view')}>浏览方式</button>}
+            {category === 'notifications' && <button className="active" onClick={() => setSubpage('alerts')}>同步通知</button>}
             {category === 'account' && <button className="active" onClick={() => setSubpage('devices')}>主配置仓库</button>}
             {category === 'about' && <button className="active" onClick={() => setSubpage('links')}>项目与作者</button>}
           </aside>
@@ -140,6 +155,16 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
               <button className={preferences.libraryView === 'accordion' ? 'active' : ''} onClick={() => setLibraryView('accordion')} aria-pressed={preferences.libraryView === 'accordion'} disabled={reduceMotion}><span className="effect-preview iridescence"><ImageIcon size={20} /></span><span><strong>手风琴封面</strong><small>分组浏览，悬停展开当前资料库</small></span><Check size={15} /></button>
               <button className={preferences.libraryView === 'depth' ? 'active' : ''} onClick={() => setLibraryView('depth')} aria-pressed={preferences.libraryView === 'depth'} disabled={reduceMotion}><span className="effect-preview topography"><Waves size={20} /></span><span><strong>深度轮播</strong><small>滚轮、方向键与按钮切换封面</small></span><Check size={15} /></button>
             </div></section></FadeContent>}
+            {category === 'notifications' && subpage === 'alerts' && <FadeContent key="notifications" duration={220} blurAmount={4}>
+              <section className="settings-panel-stack">
+                <div>
+                  <div className="setting-group-heading"><strong>系统通知</strong><span>只控制系统通知；应用内的进度浮层始终显示</span></div>
+                  <label className="setting-row"><span><strong>同步成功通知</strong><small>每个目标同步完成后发送一条系统通知</small></span><input type="checkbox" checked={notificationPrefs.syncSuccess} onChange={(event) => changeNotificationPrefs({ syncSuccess: event.target.checked })} /><i /></label>
+                  <label className="setting-row"><span><strong>同步失败通知</strong><small>同步失败时发送系统通知，自动同步仍受各资料库的失败告警冷却限制</small></span><input type="checkbox" checked={notificationPrefs.syncFailure} onChange={(event) => changeNotificationPrefs({ syncFailure: event.target.checked })} /><i /></label>
+                </div>
+                <div className="performance-note"><Bell size={16} /><span>AI 完成提醒与声音偏好会在 AI 助手启用后加入这里。</span></div>
+              </section>
+            </FadeContent>}
             {category === 'account' && <FadeContent key="account" duration={220} blurAmount={4}><CloudAccountSettings onRequestRestore={onRequestRestore} /></FadeContent>}
             {category === 'about' && <FadeContent key="about" duration={220} blurAmount={4}><section className="settings-about-panel"><div className="setting-group-heading"><strong>项目与作者</strong><span>个人主页与项目链接</span></div><p>这里集中展示天创云端项目、作者主页以及后续加入的个人作品。</p><div className="settings-project-loop"><LogoLoop logos={PROJECT_LINKS} speed={28} hoverSpeed={5} gap={10} ariaLabel="天创云端项目与作者链接" /></div></section></FadeContent>}
           </div>
