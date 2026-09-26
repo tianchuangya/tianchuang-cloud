@@ -668,3 +668,27 @@
 [data-theme='neumorphism'] .library-overview-header p { color: var(--muted); }
 [data-theme='neumorphism'] .header-actions .primary-button, [data-theme='neumorphism'] .header-actions .secondary-button { color: var(--cyan); }
 [data-theme='neumorphism'] .header-actions .danger-button { color: var(--red); }
+
+/* 新拟物补遗 2：凸起卡片需要呼吸空间——阴影约 8px，贴紧时相邻块互相压叠。
+   所有堆叠凸起卡片的容器在新拟物下加大间距，并为阴影留出溢出空间。 */
+[data-theme='neumorphism'] .workspace-list { gap: 13px; padding: 4px 8px 12px; }
+[data-theme='neumorphism'] .workspace-nav { border-radius: var(--radius-small, 12px); }
+[data-theme='neumorphism'] .nav-icon { border-color: transparent; color: var(--cyan); background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .nav-icon.has-cover { border-color: transparent; background: var(--surface); box-shadow: var(--shadow-inset); }
+[data-theme='neumorphism'] .sidebar-footer { padding-top: 6px; }
+[data-theme='neumorphism'] .target-list { gap: 13px; }
+[data-theme='neumorphism'] .library-glass-grid { gap: 18px; }
+[data-theme='neumorphism'] .theme-grid { gap: 14px; }
+[data-theme='neumorphism'] .summary-strip { gap: 14px; }
+[data-theme='neumorphism'] .cursor-choice-grid { gap: 14px; }
+[data-theme='neumorphism'] .cursor-color-grid { gap: 14px; }
+[data-theme='neumorphism'] .background-tuning-grid { gap: 14px; }
+[data-theme='neumorphism'] .plan-steps { gap: 10px; }
+[data-theme='neumorphism'] .cloud-workspace-list { gap: 10px; }
+[data-theme='neumorphism'] .settings-panel-stack { gap: 18px; }
+
+/* 新拟物补遗 3：侧栏项是小尺寸卡片，改用小号浮雕阴影（尾部约 12px），
+   与 13px 间距配合实现完全分离；悬停继续缩小，激活内凹。 */
+[data-theme='neumorphism'] .workspace-nav { box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); }
+[data-theme='neumorphism'] .workspace-nav:hover { box-shadow: 2px 2px 5px var(--shadow-dark), -2px -2px 5px var(--shadow-light); }
+[data-theme='neumorphism'] .workspace-nav.active { box-shadow: var(--shadow-pressed); }
