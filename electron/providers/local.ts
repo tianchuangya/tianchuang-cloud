@@ -9,6 +9,16 @@ function destinationRoot(workspace: WorkspaceProfile, target: SyncTarget): strin
   return path.join((target.config as LocalTargetConfig).destinationPath, workspace.name)
 }
 
+// 删除整个磁盘镜像目录。镜像始终位于“所选目录/资料库名”这一层，路径过浅时拒绝删除。
+export async function deleteLocalBackup(workspace: WorkspaceProfile, target: SyncTarget): Promise<string> {
+  const root = path.resolve(destinationRoot(workspace, target))
+  if (root === path.parse(root).root || root.split(path.sep).filter(Boolean).length < 2) {
+    throw new Error('镜像路径过浅，为避免误删磁盘内容，天创云端拒绝自动删除')
+  }
+  await rm(root, { recursive: true, force: true })
+  return `已删除镜像目录 ${root}`
+}
+
 export async function planLocalSync(workspace: WorkspaceProfile, target: SyncTarget): Promise<SyncPlan> {
   const sourceFiles = await scanFiles(workspace.path)
   const root = destinationRoot(workspace, target)

@@ -44,7 +44,8 @@ declare global {
       getCloudConfigStatus(): Promise<CloudConfigStatus>
       publishCloudConfig(): Promise<CloudConfigStatus>
       restoreCloudConfig(config: CloudConfigDocument, selections: CloudRestoreSelection[]): Promise<void>
-      removeTarget(workspaceId: string, targetId: string): Promise<WorkspaceProfile>
+      removeTarget(workspaceId: string, targetId: string, options?: { deleteBackup?: boolean }): Promise<string>
+      deleteWorkspaceBackups(workspaceId: string): Promise<string>
       planSync(workspaceId: string, targetId: string): Promise<SyncPlan>
       runSync(planId: string, decision: SyncDecision): Promise<AppSnapshot>
       syncWorkspace(workspaceId: string): Promise<AppSnapshot>

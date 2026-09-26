@@ -7,8 +7,9 @@ import {
   addWorkspace,
   automaticSync,
   createTarget,
+  deleteWorkspaceBackups,
   planSync,
-  removeTarget,
+  removeTargetFromWorkspace,
   runSync,
   snapshot,
   updateWorkspaceSettings,
@@ -254,10 +255,15 @@ function registerIpc(): void {
     await refreshWatchers()
     send('app:snapshot-changed')
   })
-  ipcMain.handle('target:remove', (_event, workspaceId: string, targetId: string) => {
-    const updated = removeTarget(workspaceId, targetId)
+  ipcMain.handle('target:remove', async (_event, workspaceId: string, targetId: string, options?: { deleteBackup?: boolean }) => {
+    const message = await removeTargetFromWorkspace(workspaceId, targetId, options)
     send('app:snapshot-changed')
-    return updated
+    return message
+  })
+  ipcMain.handle('workspace:delete-backups', async (_event, workspaceId: string) => {
+    const message = await deleteWorkspaceBackups(workspaceId)
+    send('app:snapshot-changed')
+    return message
   })
   ipcMain.handle('sync:plan', (_event, workspaceId: string, targetId: string) => planSync(workspaceId, targetId))
   ipcMain.handle('sync:run', (_event, planId: string, decision: SyncDecision) => runSync(planId, decision, progress))

@@ -105,6 +105,20 @@ async function downloadRemoteFile(client: WebDAVClient, root: string, workspaceP
   return true
 }
 
+// 删除整个 WebDAV 备份目录。只允许删除至少两级深度的路径，避免误删服务器根目录。
+export async function deleteWebDavBackup(workspace: WorkspaceProfile, target: SyncTarget): Promise<string> {
+  void workspace
+  const config = target.config as WebDavTargetConfig
+  const root = normalizeRemotePath(config.remotePath)
+  if (root === '/' || !root.slice(1).includes('/')) {
+    throw new Error('WebDAV 远端路径过浅，为避免误删服务器上的其他目录，天创云端拒绝自动删除')
+  }
+  const client = clientFor(config)
+  if (!(await client.exists(root))) return '远端目录不存在，无需删除'
+  await client.deleteFile(root)
+  return `已删除 WebDAV 目录 ${root}`
+}
+
 export async function runWebDavSync(
   workspace: WorkspaceProfile,
   target: SyncTarget,

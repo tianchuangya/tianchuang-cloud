@@ -1,4 +1,5 @@
 import { cp, mkdir } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { app } from 'electron'
 import { simpleGit } from 'simple-git'
@@ -184,4 +185,52 @@ export async function runGitSync(
 
 export function describeGitLimit(issue: FileIssue): string {
   return issue.size && issue.limit ? `${issue.path}（${formatBytes(issue.size)}，限制 ${formatBytes(issue.limit)}）` : issue.path
+}
+
+// 通过系统 Git Credential Manager 读取已保存的 GitHub 凭据（只在内存中使用）。
+// 禁用终端交互，凭据缺失时快速失败，避免删除流程里弹出登录窗口。
+async function githubTokenFromCredentialHelper(): Promise<string | undefined> {
+  const child = spawn('git', ['credential', 'fill'], {
+    stdio: ['pipe', 'pipe', 'ignore'],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
+    signal: AbortSignal.timeout(12_000),
+  })
+  child.stdin?.write('protocol=https\nhost=github.com\n\n')
+  child.stdin?.end()
+  const output = await new Promise<string>((resolve, reject) => {
+    let data = ''
+    child.stdout?.on('data', (chunk) => { data += String(chunk) })
+    child.on('error', reject)
+    child.on('close', (code) => code === 0 ? resolve(data) : reject(new Error('credential helper 未返回')))
+  })
+  return output.split('\n').find((line) => line.startsWith('password='))?.slice('password='.length) || undefined
+}
+
+// 删除 GitHub 远端仓库。删除通过用户明示确认后进行；凭据没有 delete_repo 权限或
+// 平台不是 GitHub 时，明确告知需要网页端手动删除，不做静默失败。
+export async function deleteGitRepository(workspace: WorkspaceProfile, target: SyncTarget): Promise<string> {
+  const config = target.config as GitTargetConfig
+  void workspace
+  const match = /^https?:\/\/(?:www\.)?github\.com\/([^/]+)\/([^/#?]+?)(?:\.git)?\/?$/i.exec(config.remoteUrl)
+    ?? /^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i.exec(config.remoteUrl)
+  if (!match) {
+    return `仓库托管在 ${config.provider === 'gitee' ? 'Gitee' : '第三方 Git 服务'}，天创云端不会自动删除；请到对应平台网页端手动删除`
+  }
+  const [, owner, repository] = match
+  const token = await githubTokenFromCredentialHelper()
+  if (!token) throw new Error('未找到可用的 GitHub 凭据；请先对该目标完成一次同步，或到 GitHub 网页端删除仓库')
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repository}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'Tianchuang-Cloud',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (response.status === 204) return `已删除 GitHub 仓库 ${owner}/${repository}`
+  if (response.status === 403) throw new Error('当前凭据没有删除仓库的权限（缺少 delete_repo 授权），请在 GitHub 网页端删除该仓库')
+  if (response.status === 404) throw new Error(`GitHub 返回 404：仓库 ${owner}/${repository} 不存在，或凭据无权删除`)
+  throw new Error(`GitHub 删除失败（HTTP ${response.status}），请到网页端确认仓库状态`)
 }

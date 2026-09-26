@@ -78,7 +78,8 @@ export function installDemoApi(): void {
     getCloudConfigStatus: async () => ({ authenticated: true, username: 'tianchuangya', repositoryExists: true, repositoryUrl: 'https://github.com/tianchuangya/tianchuang-cloud-config', hasRemoteConfig: true, updatedAt: now, workspaceCount: demoCloudConfig.workspaces.length, config: demoCloudConfig }),
     publishCloudConfig: async () => ({ authenticated: true, username: 'tianchuangya', repositoryExists: true, repositoryUrl: 'https://github.com/tianchuangya/tianchuang-cloud-config', hasRemoteConfig: true, updatedAt: now, workspaceCount: demoSnapshot.workspaces.length, config: demoCloudConfig }),
     restoreCloudConfig: async (_config: CloudConfigDocument) => undefined,
-    removeTarget: async () => demoSnapshot.workspaces[0],
+    removeTarget: async () => '已移除同步目标，备份文件全部保留',
+    deleteWorkspaceBackups: async () => '所有云端备份已删除（演示模式），本地文件保留',
     planSync: async (workspaceId, targetId): Promise<SyncPlan> => ({
       id: 'demo-plan', workspaceId, targetId, targetName: 'GitHub 主备份', provider: 'git',
       direction: 'none', summary: '已经是最新版本', actions: ['无需传输'], issues: [],

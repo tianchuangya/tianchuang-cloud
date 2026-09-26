@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
-import { addActivity, addTarget, getSnapshot, saveWorkspace, setSecret, updateWorkspace } from './store.js'
-import { planGitSync, runGitSync } from './providers/git.js'
-import { planLocalSync, runLocalSync } from './providers/local.js'
-import { planWebDavSync, runWebDavSync } from './providers/webdav.js'
+import { addActivity, addTarget, getSnapshot, saveWorkspace, setSecret, updateWorkspace, removeWorkspace } from './store.js'
+import { deleteGitRepository, planGitSync, runGitSync } from './providers/git.js'
+import { deleteLocalBackup, planLocalSync, runLocalSync } from './providers/local.js'
+import { deleteWebDavBackup, planWebDavSync, runWebDavSync } from './providers/webdav.js'
 import type {
   ActivityItem,
   AppSnapshot,
@@ -83,7 +83,53 @@ export function createTarget(draft: TargetDraft): WorkspaceProfile {
   return updated
 }
 
-export function removeTarget(workspaceId: string, targetId: string): WorkspaceProfile {
+// 移除目标前可选删除其备份：删除失败时抛错并保留目标配置，用户可以重试；
+// 只有备份处理完毕（或明确无需删除）才移除目标配置。
+export async function removeTargetFromWorkspace(
+  workspaceId: string,
+  targetId: string,
+  options?: { deleteBackup?: boolean },
+): Promise<string> {
+  const [workspace, target] = workspaceAndTarget(workspaceId, targetId)
+  if (!options?.deleteBackup) {
+    removeTargetFromConfig(workspaceId, targetId)
+    activity(workspaceId, 'info', '已移除同步目标', `${target.name} 的配置已解除，备份文件全部保留`)
+    return '已移除同步目标，备份文件全部保留'
+  }
+  const result = await deleteTargetBackup(workspace, target)
+  removeTargetFromConfig(workspaceId, targetId)
+  activity(workspaceId, 'warning', '已移除目标并删除备份', `${target.name}：${result}`)
+  return result
+}
+
+async function deleteTargetBackup(workspace: WorkspaceProfile, target: SyncTarget): Promise<string> {
+  if (target.config.kind === 'webdav') return deleteWebDavBackup(workspace, target)
+  if (target.config.kind === 'local') return deleteLocalBackup(workspace, target)
+  return deleteGitRepository(workspace, target)
+}
+
+// 删除资料库的全部云端备份并把资料库移出列表。本地文件永远保留；
+// 任一目标删除失败则整体中止并保留资料库，避免自动同步立刻把备份重新上传。
+export async function deleteWorkspaceBackups(workspaceId: string): Promise<string> {
+  const workspace = getSnapshot().workspaces.find((item) => item.id === workspaceId)
+  if (!workspace) throw new Error('找不到资料库')
+  const results: string[] = []
+  for (const target of workspace.targets) {
+    try {
+      results.push(`${target.name}：${await deleteTargetBackup(workspace, target)}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      results.push(`${target.name}：删除失败（${message}）`)
+      activity(workspaceId, 'error', '删除云端备份中止', results.join('；'))
+      throw new Error(`部分备份删除失败，资料库已保留以便重试。${results.join('；')}`)
+    }
+  }
+  removeWorkspace(workspaceId)
+  activity(workspaceId, 'warning', '已删除云端备份', `${workspace.name} 的所有备份已删除，本地文件保留`)
+  return `${workspace.name} 的所有云端备份已删除，本地文件保留。${results.join('；')}`
+}
+
+function removeTargetFromConfig(workspaceId: string, targetId: string): WorkspaceProfile {
   return updateWorkspace(workspaceId, (workspace) => ({
     ...workspace,
     targets: workspace.targets.filter((target) => target.id !== targetId),

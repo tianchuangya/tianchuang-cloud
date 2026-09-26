@@ -43,14 +43,14 @@ void main() {
   } else if (uVariant < 1.5) {
     float sum = 0.0;
     for (float i = 0.0; i < 7.0; i++) {
-      float spread = abs(p.x) * (.08 + i * .025);
-      float line = abs(p.y + sin(p.x * 4.5 + t * .42 + i * .9) * spread);
-      float glow = .0035 / max(line, .003);
+      float spread = (.22 + i * .07) * (abs(p.x) * .85 + .75);
+      float line = abs(p.y + sin(p.x * 3.6 + t * .45 + i * 1.15) * spread + cos(p.x * 1.6 - t * .32 + i * .7) * .09);
+      float glow = .0062 / max(line, .004);
       vec3 threadColor = mix(vec3(.32, .86, .92), vec3(.72, .45, .88), i / 6.0);
       color += glow * threadColor;
       sum += glow;
     }
-    alpha = clamp(sum * .7, 0.0, .72);
+    alpha = clamp(sum * .85, 0.0, .8);
   } else {
     float field = contourField(p * 1.6, t * .18);
     float bands = abs(fract(field * 5.0) - .5);
