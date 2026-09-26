@@ -4,6 +4,7 @@ import { app } from 'electron'
 import { simpleGit } from 'simple-git'
 import { formatBytes, scanFiles } from '../files.js'
 import type { FileIssue, GitTargetConfig, SyncDecision, SyncPlan, SyncTarget, WorkspaceProfile } from '../types.js'
+import { largeFileActions, largeFileIssues, largeFileSummary } from './diff-model.js'
 
 function remoteName(targetId: string): string {
   return `tc-${targetId.slice(0, 8)}`
@@ -33,20 +34,18 @@ async function countAheadBehind(folder: string, remoteSha: string): Promise<[num
 export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarget): Promise<SyncPlan> {
   const config = target.config as GitTargetConfig
   const files = await scanFiles(workspace.path)
-  const limit = target.maxFileSizeMb * 1024 * 1024
-  const issues: FileIssue[] = files
-    .filter((file) => file.size > limit)
-    .map((file) => ({ path: file.relativePath, size: file.size, limit, kind: 'too-large' }))
+  const limitMb = target.maxFileSizeMb
+  const tooLarge = largeFileIssues(files, limitMb)
   const git = simpleGit(workspace.path)
   const isRepo = await git.checkIsRepo()
   const remoteSha = await remoteHead(config)
 
-  if (issues.length > 0) {
+  if (tooLarge.length > 0) {
     return {
       id: crypto.randomUUID(), workspaceId: workspace.id, targetId: target.id,
       targetName: target.name, provider: 'git', direction: 'blocked',
-      summary: `${issues.length} 个文件超过 ${target.maxFileSizeMb} MB 限制`,
-      actions: ['移除大文件，或为该目标提高限制后重试'], issues,
+      summary: largeFileSummary(tooLarge, limitMb),
+      actions: largeFileActions('git', tooLarge), issues: tooLarge,
       requiresConfirmation: true, createdAt: new Date().toISOString(), metadata: {},
     }
   }

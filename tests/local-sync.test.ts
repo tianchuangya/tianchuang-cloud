@@ -75,8 +75,40 @@ describe('local mirror provider', () => {
     const [workspace, target] = fixtures(source, destination)
 
     const plan = await planLocalSync(workspace, target)
-    expect(plan.requiresConfirmation).toBe(true)
-    expect(plan.issues).toContainEqual({ path: 'note.md', kind: 'conflict' })
+    expect(plan.direction).toBe('bidirectional')
+    expect(plan.issues).toContainEqual(expect.objectContaining({ path: 'note.md', kind: 'conflict' }))
+  })
+
+  it('blocks the plan when a file exceeds the target size limit', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    await writeFile(path.join(source, 'huge.bin'), Buffer.alloc(2 * 1024 * 1024))
+    const [workspace, target] = fixtures(source, destination)
+    target.maxFileSizeMb = 1
+
+    const plan = await planLocalSync(workspace, target)
+    expect(plan.direction).toBe('blocked')
+    expect(plan.issues[0]).toMatchObject({ path: 'huge.bin', kind: 'too-large' })
+  })
+
+  it('offers mirror-only files for download instead of deleting or ignoring them', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    await writeFile(path.join(source, 'note.md'), 'local')
+    const [workspace, target] = fixtures(source, destination)
+    const firstPlan = await planLocalSync(workspace, target)
+    await runLocalSync(workspace, target, firstPlan, { preserveLocalOnly: true })
+    await writeFile(path.join(destination, 'Notes', 'from-other-device.md'), 'foreign content')
+
+    const plan = await planLocalSync(workspace, target)
+    expect(plan.direction).toBe('bidirectional')
+    expect(plan.issues).toContainEqual({ path: 'from-other-device.md', kind: 'remote-only' })
+
+    await runLocalSync(workspace, target, plan, { preserveLocalOnly: true, deleteRemote: false })
+    expect(await readFile(path.join(source, 'from-other-device.md'), 'utf8')).toBe('foreign content')
+
+    const settled = await planLocalSync(workspace, target)
+    expect(settled.direction).toBe('none')
   })
 
   it('ignores repository metadata and dependency folders', async () => {
