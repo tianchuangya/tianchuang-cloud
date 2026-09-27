@@ -1,12 +1,20 @@
-import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, rm, stat, statfs, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { ensureParent, hashFile, scanFiles } from '../files.js'
-import type { FileIssue, LocalTargetConfig, SyncDecision, SyncPlan, SyncTarget, WorkspaceProfile } from '../types.js'
+import type { DestinationCapacity, FileIssue, LocalTargetConfig, SyncDecision, SyncPlan, SyncTarget, WorkspaceProfile } from '../types.js'
 import { deletedManagedFiles, isSafeManagedPath, MANIFEST_FILE, parseManagedManifest, serializeManagedManifest } from './managed-manifest.js'
 import { largeFileActions, largeFileIssues, largeFileSummary, remoteOnlyIssues } from './diff-model.js'
 
 function destinationRoot(workspace: WorkspaceProfile, target: SyncTarget): string {
   return path.join((target.config as LocalTargetConfig).destinationPath, workspace.name)
+}
+
+// 目标容量：镜像所在磁盘的剩余空间
+export async function localDestinationCapacity(target: SyncTarget): Promise<DestinationCapacity | undefined> {
+  const config = target.config as LocalTargetConfig
+  const info = await statfs(config.destinationPath).catch(() => undefined)
+  if (!info) return undefined
+  return { freeBytes: info.bavail * info.bsize }
 }
 
 // 删除整个磁盘镜像目录。镜像始终位于“所选目录/资料库名”这一层，路径过浅时拒绝删除。
@@ -30,7 +38,7 @@ export async function planLocalSync(workspace: WorkspaceProfile, target: SyncTar
       targetName: target.name, provider: 'local', direction: 'blocked',
       summary: largeFileSummary(tooLarge, limitMb),
       actions: largeFileActions('local', tooLarge), issues: tooLarge,
-      requiresConfirmation: true, createdAt: new Date().toISOString(), metadata: { changed: 0 },
+      requiresConfirmation: true, createdAt: new Date().toISOString(), metadata: { changed: 0, totalBytes: tooLarge.reduce((sum, issue) => sum + (issue.size || 0), 0) },
     }
   }
   const issues: FileIssue[] = []
@@ -88,7 +96,7 @@ export async function planLocalSync(workspace: WorkspaceProfile, target: SyncTar
       : ['无需传输'],
     issues, requiresConfirmation: issues.length > 0,
     createdAt: new Date().toISOString(),
-    metadata: { changed, conflictCount: conflicts.length, remoteOnlyCount: remoteOnly.length, remoteDeleteCount: remoteDeletes.length },
+    metadata: { changed, conflictCount: conflicts.length, remoteOnlyCount: remoteOnly.length, remoteDeleteCount: remoteDeletes.length, totalBytes: sourceFiles.reduce((sum, file) => sum + file.size, 0) },
   }
 }
 

@@ -8,6 +8,7 @@ import {
   automaticSync,
   createTarget,
   deleteWorkspaceBackups,
+  planMigration,
   planSync,
   removeTargetFromWorkspace,
   runSync,
@@ -16,7 +17,7 @@ import {
 } from './sync-service.js'
 import { removeWorkspace, updateWorkspace, getNotificationPreferences, saveNotificationPreferences } from './store.js'
 import { shouldShowSystemNotification } from './notify.js'
-import { createGitHubRepository, githubSession, inviteGitHubCollaborator, listGitHubCollaborators, loginGitHub } from './github.js'
+import { createGitHubRepository, githubSession, inviteGitHubCollaborator, listGithubAccounts, listGitHubCollaborators, loginGitHub } from './github.js'
 import { cloudConfigStatus, publishCloudConfig, restoreCloudConfig } from './config-service.js'
 import { coverDataUrl, coverFileFilters, findWorkspaceCover, saveWorkspaceCoverData } from './covers.js'
 import { backgroundFileFilters, clearCustomBackground, copyCustomBackground, findCustomBackground, imageDataUrl } from './backgrounds.js'
@@ -255,6 +256,8 @@ function registerIpc(): void {
     return updated
   })
   ipcMain.handle('github:session', () => githubSession())
+  ipcMain.handle('github:accounts:list', () => listGithubAccounts())
+  ipcMain.handle('sync:plan-migration', (_event, workspaceId: string, sourceTargetId: string, destinationTargetId: string) => planMigration(workspaceId, sourceTargetId, destinationTargetId))
   ipcMain.handle('github:login', () => loginGitHub())
   ipcMain.handle('github:repository:create', (_event, draft: GitHubRepositoryDraft) => createGitHubRepository(draft))
   ipcMain.handle('github:collaborators:list', (_event, remoteUrl: string) => listGitHubCollaborators(remoteUrl))

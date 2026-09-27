@@ -3,7 +3,7 @@ import path from 'node:path'
 import { createClient, type WebDAVClient } from 'webdav'
 import { getSecret } from '../store.js'
 import { ensureParent, scanFiles } from '../files.js'
-import type { SyncDecision, SyncPlan, SyncTarget, WebDavTargetConfig, WorkspaceProfile } from '../types.js'
+import type { DestinationCapacity, SyncDecision, SyncPlan, SyncTarget, WebDavTargetConfig, WorkspaceProfile } from '../types.js'
 import { deletedManagedFiles, isSafeManagedPath, MANIFEST_DIRECTORY, MANIFEST_FILE, parseManagedManifest, serializeManagedManifest } from './managed-manifest.js'
 import { diffRemoteFiles, largeFileActions, largeFileIssues, largeFileSummary, type RemoteFileEntry } from './diff-model.js'
 
@@ -55,7 +55,7 @@ export async function planWebDavSync(workspace: WorkspaceProfile, target: SyncTa
       targetName: target.name, provider: 'webdav', direction: 'blocked',
       summary: largeFileSummary(tooLarge, limitMb),
       actions: largeFileActions('webdav', tooLarge), issues: tooLarge,
-      requiresConfirmation: true, createdAt: new Date().toISOString(), metadata: { fileCount: files.length },
+      requiresConfirmation: true, createdAt: new Date().toISOString(), metadata: { fileCount: files.length, totalBytes: tooLarge.reduce((sum, issue) => sum + (issue.size || 0), 0) },
     }
   }
   const client = clientFor(config)
@@ -91,6 +91,7 @@ export async function planWebDavSync(workspace: WorkspaceProfile, target: SyncTa
     metadata: {
       fileCount: files.length, uploadCount: diff.uploads.length,
       conflictCount: diff.conflicts.length, remoteOnlyCount: diff.remoteOnly.length, remoteDeleteCount: remoteDeletes.length,
+      totalBytes: files.reduce((sum, file) => sum + file.size, 0),
     },
   }
 }
@@ -104,6 +105,15 @@ async function downloadRemoteFile(client: WebDAVClient, root: string, workspaceP
   await ensureParent(destination)
   await writeFile(destination, contents)
   return true
+}
+
+// 目标容量：服务端配额（不支持配额的服务器返回 undefined）
+export async function webDavDestinationCapacity(target: SyncTarget): Promise<DestinationCapacity | undefined> {
+  const config = target.config as WebDavTargetConfig
+  const client = clientFor(config)
+  const quota = await client.getQuota().catch(() => undefined) as { used?: number; available?: number } | undefined
+  if (!quota || (quota.used === undefined && quota.available === undefined)) return undefined
+  return { quotaUsed: quota.used, quotaTotal: quota.used !== undefined && quota.available !== undefined ? quota.used + quota.available : undefined }
 }
 
 // 删除整个 WebDAV 备份目录。只允许删除至少两级深度的路径，避免误删服务器根目录。

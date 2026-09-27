@@ -32,6 +32,16 @@ async function countAheadBehind(folder: string, remoteSha: string): Promise<[num
   return [ahead || 0, behind || 0]
 }
 
+// 多账号：为绑定了指定 GitHub 账号的目标生成携带用户名的远端地址。
+// 用户名随 URL 传给凭据管理器，GCM 按账号返回对应令牌；令牌本身不进配置。
+export function credentialScopedRemoteUrl(config: GitTargetConfig): string {
+  const url = config.remoteUrl
+  if (config.provider === 'github' && config.accountUsername && /^https:\/\/github\.com\//i.test(url) && !/@github\.com/i.test(url)) {
+    return url.replace(/^https:\/\//i, `https://${config.accountUsername}@`)
+  }
+  return url
+}
+
 export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarget): Promise<SyncPlan> {
   const config = target.config as GitTargetConfig
   const files = await scanFiles(workspace.path)
@@ -47,7 +57,7 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
       targetName: target.name, provider: 'git', direction: 'blocked',
       summary: largeFileSummary(tooLarge, limitMb),
       actions: largeFileActions('git', tooLarge), issues: tooLarge,
-      requiresConfirmation: true, createdAt: new Date().toISOString(), metadata: {},
+      requiresConfirmation: true, createdAt: new Date().toISOString(), metadata: { totalBytes: tooLarge.reduce((sum, issue) => sum + (issue.size || 0), 0) },
     }
   }
 
@@ -70,7 +80,7 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
   let behind = 0
   let diverged = false
   if (remoteSha) {
-    await git.fetch(config.remoteUrl, config.branch)
+    await git.fetch(credentialScopedRemoteUrl(config), config.branch)
     const fetchedSha = (await git.revparse(['FETCH_HEAD'])).trim()
     ;[ahead, behind] = await countAheadBehind(workspace.path, fetchedSha)
     if (ahead > 0 && behind > 0) diverged = true
@@ -90,7 +100,7 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
     summary: !remoteSha ? '远端分支为空，准备上传本地版本' : diverged ? '本地与远端历史已经分叉，需要人工检查' : direction === 'none' ? '已是最新版本' : `本地领先 ${ahead}，远端领先 ${behind}`,
     actions, issues: diverged ? [{ path: config.branch, kind: 'conflict' }, ...localOnly, ...remoteDeletes] : [...localOnly, ...remoteDeletes],
     requiresConfirmation: diverged || remoteDeletes.length > 0 || (behind > 0 && localOnly.length > 0),
-    createdAt: new Date().toISOString(), metadata: { ahead, behind, dirty, diverged, remoteExists: Boolean(remoteSha) },
+    createdAt: new Date().toISOString(), metadata: { ahead, behind, dirty, diverged, remoteExists: Boolean(remoteSha), totalBytes: files.reduce((sum, file) => sum + file.size, 0) },
   }
 }
 
@@ -103,7 +113,7 @@ async function configureIdentity(folder: string): Promise<void> {
 async function ensureRemote(folder: string, target: SyncTarget): Promise<string> {
   const git = simpleGit(folder)
   const name = remoteName(target.id)
-  const url = (target.config as GitTargetConfig).remoteUrl
+  const url = credentialScopedRemoteUrl(target.config as GitTargetConfig)
   const remotes = await git.getRemotes(true)
   const existing = remotes.find((remote) => remote.name === name)
   if (!existing) await git.addRemote(name, url)
@@ -137,7 +147,7 @@ export async function runGitSync(
   // 新设备场景：本地还不是仓库而远端有历史时，直接把远端克隆进目标文件夹
   if (!(await git.checkIsRepo()) && await remoteHead(config)) {
     try {
-      await simpleGit().clone(config.remoteUrl, workspace.path, ['--branch', config.branch])
+      await simpleGit().clone(credentialScopedRemoteUrl(config), workspace.path, ['--branch', config.branch])
     } catch {
       throw new Error('远端已有历史，但本地文件夹不是空目录或克隆失败。请先手动克隆远端到该文件夹，再把本地文件拖入资料库。')
     }

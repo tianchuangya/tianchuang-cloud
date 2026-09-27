@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Laptop, Layers3, LoaderCircle, LogIn, Monitor, MousePointer2,
   Download, Palette, Search, Settings, ShieldCheck, Sparkles, SunMedium, Upload, UserRound, Waves, X,
 } from 'lucide-react'
-import { DEFAULT_NOTIFICATION_PREFERENCES, type CloudConfigDocument, type CloudConfigStatus, type NotificationPreferences } from '../../electron/types'
+import { DEFAULT_NOTIFICATION_PREFERENCES, type CloudConfigDocument, type CloudConfigStatus, type GitHubAccountSession, type NotificationPreferences } from '../../electron/types'
 import {
   BUILT_IN_THEMES, applyTheme, getSavedThemeSelection, listCustomThemes, parseThemeDocument,
   removeCustomTheme, resolveTheme, saveCustomTheme, saveThemeSelection,
@@ -237,6 +237,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
 
 function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config: CloudConfigDocument) => void }) {
   const [status, setStatus] = useState<CloudConfigStatus>()
+  const [accounts, setAccounts] = useState<GitHubAccountSession[]>([])
   const [loading, setLoading] = useState(true)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
@@ -257,6 +258,7 @@ function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config:
   }
 
   useEffect(() => {
+    void window.tianchuang.listGithubAccounts().then(setAccounts).catch(() => { /* 账号列表不可用时按主账号处理 */ })
     let active = true
     void window.tianchuang.getCloudConfigStatus().then((next) => {
       if (!active) return
@@ -275,6 +277,7 @@ function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config:
     setLoading(true)
     try {
       await window.tianchuang.loginGitHub()
+      setAccounts(await window.tianchuang.listGithubAccounts())
       const next = await refreshStatus(false)
       // 登录成功后立即检查云端配置：发现其他设备备份的资料库时直接弹出恢复提示
       if (next?.config) {
@@ -313,6 +316,13 @@ function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config:
           {!status?.authenticated && <button className="secondary-button" disabled={loading} onClick={() => void login()}>{loading ? <LoaderCircle className="spin" size={15} /> : <LogIn size={15} />}登录</button>}
         </div>
       </div>
+      {accounts.length > 0 && <div>
+        <div className="setting-group-heading"><strong>GitHub 多账号</strong><span>添加账号后，可在创建同步目标时选择使用哪个身份</span></div>
+        <div className="account-list">
+          {accounts.map((account) => <div className="account-row" key={account.username}><span className="collaborator-avatar">{account.avatarUrl ? <img src={account.avatarUrl} alt="" /> : account.username.slice(0, 1).toUpperCase()}</span><span><strong>@{account.username}</strong><small>{account.displayName || 'GitHub 账号'}</small></span>{account.primary && <em>主账号</em>}</div>)}
+          <button className="secondary-button" disabled={loading} onClick={() => void login()}>{loading ? <LoaderCircle className="spin" size={15} /> : <LogIn size={15} />}添加账号</button>
+        </div>
+      </div>}
       <div>
         <div className="setting-group-heading"><strong>私人主配置仓库</strong><span>固定名称：tianchuang-cloud-config</span></div>
         <div className="cloud-config-card">

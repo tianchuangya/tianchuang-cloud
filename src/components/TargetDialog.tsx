@@ -4,7 +4,7 @@ import {
   AlertTriangle, ArchiveRestore, GitBranch, Globe2, HardDrive, LoaderCircle, LockKeyhole, LogIn,
   Plus, Server, ShieldCheck, X,
 } from 'lucide-react'
-import type { GitHubSession, ProviderKind, TargetDraft, WorkspaceProfile } from '../../electron/types'
+import type { GitHubAccountSession, GitHubSession, ProviderKind, TargetDraft, WorkspaceProfile } from '../../electron/types'
 import FadeContent from './FadeContent'
 import { providerLabel, repositoryNameFor } from './workspace-meta'
 
@@ -13,6 +13,8 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   const [remoteUrl, setRemoteUrl] = useState('')
   const [branch, setBranch] = useState('main')
   const [provider, setProvider] = useState<'github' | 'gitee' | 'generic'>('github')
+  const [githubAccounts, setGithubAccounts] = useState<GitHubAccountSession[]>([])
+  const [accountUsername, setAccountUsername] = useState('')
   const [repositoryMode, setRepositoryMode] = useState<'create' | 'existing'>('create')
   const [repositoryName, setRepositoryName] = useState(repositoryNameFor(workspace.name))
   const [repositoryPrivate, setRepositoryPrivate] = useState(true)
@@ -45,6 +47,11 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   }, [])
 
   useEffect(() => {
+    void window.tianchuang.listGithubAccounts().then((items) => {
+      setGithubAccounts(items)
+      const primary = items.find((item) => item.primary)
+      if (primary) setAccountUsername(primary.username)
+    }).catch(() => { /* 多账号列表加载失败时按主账号处理 */ })
     const initialCheck = window.setTimeout(() => { void refreshGitHubAccount(true) }, 0)
     const refreshAfterBrowserLogin = () => { void refreshGitHubAccount() }
     window.addEventListener('focus', refreshAfterBrowserLogin)
@@ -85,12 +92,13 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
             name: repositoryName,
             description: `${workspace.name} 的天创云端同步仓库`,
             private: repositoryPrivate,
+            ...(accountUsername ? { accountUsername } : {}),
           })
           selectedRemote = repository.cloneUrl
           createdRepository = true
         }
         if (!selectedRemote) throw new Error('请输入 Git 仓库地址')
-        config = { kind, remoteUrl: selectedRemote, branch: branch.trim() || 'main', provider }
+        config = { kind, remoteUrl: selectedRemote, branch: branch.trim() || 'main', provider, ...(provider === 'github' && accountUsername ? { accountUsername } : {}) }
       } else if (kind === 'local') {
         if (!destinationPath) throw new Error('请选择备份磁盘或文件夹')
         config = { kind, destinationPath, locationType }
@@ -120,6 +128,7 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
         <div className="form-grid">
           {kind === 'git' && <>
             <label className="field"><span>服务</span><select value={provider} onChange={(event) => setProvider(event.target.value as typeof provider)}><option value="github">GitHub</option><option value="gitee">Gitee</option><option value="generic">其他 Git</option></select></label>
+            {provider === 'github' && <label className="field"><span>账号</span><select value={accountUsername} onChange={(event) => setAccountUsername(event.target.value)}>{githubAccounts.map((account) => <option key={account.username} value={account.username}>{account.primary ? `@${account.username}（主账号）` : `@${account.username}`}</option>)}{githubAccounts.length === 0 && <option value="">主账号</option>}</select></label>}
             <label className="field"><span>分支</span><input value={branch} onChange={(event) => setBranch(event.target.value)} /></label>
             {provider === 'github' && <>
               <div className="github-account full">

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  Activity, AlertTriangle, ArrowLeft, Check, ChevronRight, Cloud, CloudOff, CloudUpload, Folder, FolderInput,
+  Activity, AlertTriangle, ArrowLeft, ArrowRightLeft, Check, ChevronRight, Cloud, CloudOff, CloudUpload, Folder, FolderInput,
   GitBranch, Grid2X2, HardDrive, History, ImagePlus, Images, ListChecks, LoaderCircle, MoreHorizontal, Plus, RefreshCw,
   Server, Share2, Settings, ShieldCheck, Trash2,
 } from 'lucide-react'
@@ -28,6 +28,7 @@ const CloudRestoreDialog = lazy(() => import('./components/CloudRestoreDialog'))
 const CoverCropDialog = lazy(() => import('./components/CoverCropDialog'))
 const RemoveWorkspaceDialog = lazy(() => import('./components/RemoveWorkspaceDialog'))
 const DangerConfirmDialog = lazy(() => import('./components/DangerConfirmDialog'))
+const MigrationDialog = lazy(() => import('./components/MigrationDialog'))
 const RandomCoverDialog = lazy(() => import('./components/RandomCoverDialog'))
 
 const EMPTY_SNAPSHOT: AppSnapshot = { workspaces: [], activity: [] }
@@ -70,6 +71,7 @@ function App() {
   const [removeTargetDialog, setRemoveTargetDialog] = useState<{ workspace: WorkspaceProfile; target: SyncTarget }>()
   const [deleteBackupsDialog, setDeleteBackupsDialog] = useState<WorkspaceProfile>()
   const [randomCover, setRandomCover] = useState<WorkspaceProfile>()
+  const [migrationDialog, setMigrationDialog] = useState<{ workspace: WorkspaceProfile; target: SyncTarget }>()
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkSelected, setBulkSelected] = useState<string[]>([])
   const [bulkRemoveDialog, setBulkRemoveDialog] = useState(false)
@@ -442,7 +444,7 @@ function App() {
                       <button className="sync-button" onClick={() => void checkTarget(selected.id, target.id)}><RefreshCw size={16} />同步</button>
                       <div className="more-wrap">
                         <button className="icon-button" title="更多操作" onClick={() => setMenuTargetId(menuTargetId === target.id ? undefined : target.id)}><MoreHorizontal size={18} /></button>
-                        {menuTargetId === target.id && <div className="context-menu glass-material" onClick={(event) => event.stopPropagation()}>{target.config.kind === 'git' && target.config.provider === 'github' && <button onClick={() => { setCollaborationTarget(target); setMenuTargetId(undefined) }}><Share2 size={15} />协作与分享</button>}<button className="danger" onClick={() => { setRemoveTargetDialog({ workspace: selected, target }); setMenuTargetId(undefined) }}><Trash2 size={15} />移除目标</button></div>}
+                        {menuTargetId === target.id && <div className="context-menu glass-material" onClick={(event) => event.stopPropagation()}>{target.config.kind === 'git' && target.config.provider === 'github' && <button onClick={() => { setCollaborationTarget(target); setMenuTargetId(undefined) }}><Share2 size={15} />协作与分享</button>}{selected.targets.length > 1 && <button onClick={() => { setMigrationDialog({ workspace: selected, target }); setMenuTargetId(undefined) }}><ArrowRightLeft size={15} />迁移到其他目标</button>}<button className="danger" onClick={() => { setRemoveTargetDialog({ workspace: selected, target }); setMenuTargetId(undefined) }}><Trash2 size={15} />移除目标</button></div>}
                       </div>
                     </article>
                   ))}
@@ -568,6 +570,7 @@ function App() {
           }}
           onClose={() => { setBulkRemoveDialog(false); void refresh() }} /></Suspense>}
         {randomCover && <Suspense key="random-cover-dialog" fallback={null}><RandomCoverDialog workspace={randomCover} onSave={saveRandomCover} onClose={() => setRandomCover(undefined)} /></Suspense>}
+        {migrationDialog && <Suspense key="migration-dialog" fallback={null}><MigrationDialog workspace={migrationDialog.workspace} sourceTarget={migrationDialog.target} onClose={() => setMigrationDialog(undefined)} onMigrated={(message) => { setMigrationDialog(undefined); void refresh(); setNoticeError(false); setNotice(message); window.setTimeout(() => setNotice(undefined), 5200) }} /></Suspense>}
         {progress && <ProgressOverlay key="progress-overlay" progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div key="notice-toast" className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>

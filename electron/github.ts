@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import type { GitHubCollaborator, GitHubCollaboratorDraft, GitHubRepositoryDraft, GitHubRepositoryResult, GitHubSession } from './types.js'
+import type { GitHubAccountSession, GitHubCollaborator, GitHubCollaboratorDraft, GitHubRepositoryDraft, GitHubRepositoryResult, GitHubSession } from './types.js'
 
 interface CommandResult {
   stdout: string
@@ -95,6 +95,20 @@ export function validateRepositoryName(name: string): string {
   return normalized
 }
 
+// 多账号：列出 GCM 中已登录的全部 GitHub 账号（第一个视为主账号）
+export async function listGithubAccounts(): Promise<GitHubAccountSession[]> {
+  const accounts = await accountNames()
+  return Promise.all(accounts.map(async (username, index) => {
+    try {
+      const auth = await credential(username)
+      const user = await githubRequest<{ login: string; name?: string; avatar_url?: string }>('/user', auth.token)
+      return { username: user.login || username, displayName: user.name, avatarUrl: user.avatar_url, primary: index === 0 }
+    } catch {
+      return { username, primary: index === 0 }
+    }
+  }))
+}
+
 export async function githubSession(): Promise<GitHubSession> {
   let account: string | undefined
   try {
@@ -112,6 +126,7 @@ export async function githubSession(): Promise<GitHubSession> {
 }
 
 export async function loginGitHub(): Promise<GitHubSession> {
+  const knownAccounts = await accountNames().catch(() => [] as string[])
   try {
     await runGit(['credential-manager', 'github', 'login', '--browser'])
   } catch (error) {
@@ -124,7 +139,11 @@ export async function loginGitHub(): Promise<GitHubSession> {
   let session: GitHubSession = { available: true, authenticated: false }
   for (let attempt = 0; attempt < LOGIN_CONFIRMATION_ATTEMPTS; attempt++) {
     session = await githubSession()
-    if (session.authenticated) return session
+    if (session.authenticated) {
+      const after = await accountNames().catch(() => [] as string[])
+      const added = after.find((name) => !knownAccounts.includes(name))
+      return added ? { ...session, newUsername: added } : session
+    }
     if (attempt < LOGIN_CONFIRMATION_ATTEMPTS - 1) await wait(LOGIN_CONFIRMATION_DELAY_MS)
   }
   throw new Error(session.message || 'GitHub 登录尚未写入系统凭据，请返回应用后重新检查')
@@ -134,7 +153,7 @@ export async function createGitHubRepository(draft: GitHubRepositoryDraft): Prom
   const name = validateRepositoryName(draft.name)
   const accounts = await accountNames()
   if (!accounts.length) throw new Error('请先登录 GitHub')
-  const auth = await credential(accounts[0])
+  const auth = await credential(draft.accountUsername || accounts[0])
   const repository = await githubRequest<{
     name: string
     full_name: string

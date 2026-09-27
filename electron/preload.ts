@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('tianchuang', {
   removeWorkspace: (workspaceId: string) => ipcRenderer.invoke('workspace:remove', workspaceId),
   addTarget: (draft: TargetDraft) => ipcRenderer.invoke('target:add', draft),
   getGitHubSession: () => ipcRenderer.invoke('github:session'),
+  listGithubAccounts: () => ipcRenderer.invoke('github:accounts:list'),
+  planMigration: (workspaceId: string, sourceTargetId: string, destinationTargetId: string) => ipcRenderer.invoke('sync:plan-migration', workspaceId, sourceTargetId, destinationTargetId),
   loginGitHub: () => ipcRenderer.invoke('github:login'),
   createGitHubRepository: (draft: import('./types.js').GitHubRepositoryDraft) => ipcRenderer.invoke('github:repository:create', draft),
   listGitHubCollaborators: (remoteUrl: string) => ipcRenderer.invoke('github:collaborators:list', remoteUrl),

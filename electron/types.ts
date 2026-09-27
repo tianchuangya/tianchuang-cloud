@@ -6,6 +6,8 @@ export interface GitTargetConfig {
   remoteUrl: string
   branch: string
   provider: 'github' | 'gitee' | 'generic'
+  /** 多账号：绑定的 GCM GitHub 账号用户名；凭据仍由系统凭据管理器保管 */
+  accountUsername?: string
 }
 
 export interface LocalTargetConfig {
@@ -116,12 +118,23 @@ export interface GitHubSession {
   displayName?: string
   avatarUrl?: string
   message?: string
+  /** 多账号：本次登录新加入 GCM 的账号用户名 */
+  newUsername?: string
+}
+
+export interface GitHubAccountSession {
+  username: string
+  displayName?: string
+  avatarUrl?: string
+  primary: boolean
 }
 
 export interface GitHubRepositoryDraft {
   name: string
   description?: string
   private: boolean
+  /** 多账号：使用指定账号创建仓库（缺省为主账号） */
+  accountUsername?: string
 }
 
 export interface GitHubRepositoryResult {
@@ -182,6 +195,21 @@ export interface CloudConfigStatus {
 export interface CloudRestoreSelection {
   workspaceId: string
   localPath: string
+}
+
+export interface DestinationCapacity {
+  freeBytes?: number
+  quotaUsed?: number
+  quotaTotal?: number
+}
+
+export interface MigrationPlan {
+  sourceTargetId: string
+  destinationTargetId: string
+  sourceName: string
+  destinationName: string
+  plan: SyncPlan
+  capacity?: DestinationCapacity
 }
 
 export interface NotificationPreferences {

@@ -1,4 +1,4 @@
-import type { AppSnapshot, CloudConfigDocument, SyncPlan, SyncProgress, TargetDraft } from '../electron/types'
+import type { AppSnapshot, CloudConfigDocument, MigrationPlan, SyncPlan, SyncProgress, TargetDraft } from '../electron/types'
 
 const now = new Date().toISOString()
 let demoSnapshot: AppSnapshot = {
@@ -67,6 +67,12 @@ export function installDemoApi(): void {
     removeWorkspace: async () => undefined,
     addTarget: async (_draft: TargetDraft) => demoSnapshot.workspaces[0],
     getGitHubSession: async () => ({ available: true, authenticated: true, username: 'tianchuangya', displayName: '是天创呀' }),
+    listGithubAccounts: async () => [{ username: 'tianchuangya', displayName: '是天创呀', primary: true }],
+    planMigration: async (workspaceId, sourceTargetId, destinationTargetId): Promise<MigrationPlan> => ({
+      sourceTargetId, destinationTargetId, sourceName: 'GitHub 主备份', destinationName: '私人云盘',
+      plan: { id: 'demo-migration', workspaceId, targetId: destinationTargetId, targetName: '私人云盘', provider: 'webdav', direction: 'upload', summary: '准备迁移 3 个文件', actions: ['上传 3 个文件'], issues: [], requiresConfirmation: false, createdAt: now, metadata: { totalBytes: 4096 } },
+      capacity: { quotaUsed: 1024, quotaTotal: 102400 },
+    }),
     loginGitHub: async () => ({ available: true, authenticated: true, username: 'tianchuangya', displayName: '是天创呀' }),
     createGitHubRepository: async (draft) => ({
       name: draft.name,

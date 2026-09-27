@@ -7,7 +7,9 @@ import type {
   GitHubRepositoryResult,
   GitHubCollaborator,
   GitHubCollaboratorDraft,
+  GitHubAccountSession,
   GitHubSession,
+  MigrationPlan,
   NotificationPreferences,
   SyncDecision,
   SyncPlan,
@@ -39,6 +41,8 @@ declare global {
       removeWorkspace(workspaceId: string): Promise<void>
       addTarget(draft: TargetDraft): Promise<WorkspaceProfile>
       getGitHubSession(): Promise<GitHubSession>
+      listGithubAccounts(): Promise<GitHubAccountSession[]>
+      planMigration(workspaceId: string, sourceTargetId: string, destinationTargetId: string): Promise<MigrationPlan>
       loginGitHub(): Promise<GitHubSession>
       createGitHubRepository(draft: GitHubRepositoryDraft): Promise<GitHubRepositoryResult>
       listGitHubCollaborators(remoteUrl: string): Promise<GitHubCollaborator[]>

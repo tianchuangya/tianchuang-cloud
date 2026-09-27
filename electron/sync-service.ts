@@ -2,11 +2,15 @@ import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import { addActivity, addTarget, getSnapshot, saveWorkspace, setSecret, updateWorkspace, removeWorkspace } from './store.js'
 import { deleteGitRepository, planGitSync, runGitSync } from './providers/git.js'
+import { webDavDestinationCapacity } from './providers/webdav.js'
+import { localDestinationCapacity } from './providers/local.js'
 import { deleteLocalBackup, planLocalSync, runLocalSync } from './providers/local.js'
 import { deleteWebDavBackup, planWebDavSync, runWebDavSync } from './providers/webdav.js'
 import type {
   ActivityItem,
   AppSnapshot,
+  DestinationCapacity,
+  MigrationPlan,
   SyncDecision,
   SyncPlan,
   SyncProgress,
@@ -200,6 +204,28 @@ export async function runSync(
     activity(workspace.id, 'error', `${target.name} 同步失败`, message)
     onProgress({ workspaceId: workspace.id, targetId: target.id, phase: 'error', title: '同步失败', detail: message, percent: 100 })
     throw error
+  }
+}
+
+// 多云迁移计划：对目标目标跑一次常规计划（复用确认与冲突管线），
+// 附加数据总量与目标容量信息，供迁移弹窗展示。
+export async function planMigration(workspaceId: string, sourceTargetId: string, destinationTargetId: string): Promise<MigrationPlan> {
+  const [workspace] = workspaceAndTarget(workspaceId, sourceTargetId)
+  const destination = workspace.targets.find((item) => item.id === destinationTargetId)
+  if (!destination) throw new Error('找不到迁移目标')
+  if (destination.id === sourceTargetId) throw new Error('迁移目标不能与当前目标相同')
+  const plan = await planSync(workspaceId, destinationTargetId)
+  let capacity: DestinationCapacity | undefined
+  try {
+    capacity = destination.config.kind === 'webdav' ? await webDavDestinationCapacity(destination)
+      : destination.config.kind === 'local' ? await localDestinationCapacity(destination)
+      : undefined
+  } catch { /* 容量信息缺失不阻塞迁移 */ }
+  return {
+    sourceTargetId, destinationTargetId,
+    sourceName: workspace.targets.find((item) => item.id === sourceTargetId)?.name ?? '原目标',
+    destinationName: destination.name,
+    plan, capacity,
   }
 }
 
