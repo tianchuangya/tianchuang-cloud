@@ -275,7 +275,13 @@ function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config:
     setLoading(true)
     try {
       await window.tianchuang.loginGitHub()
-      await refreshStatus(false)
+      const next = await refreshStatus(false)
+      // 登录成功后立即检查云端配置：发现其他设备备份的资料库时直接弹出恢复提示
+      if (next?.config) {
+        const snapshot = await window.tianchuang.getSnapshot()
+        const hasUnseenWorkspace = next.config.workspaces.some((remote) => !snapshot.workspaces.some((local) => local.id === remote.id))
+        if (hasUnseenWorkspace) onRequestRestore(next.config)
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
     } finally {

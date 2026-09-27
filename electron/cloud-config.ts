@@ -68,6 +68,7 @@ export function restoreCloudWorkspaces(config: CloudConfigDocument, selections: 
       autoSyncDelaySeconds: source.autoSyncDelaySeconds,
       errorNotifyCooldownMinutes: source.errorNotifyCooldownMinutes,
       state: 'idle',
+      freshRestore: true,
       targets: source.targets.map((target) => ({
         ...structuredClone(target),
         enabled: target.config.kind === 'git' ? target.enabled : false,

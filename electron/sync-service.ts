@@ -182,7 +182,7 @@ export async function runSync(
 
     const completedAt = new Date().toISOString()
     updateWorkspace(workspace.id, (item) => ({
-      ...item, state: 'idle', lastSyncAt: completedAt,
+      ...item, state: 'idle', lastSyncAt: completedAt, ...(item.freshRestore ? { freshRestore: false } : {}),
       targets: item.targets.map((current) => current.id === target.id
         ? { ...current, lastSyncAt: completedAt, lastError: undefined }
         : current),

@@ -111,6 +111,24 @@ describe('local mirror provider', () => {
     expect(settled.direction).toBe('none')
   })
 
+  it('offers cloud content for download instead of deletion on a freshly restored workspace', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    const backupRoot = path.join(destination, 'Notes')
+    await mkdir(backupRoot, { recursive: true })
+    await writeFile(path.join(backupRoot, 'cloud.md'), 'cloud content')
+    await mkdir(path.join(backupRoot, '.tianchuang-cloud'), { recursive: true })
+    await writeFile(path.join(backupRoot, '.tianchuang-cloud', 'manifest.json'), JSON.stringify({ version: 1, files: ['cloud.md'], updatedAt: '2026-01-01T00:00:00.000Z' }))
+    const workspace = { id: 'workspace', name: 'Notes', path: source, autoSync: false, syncOnFocus: false, state: 'idle', targets: [], freshRestore: true }
+
+    const plan = await planLocalSync(workspace, { id: 'target', name: 'Backup', enabled: true, maxFileSizeMb: 2048, config: { kind: 'local', destinationPath: destination } })
+    expect(plan.issues).toContainEqual({ path: 'cloud.md', kind: 'remote-only' })
+    expect(plan.issues.some((issue) => issue.kind === 'remote-delete')).toBe(false)
+
+    await runLocalSync(workspace, { id: 'target', name: 'Backup', enabled: true, maxFileSizeMb: 2048, config: { kind: 'local', destinationPath: destination } }, plan, { preserveLocalOnly: true })
+    expect(await readFile(path.join(source, 'cloud.md'), 'utf8')).toBe('cloud content')
+  })
+
   it('ignores repository metadata and dependency folders', async () => {
     const source = await temporaryFolder()
     await mkdir(path.join(source, '.git'), { recursive: true })

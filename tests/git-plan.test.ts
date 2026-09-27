@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { simpleGit } from 'simple-git'
@@ -84,6 +84,26 @@ describe('git sync planning', () => {
 
     expect((await git.revparse(['--abbrev-ref', 'HEAD'])).trim()).toBe('main')
     expect((await simpleGit().listRemote(['--heads', remote, 'main'])).trim()).not.toBe('')
+  })
+
+  it('clones remote history into an empty folder on a new device', async () => {
+    const remote = await temporaryFolder('remote')
+    await simpleGit(remote).init(true)
+    const seed = await temporaryFolder('seed')
+    await simpleGit(seed).init()
+    await configure(seed)
+    await writeFile(path.join(seed, 'shared.md'), 'shared version')
+    await simpleGit(seed).add('.').commit('initial').branch(['-M', 'main']).addRemote('origin', remote).push('origin', 'main')
+    const local = await temporaryFolder('fresh-device')
+    const workspace: WorkspaceProfile = { id: 'workspace', name: 'Notes', path: local, autoSync: false, syncOnFocus: true, state: 'idle', targets: [] }
+    const target: SyncTarget = { id: 'target', name: 'GitHub', enabled: true, maxFileSizeMb: 100, config: { kind: 'git', remoteUrl: remote, branch: 'main', provider: 'github' } }
+
+    const plan = await planGitSync(workspace, target)
+    expect(plan.direction).toBe('bidirectional')
+    await runGitSync(workspace, target, plan, { preserveLocalOnly: true })
+
+    expect(await readFile(path.join(local, 'shared.md'), 'utf8')).toBe('shared version')
+    expect((await simpleGit(local).raw(['rev-parse', '--abbrev-ref', 'HEAD'])).trim()).toBe('main')
   })
 
   it('requires explicit confirmation before pushing a tracked deletion', async () => {

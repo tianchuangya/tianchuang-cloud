@@ -47,6 +47,8 @@ export interface WorkspaceProfile {
   lastSyncAt?: string
   coverPath?: string
   targets: SyncTarget[]
+  /** 新设备恢复的资料库：首次同步忽略受管清单，把云端文件当作可下载内容而不是待删除项 */
+  freshRestore?: boolean
 }
 
 export interface ActivityItem {

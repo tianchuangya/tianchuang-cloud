@@ -134,6 +134,14 @@ export async function runGitSync(
   }
   const config = target.config as GitTargetConfig
   const git = simpleGit(workspace.path)
+  // 新设备场景：本地还不是仓库而远端有历史时，直接把远端克隆进目标文件夹
+  if (!(await git.checkIsRepo()) && await remoteHead(config)) {
+    try {
+      await simpleGit().clone(config.remoteUrl, workspace.path, ['--branch', config.branch])
+    } catch {
+      throw new Error('远端已有历史，但本地文件夹不是空目录或克隆失败。请先手动克隆远端到该文件夹，再把本地文件拖入资料库。')
+    }
+  }
   if (!(await git.checkIsRepo())) await git.raw(['init', '--initial-branch', config.branch])
   await configureIdentity(workspace.path)
   const remote = await ensureRemote(workspace.path, target)

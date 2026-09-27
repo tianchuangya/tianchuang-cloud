@@ -35,7 +35,8 @@ export async function planLocalSync(workspace: WorkspaceProfile, target: SyncTar
   }
   const issues: FileIssue[] = []
   const manifestPath = path.join(root, ...MANIFEST_FILE.split('/'))
-  const previousFiles = parseManagedManifest(await readFile(manifestPath).catch(() => undefined))
+  // 新设备恢复的资料库忽略清单：镜像内容应作为可恢复项而不是待删除项
+  const previousFiles = workspace.freshRestore ? [] : parseManagedManifest(await readFile(manifestPath).catch(() => undefined))
   const currentFiles = sourceFiles.map((file) => file.relativePath)
   const remoteDeletes = deletedManagedFiles(previousFiles, currentFiles)
   issues.push(...remoteDeletes.map((file) => ({ path: file, kind: 'remote-delete' as const })))

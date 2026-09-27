@@ -29,5 +29,6 @@ describe('cloud configuration', () => {
     expect(restored.autoSync).toBe(false)
     expect(restored.targets[0].enabled).toBe(true)
     expect(restored.targets[1].enabled).toBe(false)
+    expect(restored.freshRestore).toBe(true)
   })
 })

@@ -61,7 +61,8 @@ export async function planWebDavSync(workspace: WorkspaceProfile, target: SyncTa
   const client = clientFor(config)
   const root = normalizeRemotePath(config.remotePath)
   const remoteFiles = await listRemoteFiles(client, root)
-  const previousFiles = parseManagedManifest(await client.getFileContents(path.posix.join(root, MANIFEST_FILE)).catch(() => undefined) as Buffer | string | undefined)
+  // 新设备恢复的资料库忽略远端清单：本地还没有文件，云端内容应作为可下载项而不是待删除项
+  const previousFiles = workspace.freshRestore ? [] : parseManagedManifest(await client.getFileContents(path.posix.join(root, MANIFEST_FILE)).catch(() => undefined) as Buffer | string | undefined)
   const localPaths = files.map((file) => file.relativePath)
   const diff = diffRemoteFiles(files, remoteFiles, previousFiles)
   const remoteDeletes = deletedManagedFiles(previousFiles, localPaths)

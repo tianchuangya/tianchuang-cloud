@@ -37,7 +37,7 @@ function CloudRestoreDialog({ config, onClose, onRestored }: { config: CloudConf
           <div className="cloud-workspace-list">
             {config.workspaces.map((workspace) => <article key={workspace.id}><span className="cloud-workspace-icon"><Folder size={18} /></span><span><strong>{workspace.name}</strong><small>{workspace.targets.length} 个同步目标 · 原路径 {workspace.pathHint}</small></span><button className={paths[workspace.id] ? 'selected' : ''} onClick={() => void chooseFolder(workspace.id)}>{paths[workspace.id] ? paths[workspace.id] : '选择本机文件夹'}</button></article>)}
           </div>
-          <p className="cloud-restore-footnote">恢复后自动同步默认关闭；WebDAV 与磁盘目标需要检查凭据或路径后手动启用。</p>
+          <p className="cloud-restore-footnote">恢复后自动同步默认关闭；首次同步会把云端文件下载到所选文件夹（Git 目标会自动克隆远端历史）。WebDAV 与磁盘目标需要检查凭据或路径后手动启用。</p>
           {error && <div className="form-error cloud-config-error"><AlertTriangle size={15} />{error}</div>}
         </div>
         <footer><button className="plain-button" disabled={restoring} onClick={onClose}>暂不恢复</button><button className="primary-button" disabled={!selections.length || restoring} onClick={() => void restore()}>{restoring ? <LoaderCircle className="spin" size={16} /> : <ArchiveRestore size={16} />}恢复已选择的 {selections.length} 个资料库</button></footer>
