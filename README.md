@@ -95,6 +95,8 @@ npm run dist
 
 安装包输出到 `release/`。推送 `v*` 标签后，GitHub Actions 会分别在 Windows、macOS 和 Ubuntu 构建机生成 NSIS、DMG、AppImage 与 DEB，并附加到对应 GitHub Release。
 
+macOS 签名与公证（Developer ID + Notarization）已接入发布流程：在仓库 Secrets 中配置证书与 Apple 凭据后，DMG 会自动签名并公证，安装时不再被 Gatekeeper 拦截。完整配置步骤见 [docs/RELEASE.md](docs/RELEASE.md)。
+
 `0.1.0` 暂未进行商业代码签名与 Apple 公证。Windows SmartScreen 与 macOS Gatekeeper 可能显示来源提示；正式签名将在后续版本加入。
 
 ## 项目结构
