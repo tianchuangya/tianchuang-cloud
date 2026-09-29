@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, protocol, shell, Tray } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFile, stat, writeFile } from 'node:fs/promises'
@@ -21,6 +21,8 @@ import { createGitHubRepository, githubSession, inviteGitHubCollaborator, listGi
 import { cloudConfigStatus, publishCloudConfig, restoreCloudConfig } from './config-service.js'
 import { coverDataUrl, coverFileFilters, findWorkspaceCover, saveWorkspaceCoverData } from './covers.js'
 import { backgroundFileFilters, clearCustomBackground, copyCustomBackground, findCustomBackground, imageDataUrl } from './backgrounds.js'
+import { listWorkspaceFiles, openWorkspaceFileInSystem, revealWorkspaceFileInFolder, resolveFileProtocolTarget } from './explorer.js'
+import { pathToFileURL } from 'node:url'
 import type { CloudConfigDocument, CloudRestoreSelection, GitHubCollaboratorDraft, GitHubRepositoryDraft, NotificationPreferences, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -245,6 +247,21 @@ function registerIpc(): void {
     send('app:snapshot-changed')
     return updated
   })
+  ipcMain.handle('workspace:files:list', (_event, workspaceId: string, relativeDir: string) => {
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) throw new Error('找不到资料库')
+    return listWorkspaceFiles(workspace, relativeDir ?? '')
+  })
+  ipcMain.handle('workspace:file:open', (_event, workspaceId: string, relativePath: string) => {
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) throw new Error('找不到资料库')
+    return openWorkspaceFileInSystem(workspace, relativePath)
+  })
+  ipcMain.handle('workspace:file:reveal', (_event, workspaceId: string, relativePath: string) => {
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) throw new Error('找不到资料库')
+    revealWorkspaceFileInFolder(workspace, relativePath)
+  })
   ipcMain.handle('workspace:remove', async (_event, id: string) => {
     removeWorkspace(id)
     await refreshWatchers()
@@ -287,8 +304,24 @@ function registerIpc(): void {
   })
 }
 
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'tianchuang-file', privileges: { stream: true, supportFetchAPI: true } },
+])
+
 app.whenReady().then(async () => {
   app.setAppUserModelId('com.tianchuang.cloud')
+  protocol.handle('tianchuang-file', (request) => {
+    const url = new URL(request.url)
+    const workspaceId = url.host
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) return new Response('资料库不存在', { status: 404 })
+    try {
+      const absolutePath = resolveFileProtocolTarget([workspace.path], url.pathname)
+      return net.fetch(pathToFileURL(absolutePath).toString())
+    } catch {
+      return new Response('拒绝访问', { status: 403 })
+    }
+  })
   registerIpc()
   createWindow()
   createTray()

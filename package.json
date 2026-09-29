@@ -63,9 +63,11 @@
   "dependencies": {
     "chokidar": "^5.0.0",
     "clsx": "^2.1.1",
+    "dompurify": "^3.4.16",
     "electron-store": "^11.0.2",
     "gsap": "^3.15.0",
     "lucide-react": "^1.47.0",
+    "marked": "^18.0.14",
     "motion": "^13.4.1",
     "ogl": "^1.0.11",
     "react": "^19.2.8",
@@ -75,6 +77,7 @@
   },
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
+    "@types/dompurify": "^3.0.5",
     "@types/node": "^24.13.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

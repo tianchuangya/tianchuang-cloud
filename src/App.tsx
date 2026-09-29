@@ -1,12 +1,12 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArrowLeft, ArrowRightLeft, Check, ChevronRight, Cloud, CloudOff, CloudUpload, Folder, FolderInput,
-  GitBranch, Grid2X2, HardDrive, History, ImagePlus, Images, ListChecks, LoaderCircle, MoreHorizontal, Plus, RefreshCw,
+  ExternalLink, FileText, GitBranch, Grid2X2, HardDrive, History, Image as ImageIcon, ImagePlus, Images, ListChecks, LoaderCircle, MoreHorizontal, Music, Plus, RefreshCw, Video,
   Server, Share2, Settings, ShieldCheck, Trash2,
 } from 'lucide-react'
 import type {
-  AppSnapshot, CloudConfigDocument, ProviderKind, SyncDecision, SyncPlan, SyncProgress, SyncTarget, WorkspaceProfile,
+  AppSnapshot, CloudConfigDocument, ProviderKind, SyncDecision, SyncPlan, SyncProgress, SyncTarget, WorkspaceFileEntry, WorkspaceProfile,
 } from '../electron/types'
 import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
@@ -15,7 +15,8 @@ import InteractiveBackdrop from './components/InteractiveBackdrop'
 import StartupExperience from './components/StartupExperience'
 import { ProgressOverlay, ReviewDialog } from './components/SyncDialogs'
 import WorkspaceOverview from './components/WorkspaceOverview'
-import { providerLabel, relativeTime } from './components/workspace-meta'
+import { previewKindOf } from '../electron/preview-kind'
+import { formatFileSize, providerLabel, relativeTime } from './components/workspace-meta'
 import {
   loadCursorPreferences, saveCursorPreferences, type BackgroundEffect, type CursorPreferences,
 } from './components/cursor-preferences'
@@ -29,6 +30,7 @@ const CoverCropDialog = lazy(() => import('./components/CoverCropDialog'))
 const RemoveWorkspaceDialog = lazy(() => import('./components/RemoveWorkspaceDialog'))
 const DangerConfirmDialog = lazy(() => import('./components/DangerConfirmDialog'))
 const MigrationDialog = lazy(() => import('./components/MigrationDialog'))
+const FilePreviewDialog = lazy(() => import('./components/FilePreviewDialog'))
 const RandomCoverDialog = lazy(() => import('./components/RandomCoverDialog'))
 
 const EMPTY_SNAPSHOT: AppSnapshot = { workspaces: [], activity: [] }
@@ -76,6 +78,9 @@ function App() {
   const [bulkSelected, setBulkSelected] = useState<string[]>([])
   const [bulkRemoveDialog, setBulkRemoveDialog] = useState(false)
   const [workspaceFilter, setWorkspaceFilter] = useState('')
+  const [fileDirState, setFileDirState] = useState({ id: '', dir: '' })
+  const [filesState, setFilesState] = useState<{ key: string; entries: WorkspaceFileEntry[] }>({ key: '', entries: [] })
+  const [filePreview, setFilePreview] = useState<{ workspace: WorkspaceProfile; entry: WorkspaceFileEntry }>()
 
   const applyNavigation = (state: AppNavigationState) => {
     setShowOverview(state.view === 'overview')
@@ -192,6 +197,23 @@ function App() {
     () => snapshot.workspaces.find((item) => item.id === selectedId),
     [snapshot.workspaces, selectedId],
   )
+
+  const selectedWorkspaceId = selected?.id
+  const selectedPath = selected?.path
+  // 文件目录按资料库隔离：切换资料库时 id 不匹配，目录自动回到根
+  const fileDir = fileDirState.id === selectedWorkspaceId ? fileDirState.dir : ''
+  const setFileDir = (dir: string) => { if (selected) setFileDirState({ id: selected.id, dir }) }
+  const filesKey = `${selectedWorkspaceId ?? ''}:${fileDir}`
+  const fileLoading = filesState.key !== filesKey
+  useEffect(() => {
+    if (!selectedWorkspaceId || !selectedPath || showOverview) return
+    let active = true
+    window.tianchuang.listWorkspaceFiles(selectedWorkspaceId, fileDir)
+      .then((entries) => { if (active) setFilesState({ key: `${selectedWorkspaceId}:${fileDir}`, entries }) })
+      .catch(() => { if (active) setFilesState({ key: `${selectedWorkspaceId}:${fileDir}`, entries: [] }) })
+    return () => { active = false }
+  }, [selectedWorkspaceId, selectedPath, showOverview, fileDir])
+  const fileEntries = filesState.key === filesKey ? filesState.entries : []
 
   const visibleWorkspaces = useMemo(() => {
     const query = workspaceFilter.trim().toLowerCase()
@@ -459,6 +481,33 @@ function App() {
             </section>
             </AnimatedContent>
 
+            <AnimatedContent key={`${selected.id}-files`} container=".content" distance={14} duration={.24} delay={.075} scale={.994}>
+            <section className="section-block files-block">
+              <div className="section-heading"><div><h2>文件</h2><p>浏览资料库内的文件，点击文件即可预览</p></div></div>
+              <div className="file-breadcrumbs">
+                <button className={fileDir === '' ? 'current' : ''} onClick={() => setFileDir('')}>{selected.name}</button>
+                {fileDir && fileDir.split('/').map((segment, index, all) => (
+                  <Fragment key={index}>
+                    <ChevronRight size={13} />
+                    <button className={index === all.length - 1 ? 'current' : ''} onClick={() => setFileDir(all.slice(0, index + 1).join('/'))}>{segment}</button>
+                  </Fragment>
+                ))}
+              </div>
+              <div className="file-browser">
+                {fileLoading ? <div className="collaboration-empty"><LoaderCircle className="spin" size={16} />正在读取文件…</div> : fileEntries.length ? fileEntries.map((entry) => {
+                  const kind = previewKindOf(entry.name, entry.size)
+                  const openEntry = () => { if (entry.kind === 'dir') setFileDir(entry.path); else setFilePreview({ workspace: selected, entry }) }
+                  return <div className="file-row" key={entry.path} role="button" tabIndex={0} onClick={openEntry} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openEntry() } }}>
+                    <span className="file-row-icon">{entry.kind === 'dir' ? <Folder size={17} /> : kind === 'image' ? <ImageIcon size={17} /> : kind === 'audio' ? <Music size={17} /> : kind === 'video' ? <Video size={17} /> : kind === 'markdown' || kind === 'text' || kind === 'pdf' ? <FileText size={17} /> : <FileText size={17} />}</span>
+                    <span className="file-name">{entry.name}</span>
+                    <small className="file-meta">{entry.kind === 'dir' ? '文件夹' : formatFileSize(entry.size)} · {relativeTime(new Date(entry.modifiedAt).toISOString())}</small>
+                    {entry.kind === 'file' && <button className="icon-button file-row-open" title="用系统应用打开" onClick={(event) => { event.stopPropagation(); void window.tianchuang.openWorkspaceFileInSystem(selected.id, entry.path) }}><ExternalLink size={15} /></button>}
+                  </div>
+                }) : <div className="workspace-search-empty">这个文件夹是空的</div>}
+              </div>
+            </section>
+            </AnimatedContent>
+
             <AnimatedContent key={`${selected.id}-automation`} container=".content" distance={14} duration={.24} delay={.09} scale={.994}>
             <section className="section-block settings-block">
               <div className="section-heading"><div><h2>自动同步</h2><p>控制这个资料库何时在后台检查并同步</p></div></div>
@@ -570,6 +619,7 @@ function App() {
           }}
           onClose={() => { setBulkRemoveDialog(false); void refresh() }} /></Suspense>}
         {randomCover && <Suspense key="random-cover-dialog" fallback={null}><RandomCoverDialog workspace={randomCover} onSave={saveRandomCover} onClose={() => setRandomCover(undefined)} /></Suspense>}
+        {filePreview && <Suspense key="file-preview-dialog" fallback={null}><FilePreviewDialog workspace={filePreview.workspace} entry={filePreview.entry} onClose={() => setFilePreview(undefined)} /></Suspense>}
         {migrationDialog && <Suspense key="migration-dialog" fallback={null}><MigrationDialog workspace={migrationDialog.workspace} sourceTarget={migrationDialog.target} onClose={() => setMigrationDialog(undefined)} onMigrated={(message) => { setMigrationDialog(undefined); void refresh(); setNoticeError(false); setNotice(message); window.setTimeout(() => setNotice(undefined), 5200) }} /></Suspense>}
         {progress && <ProgressOverlay key="progress-overlay" progress={progress} onClose={() => setProgress(undefined)} />}
         {notice && <motion.div key="notice-toast" className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}

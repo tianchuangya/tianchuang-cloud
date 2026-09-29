@@ -197,6 +197,14 @@ export interface CloudRestoreSelection {
   localPath: string
 }
 
+export interface WorkspaceFileEntry {
+  name: string
+  path: string
+  kind: 'dir' | 'file'
+  size: number
+  modifiedAt: number
+}
+
 export interface DestinationCapacity {
   freeBytes?: number
   quotaUsed?: number

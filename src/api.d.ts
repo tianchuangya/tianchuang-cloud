@@ -12,6 +12,7 @@ import type {
   MigrationPlan,
   NotificationPreferences,
   SyncDecision,
+  WorkspaceFileEntry,
   SyncPlan,
   SyncProgress,
   TargetDraft,
@@ -51,6 +52,9 @@ declare global {
       publishCloudConfig(): Promise<CloudConfigStatus>
       restoreCloudConfig(config: CloudConfigDocument, selections: CloudRestoreSelection[]): Promise<void>
       removeTarget(workspaceId: string, targetId: string, options?: { deleteBackup?: boolean }): Promise<string>
+      listWorkspaceFiles(workspaceId: string, relativeDir: string): Promise<WorkspaceFileEntry[]>
+      openWorkspaceFileInSystem(workspaceId: string, relativePath: string): Promise<string>
+      revealWorkspaceFileInFolder(workspaceId: string, relativePath: string): Promise<void>
       deleteWorkspaceBackups(workspaceId: string): Promise<string>
       planSync(workspaceId: string, targetId: string): Promise<SyncPlan>
       runSync(planId: string, decision: SyncDecision): Promise<AppSnapshot>

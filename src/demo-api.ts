@@ -1,4 +1,4 @@
-import type { AppSnapshot, CloudConfigDocument, MigrationPlan, SyncPlan, SyncProgress, TargetDraft } from '../electron/types'
+import type { AppSnapshot, CloudConfigDocument, MigrationPlan, SyncPlan, SyncProgress, TargetDraft, WorkspaceFileEntry } from '../electron/types'
 
 const now = new Date().toISOString()
 let demoSnapshot: AppSnapshot = {
@@ -87,6 +87,24 @@ export function installDemoApi(): void {
     publishCloudConfig: async () => ({ authenticated: true, username: 'tianchuangya', repositoryExists: true, repositoryUrl: 'https://github.com/tianchuangya/tianchuang-cloud-config', hasRemoteConfig: true, updatedAt: now, workspaceCount: demoSnapshot.workspaces.length, config: demoCloudConfig }),
     restoreCloudConfig: async (_config: CloudConfigDocument) => undefined,
     removeTarget: async () => '已移除同步目标，备份文件全部保留',
+    listWorkspaceFiles: async (_workspaceId: string, relativeDir: string): Promise<WorkspaceFileEntry[]> => {
+      const now = Date.now()
+      if (!relativeDir) {
+        return [
+          { name: '课程笔记', path: '课程笔记', kind: 'dir', size: 0, modifiedAt: now },
+          { name: '参考资料', path: '参考资料', kind: 'dir', size: 0, modifiedAt: now },
+          { name: '学习计划.md', path: '学习计划.md', kind: 'file', size: 620, modifiedAt: now },
+          { name: '课表.pdf', path: '课表.pdf', kind: 'file', size: 128_000, modifiedAt: now },
+          { name: '封面图.png', path: '封面图.png', kind: 'file', size: 86_000, modifiedAt: now },
+        ]
+      }
+      return [
+        { name: `${relativeDir.split('/').at(-1)}-第一章.md`, path: `${relativeDir}/第一章.md`, kind: 'file', size: 540, modifiedAt: now },
+        { name: `${relativeDir.split('/').at(-1)}-摘要.txt`, path: `${relativeDir}/摘要.txt`, kind: 'file', size: 120, modifiedAt: now },
+      ]
+    },
+    openWorkspaceFileInSystem: async () => '演示模式不支持系统打开',
+    revealWorkspaceFileInFolder: async () => undefined,
     deleteWorkspaceBackups: async () => '所有云端备份已删除（演示模式），本地文件保留',
     planSync: async (workspaceId, targetId): Promise<SyncPlan> => ({
       id: 'demo-plan', workspaceId, targetId, targetName: 'GitHub 主备份', provider: 'git',
