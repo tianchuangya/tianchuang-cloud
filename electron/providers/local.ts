@@ -80,8 +80,13 @@ function sameOrInside(parent: string, candidate: string): boolean {
 async function safeDestinationRoot(workspace: WorkspaceProfile, target: SyncTarget): Promise<string> {
   const configured = destinationRoot(workspace, target)
   const config = target.config as LocalTargetConfig
+  const configuredBase = path.resolve(config.destinationPath)
+  const relativeDirectory = path.relative(configuredBase, configured)
   const base = await realpath(config.destinationPath).catch(() => path.resolve(config.destinationPath))
-  const root = await realpath(configured).catch(() => configured)
+  // macOS commonly exposes /var through the /private/var symlink. If the child
+  // directory does not exist yet, derive it from the canonical base so both
+  // sides of the containment check use the same filesystem spelling.
+  const root = await realpath(configured).catch(() => path.resolve(base, relativeDirectory))
   if (!sameOrInside(base, root) || root === base) throw new Error('镜像目标路径超出所选目录')
   const source = await realpath(workspace.path).catch(() => path.resolve(workspace.path))
   if (sameOrInside(source, root) || sameOrInside(root, source)) {
