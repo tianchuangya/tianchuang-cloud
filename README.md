@@ -4,7 +4,7 @@
 
 ## 当前完成度
 
-首个公开版本为 `0.1.0`，核心工作流已可运行：
+当前源码版本为 `0.2.0`，核心工作流已可运行：
 
 - Windows、macOS、Linux 桌面应用框架
 - 按钮选择与拖拽导入资料文件夹
@@ -29,7 +29,9 @@
 - GitHub 目标支持邀请协作者，并设置只读或可更新权限
 - 多账号：支持在系统凭据管理器中登录多个 GitHub 账号，创建目标时可选择使用哪个身份，仓库按账号创建，令牌不离开系统凭据库
 - 多云迁移：把某个目标的备份迁移到同一资料库的另一个目标，迁移前展示文件量、目标容量与冲突，确认后执行，可选解除原目标绑定
-- 私人主配置仓库保存资料库名称、目标类型和可迁移配置，不保存密码、令牌或 WebDAV 密钥
+- 默认创建可改名的私人 `TC-cloud-Warehouse` 主仓库；多个资料库按稳定 ID 写入 `libraries/<library-id>/files`，设备文档与资料库状态写入 `.tc-cloud/`，不保存密码、令牌或 WebDAV 密钥
+- Git、WebDAV 与磁盘连接可在设置中全局查看、检查、编辑、删除未使用项，并直接复用到其他资料库；WebDAV 支持轮换加密密码；每个目标维护独立同步基线，一个目标成功不会覆盖另一个目标的确认版本
+- 每个资料库使用 `.tianchuang-cloud/state.tc` 保存32位十六进制版本ID、父版本、文件哈希、删除墓碑和各目标确认版本
 - 新设备登录 GitHub 后立即发现其他设备备份的资料库并弹出恢复提示，逐项选择本机目录后合并，不静默覆盖；恢复后的首次同步会把云端文件下载到本机（Git 目标在空文件夹时自动克隆远端历史）
 - Windows Acrylic、macOS Vibrancy 和深色分层毛玻璃界面
 - 与玻璃材质协调的分层模糊渐现、状态微光与减少动态效果适配
@@ -118,13 +120,25 @@ src/
 ## 当前边界
 
 - Git 分支已经分叉时会停止自动处理，避免错误合并。
-- 首次连接“远端已有历史、本地尚未初始化”的文件夹时，需要先克隆远端，再导入本地文件。
-- WebDAV 当前按文件大小判断是否需要上传；更完整的远端哈希比较计划在后续版本加入。
+- Warehouse 和普通 Git 均支持空目录首次恢复；已有本地内容与远端历史同时存在时仍会先生成冲突计划，不会静默覆盖。
+- WebDAV 已用状态 SHA-256 检测同大小内容变化，状态通过临时远端文件加 MOVE 发布；MOVE 失败不会推进本机 revision 或目标基线。WsgiDAV 4.4.0 与 webdav-server 2.6.3 的真实协议、断网重试、64 MiB 取消和 256 MiB 流式传输已经验证；群晖、QNAP、Nextcloud、原生 SMB、TLS/认证及服务端配额仍需产品级矩阵。详见 [`docs/compatibility-matrix-2026-11-13.md`](docs/compatibility-matrix-2026-11-13.md)。
+- 全局连接支持自动迁移、查看、复用、健康检查、编辑和删除未使用项；编辑会原子传播到已绑定目标，WebDAV 新密码留空时保留旧凭据，填写后轮换系统加密存储中的凭据。
+- “附近传送”已接入 LocalSend v2 兼容协议核心：支持局域网发现、HTTPS 证书指纹校验、文本与文件/文件夹发送、接收确认、取消、进度、临时文件原子落盘和冲突文件自动改名。开发环境已通过两个独立实例互传，并与本机官方 LocalSend 客户端完成发现和中文文本实传；三平台安装包与更多官方客户端版本仍需发布矩阵验证。
+- “工具箱”提供可选扩展入口：LocalSend 直接打开内置的“附近传送”；Sunshine、WinIsland、Filee、Windhawk、Folia、Kazumi 与 Clash Verge Rev 从各自官方 GitHub Release 按需下载，严格限定仓库和 Windows 资产名称并校验发布 SHA-256；Pavise Game 使用随应用保留的原始 GPL-3.0 源码 ZIP 本机构建；约 2 MB 的 Rufus 官方便携版与对应源码、约 5 MB 的 PecoFence 官方便携版直接随工具箱提供。外部工具不会静默安装或静默提权。
+- WinIsland、Filee、Folia 和 Clash Verge Rev 可在首次创建配置时应用基于当前电脑偏好的默认模板。模板不会覆盖已有配置，并排除了订阅地址、代理节点、令牌、会话、设备标识、历史记录和机器绝对路径。
 - 端到端加密、S3/OSS 原生适配、版本浏览和安装包自动更新尚未实现。
 
 ## 设计依据
 
 界面参考 Apple Human Interface Guidelines、React Bits、Aceternity UI 与 Uiverse：玻璃材质用于导航、工具栏和瞬时弹窗，背景纹理提供深度，微动效只承担状态反馈与空间关系；所有关键覆盖操作都提供选择、恢复路径和明确反馈。
+
+## 开源致谢
+
+“附近传送”模块使用并适配 [LocalSend](https://github.com/localsend/localsend) 的 Rust 协议核心与局域网安全传输协议。感谢 LocalSend 项目及其贡献者提供优秀的跨平台开源实现。LocalSend 使用 Apache License 2.0；天创云端在安装资源中保留许可证、上游版权声明和修改说明。天创云端不是 LocalSend 官方版本。接入边界见 [`docs/localsend-integration.md`](docs/localsend-integration.md)。
+
+工具箱还提供 [Sunshine](https://github.com/SunshineStream/Sunshine) 的官方安装入口，以及 [Pavise Game](https://github.com/dulaiduwang003/Pavise-Game) 的本机源码构建入口。感谢两个项目及其贡献者。Sunshine 与 Pavise Game 均为独立第三方 GPL-3.0 程序，不与天创云端链接为同一程序；Sunshine 安装包按需从官方发布页下载，Pavise 原始源码包与许可证作为独立聚合内容保留。天创云端不是这些项目的官方发行版。
+
+其他可选入口来自 [WinIsland](https://github.com/luolangaga/WinLand)、[PecoFence](https://github.com/DayuanJiang/PecoFence)、[Filee](https://github.com/KnifeLemon/Filee)、[Rufus](https://github.com/pbatard/rufus)、[Windhawk](https://github.com/ramensoftware/windhawk)、[Folia](https://github.com/chthollyphile/folia-major)、[Kazumi](https://github.com/Predidit/Kazumi) 与 [Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev)。PecoFence 和 Rufus 为随包聚合的独立便携程序；其他工具按需下载。PecoFence 保留 Apache-2.0 的 LICENSE/NOTICE，Rufus 4.15 保留 GPL-3.0 许可证和对应源码归档。
 
 ## License
 

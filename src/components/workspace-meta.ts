@@ -17,10 +17,6 @@ export function providerLabel(kind: ProviderKind, locationType?: 'local' | 'remo
   return '本机文件夹'
 }
 
-export function repositoryNameFor(value: string): string {
-  return value.trim().replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '') || 'tianchuang-data'
-}
-
 export function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return '—'
   if (bytes < 1024) return `${bytes} B`

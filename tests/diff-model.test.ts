@@ -54,6 +54,15 @@ describe('remote file diff for WebDAV', () => {
     expect(diff.conflicts).toHaveLength(1)
   })
 
+  it('detects equal-size edits when both sides provide state hashes', () => {
+    const diff = diffRemoteFiles(
+      [{ relativePath: 'same-size.md', size: 10, modifiedAt: 1000, sha256: 'a'.repeat(64) }],
+      [{ path: 'same-size.md', size: 10, lastmodMs: 1000, sha256: 'b'.repeat(64) }],
+      [],
+    )
+    expect(diff.conflicts).toEqual([{ path: 'same-size.md', size: 10, kind: 'conflict' }])
+  })
+
   it('reports unmanaged remote-only files but leaves managed deletions to their own flow', () => {
     const diff = diffRemoteFiles(localFiles, remoteFiles, ['shared-deleted.md'])
     expect(diff.remoteOnly).toEqual([{ path: 'foreign.md', kind: 'remote-only' }])

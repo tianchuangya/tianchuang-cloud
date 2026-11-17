@@ -4,6 +4,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { planLocalSync, runLocalSync } from '../electron/providers/local.js'
 import { scanFiles } from '../electron/files.js'
+import { readLocalSyncState } from '../electron/sync-state.js'
 import type { SyncTarget, WorkspaceProfile } from '../electron/types.js'
 
 const temporaryFolders: string[] = []
@@ -26,6 +27,25 @@ afterEach(async () => {
 })
 
 describe('local mirror provider', () => {
+  it('rejects a configured mirror directory that escapes the selected destination', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    const [workspace, target] = fixtures(source, destination)
+    if (target.config.kind !== 'local') throw new Error('invalid fixture')
+    target.config.remoteDirectory = '../outside'
+
+    await expect(planLocalSync(workspace, target)).rejects.toThrow('子目录名称无效')
+  })
+
+  it('rejects a mirror destination inside the source workspace to prevent recursive backups', async () => {
+    const source = await temporaryFolder()
+    const [workspace, target] = fixtures(source, source)
+    if (target.config.kind !== 'local') throw new Error('invalid fixture')
+    target.config.remoteDirectory = 'nested-backup'
+
+    await expect(planLocalSync(workspace, target)).rejects.toThrow('递归备份')
+  })
+
   it('copies new files and skips unchanged content on the next plan', async () => {
     const source = await temporaryFolder()
     const destination = await temporaryFolder()
@@ -43,6 +63,66 @@ describe('local mirror provider', () => {
 
     const secondPlan = await planLocalSync(workspace, target)
     expect(secondPlan.direction).toBe('none')
+  })
+
+  it('detects a same-size local edit through the synchronized state hash', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    await writeFile(path.join(source, 'same.md'), 'aaaa')
+    const [workspace, target] = fixtures(source, destination)
+    const initial = await planLocalSync(workspace, target)
+    await runLocalSync(workspace, target, initial, { preserveLocalOnly: true })
+    await writeFile(path.join(source, 'same.md'), 'bbbb')
+
+    const changed = await planLocalSync(workspace, target)
+    expect(changed.issues).toContainEqual(expect.objectContaining({ path: 'same.md', kind: 'conflict' }))
+    await runLocalSync(workspace, target, changed, { preserveLocalOnly: true })
+    expect(await readFile(path.join(destination, 'Notes', 'same.md'), 'utf8')).toBe('bbbb')
+  })
+
+  it('updates the remote display-name mapping without moving a stable mirror directory', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    await writeFile(path.join(source, 'note.md'), 'unchanged')
+    const [workspace, target] = fixtures(source, destination)
+    if (target.config.kind !== 'local') throw new Error('invalid fixture')
+    target.config.remoteDirectory = 'stable-library-key'
+    await runLocalSync(workspace, target, await planLocalSync(workspace, target), { preserveLocalOnly: true })
+
+    workspace.name = '中文资料'
+    const renamePlan = await planLocalSync(workspace, target)
+    expect(renamePlan.direction).toBe('upload')
+    expect(renamePlan.actions).toContain('更新镜像中的资料库中文名称映射')
+    await runLocalSync(workspace, target, renamePlan, { preserveLocalOnly: true })
+
+    expect((await readLocalSyncState(path.join(destination, 'stable-library-key')))?.workspaceName).toBe('中文资料')
+    expect(await readFile(path.join(destination, 'stable-library-key', 'note.md'), 'utf8')).toBe('unchanged')
+  })
+
+  it('rejects a stale plan when local content changes after review', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    await writeFile(path.join(source, 'note.md'), 'before')
+    const [workspace, target] = fixtures(source, destination)
+    const plan = await planLocalSync(workspace, target)
+    await writeFile(path.join(source, 'note.md'), 'after!')
+
+    await expect(runLocalSync(workspace, target, plan, { preserveLocalOnly: true }))
+      .rejects.toThrow('本机资料库在确认期间发生变化')
+  })
+
+  it('rejects a stale legacy plan when mirror files change without a state document', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    const backupRoot = path.join(destination, 'Notes')
+    await mkdir(backupRoot, { recursive: true })
+    await writeFile(path.join(backupRoot, 'cloud.md'), 'before')
+    const [workspace, target] = fixtures(source, destination)
+    const plan = await planLocalSync(workspace, target)
+    await writeFile(path.join(backupRoot, 'cloud.md'), 'after!')
+
+    await expect(runLocalSync(workspace, target, plan, { preserveLocalOnly: true }))
+      .rejects.toThrow('镜像文件在确认期间已经变化')
   })
 
   it('requires explicit confirmation before deleting a previously managed backup', async () => {
@@ -63,6 +143,37 @@ describe('local mirror provider', () => {
     await expect(readFile(path.join(destination, 'Notes', 'obsolete.md'))).rejects.toThrow()
   })
 
+  it('recovers an interrupted staged mirror deletion before planning', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    const backupRoot = path.join(destination, 'Notes')
+    await mkdir(backupRoot, { recursive: true })
+    await writeFile(path.join(backupRoot, `recover.md.tianchuang-delete-${'c'.repeat(32)}.tmp`), 'recover me')
+    const [workspace, target] = fixtures(source, destination)
+
+    const plan = await planLocalSync(workspace, target)
+    expect(await readFile(path.join(backupRoot, 'recover.md'), 'utf8')).toBe('recover me')
+    expect(plan.issues).toContainEqual({ path: 'recover.md', kind: 'remote-only' })
+  })
+
+  it('cancels a large mirror copy without publishing a partial file or state', async () => {
+    const source = await temporaryFolder()
+    const destination = await temporaryFolder()
+    await writeFile(path.join(source, 'large.bin'), Buffer.alloc(8 * 1024 * 1024, 0x6b))
+    const [workspace, target] = fixtures(source, destination)
+    const plan = await planLocalSync(workspace, target)
+    const controller = new AbortController()
+
+    await expect(runLocalSync(workspace, target, plan, { preserveLocalOnly: true }, undefined, {
+      signal: controller.signal,
+      onTransferProgress: () => controller.abort(new DOMException('test cancellation', 'AbortError')),
+    })).rejects.toMatchObject({ name: 'AbortError' })
+
+    await expect(readFile(path.join(destination, 'Notes', 'large.bin'))).rejects.toMatchObject({ code: 'ENOENT' })
+    expect((await scanFiles(path.join(destination, 'Notes'))).map((file) => file.relativePath)).toEqual([])
+    expect(await readLocalSyncState(source)).toBeUndefined()
+  })
+
   it('requires confirmation before overwriting a newer destination file', async () => {
     const source = await temporaryFolder()
     const destination = await temporaryFolder()
@@ -77,6 +188,9 @@ describe('local mirror provider', () => {
     const plan = await planLocalSync(workspace, target)
     expect(plan.direction).toBe('bidirectional')
     expect(plan.issues).toContainEqual(expect.objectContaining({ path: 'note.md', kind: 'conflict' }))
+
+    await runLocalSync(workspace, target, plan, { preserveLocalOnly: false })
+    expect(await readFile(path.join(source, 'note.md'), 'utf8')).toBe('newer remote copy')
   })
 
   it('blocks the plan when a file exceeds the target size limit', async () => {

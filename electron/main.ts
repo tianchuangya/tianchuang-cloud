@@ -5,25 +5,35 @@ import { readFile, stat, writeFile } from 'node:fs/promises'
 import chokidar, { type FSWatcher } from 'chokidar'
 import {
   addWorkspace,
+  attachStorageConnection,
   automaticSync,
+  cancelSync,
   createTarget,
+  checkStorageConnection,
+  deleteStorageConnection,
   deleteWorkspaceBackups,
+  deleteWorkspaceData,
   planMigration,
   planSync,
   removeTargetFromWorkspace,
   runSync,
   snapshot,
+  storageConnections,
+  updateStorageConnection,
   updateWorkspaceSettings,
 } from './sync-service.js'
-import { removeWorkspace, updateWorkspace, getNotificationPreferences, saveNotificationPreferences } from './store.js'
+import { updateWorkspace, getNotificationPreferences, getWarehouseSettings, saveNotificationPreferences, updateWarehouseSettings } from './store.js'
 import { shouldShowSystemNotification } from './notify.js'
 import { createGitHubRepository, githubSession, inviteGitHubCollaborator, listGithubAccounts, listGitHubCollaborators, loginGitHub } from './github.js'
 import { cloudConfigStatus, publishCloudConfig, restoreCloudConfig } from './config-service.js'
-import { coverDataUrl, coverFileFilters, findWorkspaceCover, saveWorkspaceCoverData } from './covers.js'
+import { copyWorkspaceBackground, coverDataUrl, coverFileFilters, findWorkspaceBackground, findWorkspaceCover, saveWorkspaceCoverData } from './covers.js'
 import { backgroundFileFilters, clearCustomBackground, copyCustomBackground, findCustomBackground, imageDataUrl } from './backgrounds.js'
 import { listWorkspaceFiles, openWorkspaceFileInSystem, revealWorkspaceFileInFolder, resolveFileProtocolTarget } from './explorer.js'
 import { pathToFileURL } from 'node:url'
-import type { CloudConfigDocument, CloudRestoreSelection, GitHubCollaboratorDraft, GitHubRepositoryDraft, NotificationPreferences, SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
+import { repositoryNameForDisplayName } from './repository-name.js'
+import { answerNearbyRequest, cancelNearbyTransfer, nearbyState, probeNearby, refreshNearby, sendNearbyFiles, sendNearbyText, startNearbyService, stopNearbyService } from './nearby-service.js'
+import { installTool, launchTool, openToolLocation, setToolboxEventSink, toolboxState } from './toolbox-service.js'
+import type { CloudConfigDocument, CloudRestoreSelection, GitHubCollaboratorDraft, GitHubRepositoryDraft, NotificationPreferences, StorageConnectionUpdate, SyncDecision, SyncPlan, SyncProgress, TargetDraft, ToolboxToolId, WorkspaceDeleteOptions, WorkspaceProfile } from './types.js'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 let mainWindow: BrowserWindow | undefined
@@ -170,6 +180,10 @@ function createTray(): void {
 
 function registerIpc(): void {
   ipcMain.handle('app:snapshot', () => snapshot())
+  ipcMain.handle('repository:name:suggest', (_event, displayName: string, stableKey?: string) => {
+    const workspace = stableKey ? snapshot().workspaces.find((item) => item.id === stableKey) : undefined
+    return workspace?.remoteKey ?? repositoryNameForDisplayName(displayName, stableKey)
+  })
   ipcMain.handle('dialog:open-theme', async () => {
     const result = await dialog.showOpenDialog({ title: '导入主题文件', buttonLabel: '导入', properties: ['openFile'], filters: [{ name: '天创云端主题', extensions: ['json'] }] })
     if (result.canceled || !result.filePaths[0]) return undefined
@@ -183,6 +197,16 @@ function registerIpc(): void {
   })
   ipcMain.handle('notifications:get', () => getNotificationPreferences())
   ipcMain.handle('notifications:set', (_event, preferences: NotificationPreferences) => saveNotificationPreferences(preferences))
+  ipcMain.handle('warehouse:get', () => getWarehouseSettings())
+  ipcMain.handle('warehouse:update', async (_event, changes: { warehouseName?: string; deviceName?: string }) => {
+    const previousName = getWarehouseSettings().device.deviceName
+    const updated = updateWarehouseSettings(changes)
+    if (changes.deviceName && updated.device.deviceName !== previousName) {
+      await stopNearbyService()
+      await startNearbyService(updated.device.deviceName, (event) => send('nearby:event', event))
+    }
+    return updated
+  })
   ipcMain.handle('window:maximized', () => mainWindow?.isMaximized() ?? false)
   ipcMain.handle('appearance:background:get', async () => imageDataUrl(await findCustomBackground(path.join(app.getPath('userData'), 'appearance'))))
   ipcMain.handle('appearance:background:select', async () => {
@@ -208,6 +232,8 @@ function registerIpc(): void {
     let workspace = addWorkspace(folderPath)
     const coverPath = await findWorkspaceCover(folderPath)
     if (coverPath && coverPath !== workspace.coverPath) workspace = updateWorkspace(workspace.id, (item) => ({ ...item, coverPath }))
+    const backgroundPath = await findWorkspaceBackground(folderPath)
+    if (backgroundPath && backgroundPath !== workspace.backgroundPath) workspace = updateWorkspace(workspace.id, (item) => ({ ...item, backgroundPath }))
     await refreshWatchers()
     send('app:snapshot-changed')
     return workspace
@@ -236,6 +262,23 @@ function registerIpc(): void {
     send('app:snapshot-changed')
     return updated
   })
+  ipcMain.handle('workspace:background:data', async (_event, workspaceId: string) => {
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) return undefined
+    const backgroundPath = await findWorkspaceBackground(workspace.path)
+    if (backgroundPath !== workspace.backgroundPath) updateWorkspace(workspace.id, (item) => ({ ...item, backgroundPath }))
+    return coverDataUrl(backgroundPath)
+  })
+  ipcMain.handle('workspace:background:pick', async (_event, workspaceId: string) => {
+    const workspace = snapshot().workspaces.find((item) => item.id === workspaceId)
+    if (!workspace) throw new Error('找不到资料库')
+    const result = await dialog.showOpenDialog({ title: `为“${workspace.name}”选择背景图`, buttonLabel: '使用此背景', properties: ['openFile'], filters: coverFileFilters })
+    if (result.canceled || !result.filePaths[0]) return undefined
+    const backgroundPath = await copyWorkspaceBackground(workspace.path, result.filePaths[0])
+    updateWorkspace(workspaceId, (item) => ({ ...item, backgroundPath }))
+    send('app:snapshot-changed')
+    return coverDataUrl(backgroundPath)
+  })
   ipcMain.handle('workspace:update', async (_event, id: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'autoSyncDelaySeconds' | 'errorNotifyCooldownMinutes' | 'name'>) => {
     const updated = updateWorkspaceSettings(id, changes)
     const queued = syncTimers.get(id)
@@ -263,14 +306,40 @@ function registerIpc(): void {
     revealWorkspaceFileInFolder(workspace, relativePath)
   })
   ipcMain.handle('workspace:remove', async (_event, id: string) => {
-    removeWorkspace(id)
+    await deleteWorkspaceData(id, { deleteCloud: false, deleteLocal: false }, app.getAppPath())
     await refreshWatchers()
     send('app:snapshot-changed')
+  })
+  ipcMain.handle('workspace:delete', async (_event, id: string, options: WorkspaceDeleteOptions) => {
+    const queued = syncTimers.get(id)
+    if (queued) { clearTimeout(queued); syncTimers.delete(id) }
+    const watcher = watchers.get(id)
+    if (watcher) { await watcher.close(); watchers.delete(id) }
+    try {
+      const message = await deleteWorkspaceData(id, options, app.getAppPath())
+      send('app:snapshot-changed')
+      return message
+    } finally {
+      await refreshWatchers()
+    }
   })
   ipcMain.handle('target:add', async (_event, draft: TargetDraft) => {
     const updated = createTarget(draft)
     send('app:snapshot-changed')
     return updated
+  })
+  ipcMain.handle('connections:list', () => storageConnections())
+  ipcMain.handle('connections:update', (_event, connectionId: string, draft: StorageConnectionUpdate) => {
+    const result = updateStorageConnection(connectionId, draft)
+    send('app:snapshot-changed')
+    return result
+  })
+  ipcMain.handle('connections:delete', (_event, connectionId: string) => deleteStorageConnection(connectionId))
+  ipcMain.handle('connections:check', (_event, connectionId: string) => checkStorageConnection(connectionId))
+  ipcMain.handle('connections:attach', async (_event, workspaceId: string, connectionId: string) => {
+    const result = attachStorageConnection(workspaceId, connectionId)
+    send('app:snapshot-changed')
+    return result
   })
   ipcMain.handle('github:session', () => githubSession())
   ipcMain.handle('github:accounts:list', () => listGithubAccounts())
@@ -298,10 +367,30 @@ function registerIpc(): void {
   })
   ipcMain.handle('sync:plan', (_event, workspaceId: string, targetId: string) => planSync(workspaceId, targetId))
   ipcMain.handle('sync:run', (_event, planId: string, decision: SyncDecision) => runSync(planId, decision, progress))
+  ipcMain.handle('sync:cancel', (_event, workspaceId: string) => cancelSync(workspaceId))
   ipcMain.handle('sync:workspace', async (_event, workspaceId: string) => {
     await automaticSync(workspaceId, progress, attention)
     return snapshot()
   })
+  ipcMain.handle('nearby:state', () => nearbyState())
+  ipcMain.handle('nearby:refresh', () => refreshNearby())
+  ipcMain.handle('nearby:probe', (_event, host: string, port?: number) => probeNearby(host, port))
+  ipcMain.handle('nearby:send-text', (_event, fingerprint: string, text: string) => sendNearbyText(fingerprint, text))
+  ipcMain.handle('nearby:send-files', async (_event, fingerprint: string, mode: 'files' | 'folder' = 'files') => {
+    const result = await dialog.showOpenDialog({
+      title: mode === 'folder' ? '选择要发送的文件夹' : '选择要发送的文件',
+      buttonLabel: '发送',
+      properties: mode === 'folder' ? ['openDirectory'] : ['openFile', 'multiSelections'],
+    })
+    if (result.canceled || !result.filePaths.length) return undefined
+    return sendNearbyFiles(fingerprint, result.filePaths)
+  })
+  ipcMain.handle('nearby:answer', (_event, sessionId: string, accept: boolean) => answerNearbyRequest(sessionId, accept))
+  ipcMain.handle('nearby:cancel', (_event, transferId: string) => cancelNearbyTransfer(transferId))
+  ipcMain.handle('toolbox:state', () => toolboxState())
+  ipcMain.handle('toolbox:install', (_event, id: ToolboxToolId) => installTool(id))
+  ipcMain.handle('toolbox:launch', (_event, id: ToolboxToolId) => launchTool(id))
+  ipcMain.handle('toolbox:location', (_event, id: ToolboxToolId) => openToolLocation(id))
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -323,9 +412,11 @@ app.whenReady().then(async () => {
     }
   })
   registerIpc()
+  setToolboxEventSink((event) => send('toolbox:event', event))
   createWindow()
   createTray()
   await refreshWatchers()
+  await startNearbyService(getWarehouseSettings().device.deviceName, (event) => send('nearby:event', event))
 })
 
 app.on('activate', () => {
@@ -333,5 +424,8 @@ app.on('activate', () => {
   else mainWindow.show()
 })
 
-app.on('before-quit', () => { quitting = true })
+app.on('before-quit', () => {
+  quitting = true
+  void stopNearbyService()
+})
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') mainWindow = undefined })

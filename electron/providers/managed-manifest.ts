@@ -1,5 +1,8 @@
-export const MANIFEST_DIRECTORY = '.tianchuang-cloud'
-export const MANIFEST_FILE = `${MANIFEST_DIRECTORY}/manifest.json`
+import { LEGACY_MANIFEST_FILE, parseLegacyPaths, SYNC_STATE_DIRECTORY, SYNC_STATE_FILE } from '../sync-state.js'
+
+export const MANIFEST_DIRECTORY = SYNC_STATE_DIRECTORY
+export const MANIFEST_FILE = SYNC_STATE_FILE
+export { LEGACY_MANIFEST_FILE }
 
 interface ManagedManifest {
   version: 1
@@ -17,14 +20,7 @@ export function isSafeManagedPath(value: unknown): value is string {
 }
 
 export function parseManagedManifest(value: string | Buffer | undefined): string[] {
-  if (!value) return []
-  try {
-    const parsed = JSON.parse(value.toString()) as Partial<ManagedManifest>
-    if (parsed.version !== 1 || !Array.isArray(parsed.files)) return []
-    return parsed.files.filter(isSafeManagedPath)
-  } catch {
-    return []
-  }
+  return parseLegacyPaths(value)
 }
 
 export function deletedManagedFiles(previous: string[], current: string[]): string[] {

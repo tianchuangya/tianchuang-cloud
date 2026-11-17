@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto'
 import os from 'node:os'
 import type { CloudConfigDocument, CloudRestoreSelection, SyncTarget, WorkspaceProfile } from './types.js'
 
-export const CLOUD_CONFIG_REPOSITORY = 'tianchuang-cloud-config'
-export const CLOUD_CONFIG_PATH = 'tianchuang-cloud.json'
+export const LEGACY_CLOUD_CONFIG_REPOSITORY = 'tianchuang-cloud-config'
+export const LEGACY_CLOUD_CONFIG_PATH = 'tianchuang-cloud.json'
+export const CLOUD_CONFIG_PATH = '.tc-cloud/warehouse.json'
+export const CLOUD_DEVICE_DIRECTORY = '.tc-cloud/devices'
 
 function folderName(filePath: string): string {
   return filePath.split(/[\\/]+/).filter(Boolean).at(-1) || filePath
@@ -23,6 +25,7 @@ export function createCloudConfig(workspaces: WorkspaceProfile[], now = new Date
     workspaces: workspaces.map((workspace) => ({
       id: workspace.id,
       name: workspace.name,
+      remoteKey: workspace.remoteKey,
       folderName: folderName(workspace.path),
       pathHint: workspace.path,
       autoSync: workspace.autoSync,
@@ -61,6 +64,7 @@ export function restoreCloudWorkspaces(config: CloudConfigDocument, selections: 
     restored.push({
       id: existingIds.has(source.id) ? randomUUID() : source.id,
       name: source.name,
+      remoteKey: source.remoteKey,
       path: normalizedPath,
       autoSync: false,
       syncOnChange: source.syncOnChange,

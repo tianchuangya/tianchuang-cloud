@@ -4,9 +4,9 @@ import {
   AlertTriangle, ArchiveRestore, GitBranch, Globe2, HardDrive, LoaderCircle, LockKeyhole, LogIn,
   Plus, Server, ShieldCheck, X,
 } from 'lucide-react'
-import type { GitHubAccountSession, GitHubSession, ProviderKind, TargetDraft, WorkspaceProfile } from '../../electron/types'
+import type { GitHubAccountSession, GitHubSession, ProviderKind, StorageConnection, TargetDraft, WarehouseSettings, WorkspaceProfile } from '../../electron/types'
 import FadeContent from './FadeContent'
-import { providerLabel, repositoryNameFor } from './workspace-meta'
+import { providerLabel } from './workspace-meta'
 
 function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspaceProfile; onClose: () => void; onSaved: () => void }) {
   const [kind, setKind] = useState<ProviderKind>('git')
@@ -15,8 +15,9 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   const [provider, setProvider] = useState<'github' | 'gitee' | 'generic'>('github')
   const [githubAccounts, setGithubAccounts] = useState<GitHubAccountSession[]>([])
   const [accountUsername, setAccountUsername] = useState('')
-  const [repositoryMode, setRepositoryMode] = useState<'create' | 'existing'>('create')
-  const [repositoryName, setRepositoryName] = useState(repositoryNameFor(workspace.name))
+  const [repositoryMode, setRepositoryMode] = useState<'warehouse' | 'create' | 'existing'>('warehouse')
+  const [warehouse, setWarehouse] = useState<WarehouseSettings>()
+  const [repositoryName, setRepositoryName] = useState('')
   const [repositoryPrivate, setRepositoryPrivate] = useState(true)
   const [githubAccount, setGitHubAccount] = useState<GitHubSession>()
   const [accountLoading, setAccountLoading] = useState(true)
@@ -26,9 +27,13 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   const [endpoint, setEndpoint] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [remotePath, setRemotePath] = useState(`/TianchuangCloud/${workspace.name}`)
+  const [remoteKey, setRemoteKey] = useState('')
+  const [remotePath, setRemotePath] = useState('')
+  const [remoteKeyLoading, setRemoteKeyLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [connections, setConnections] = useState<StorageConnection[]>([])
+  const [connectionId, setConnectionId] = useState('')
 
   const refreshGitHubAccount = useCallback(async (showLoading = false) => {
     if (showLoading) setAccountLoading(true)
@@ -47,19 +52,37 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
   }, [])
 
   useEffect(() => {
+    let active = true
+    void window.tianchuang.suggestRepositoryName(workspace.name, workspace.id).then((suggested) => {
+      if (!active) return
+      setRemoteKey(suggested)
+      setRepositoryName((current) => current || suggested)
+      setRemotePath((current) => current || `/TianchuangCloud/${suggested}`)
+    }).catch((reason) => {
+      if (active) setError(reason instanceof Error ? reason.message : String(reason))
+    }).finally(() => {
+      if (active) setRemoteKeyLoading(false)
+    })
     void window.tianchuang.listGithubAccounts().then((items) => {
       setGithubAccounts(items)
       const primary = items.find((item) => item.primary)
       if (primary) setAccountUsername(primary.username)
     }).catch(() => { /* 多账号列表加载失败时按主账号处理 */ })
+    void window.tianchuang.getWarehouseSettings().then(setWarehouse).catch(() => { /* 保存时会再次校验 */ })
+    void window.tianchuang.listStorageConnections().then((items) => {
+      const available = items.filter((item) => !workspace.targets.some((target) => target.connectionId === item.id))
+      setConnections(available)
+      if (available[0]) setConnectionId(available[0].id)
+    }).catch(() => { /* 仍可创建新连接 */ })
     const initialCheck = window.setTimeout(() => { void refreshGitHubAccount(true) }, 0)
     const refreshAfterBrowserLogin = () => { void refreshGitHubAccount() }
     window.addEventListener('focus', refreshAfterBrowserLogin)
     return () => {
+      active = false
       window.clearTimeout(initialCheck)
       window.removeEventListener('focus', refreshAfterBrowserLogin)
     }
-  }, [refreshGitHubAccount])
+  }, [refreshGitHubAccount, workspace.id, workspace.name, workspace.targets])
 
   const selectKind = (next: ProviderKind) => {
     setKind(next)
@@ -82,11 +105,18 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
     setError('')
     setSaving(true)
     try {
-      let config: TargetDraft['config']
+      let config: TargetDraft['config'] | undefined
       let createdRepository = false
       if (kind === 'git') {
         let selectedRemote = remoteUrl.trim()
-        if (provider === 'github' && repositoryMode === 'create') {
+        if (provider === 'github' && repositoryMode === 'warehouse') {
+          if (!githubAccount?.authenticated) throw new Error('请先登录 GitHub')
+          const status = await window.tianchuang.publishCloudConfig()
+          if (!status.repositoryUrl) throw new Error('无法创建或定位 Warehouse 仓库')
+          selectedRemote = `${status.repositoryUrl.replace(/\.git$/i, '')}.git`
+          config = { kind, remoteUrl: selectedRemote, branch: 'main', provider: 'github', warehouse: true, libraryId: workspace.id, ...(status.username ? { accountUsername: status.username } : {}) }
+          createdRepository = true
+        } else if (provider === 'github' && repositoryMode === 'create') {
           if (!githubAccount?.authenticated) throw new Error('请先登录 GitHub')
           const repository = await window.tianchuang.createGitHubRepository({
             name: repositoryName,
@@ -98,16 +128,31 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
           createdRepository = true
         }
         if (!selectedRemote) throw new Error('请输入 Git 仓库地址')
-        config = { kind, remoteUrl: selectedRemote, branch: branch.trim() || 'main', provider, ...(provider === 'github' && accountUsername ? { accountUsername } : {}) }
+        if (!config) config = { kind, remoteUrl: selectedRemote, branch: branch.trim() || 'main', provider, ...(provider === 'github' && accountUsername ? { accountUsername } : {}) }
       } else if (kind === 'local') {
+        if (!remoteKey) throw new Error('远端目录名称尚未生成，请稍后重试')
         if (!destinationPath) throw new Error('请选择备份磁盘或文件夹')
-        config = { kind, destinationPath, locationType }
+        config = { kind, destinationPath, remoteDirectory: remoteKey, locationType }
       } else {
         if (!endpoint || !username) throw new Error('请填写 WebDAV 地址和用户名')
         config = { kind, endpoint: endpoint.trim(), username: username.trim(), remotePath: remotePath.trim() }
       }
+      if (!config) throw new Error('同步目标配置不完整')
       await window.tianchuang.addTarget({ workspaceId: workspace.id, name: providerLabel(kind, kind === 'local' ? locationType : undefined), maxFileSizeMb: kind === 'git' ? 100 : 2048, config, password })
       if (createdRepository) await window.tianchuang.syncWorkspace(workspace.id)
+      onSaved()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+      setSaving(false)
+    }
+  }
+
+  const attachConnection = async () => {
+    if (!connectionId) return
+    setSaving(true)
+    setError('')
+    try {
+      await window.tianchuang.attachStorageConnection(workspace.id, connectionId)
       onSaved()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
@@ -119,6 +164,8 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
     <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.section className="modal glass-modal target-modal" initial={{ opacity: 0, scale: .97, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .98, y: 8 }} transition={{ type: 'spring', bounce: 0, duration: .32 }}>
         <header><div><h2>添加同步目标</h2><p>一份资料可以同时备份到多个位置</p></div><button className="icon-button" title="关闭" onClick={onClose}><X size={18} /></button></header>
+        <div className="target-modal-body">
+        {connections.length > 0 && <div className="form-grid"><label className="field full"><span>复用已绑定的存储连接</span><div className="input-action"><select value={connectionId} onChange={(event) => setConnectionId(event.target.value)}>{connections.map((connection) => <option key={connection.id} value={connection.id}>{connection.name} · {connection.config.kind === 'git' ? connection.config.remoteUrl : connection.config.kind === 'webdav' ? connection.config.endpoint : connection.config.destinationPath}</option>)}</select><button type="button" disabled={saving} onClick={() => void attachConnection()}>直接绑定</button></div></label></div>}
         <div className="provider-tabs" role="tablist">
           <button className={kind === 'git' ? 'active' : ''} onClick={() => selectKind('git')}><GitBranch size={17} />GitHub / Gitee</button>
           <button className={kind === 'webdav' ? 'active' : ''} onClick={() => selectKind('webdav')}><Server size={17} />WebDAV</button>
@@ -137,11 +184,12 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
                 {!accountLoading && !githubAccount?.authenticated && <button type="button" disabled={loginPending || githubAccount?.available === false} onClick={() => void (githubAccount?.username ? refreshGitHubAccount(true) : login())}>{loginPending || accountLoading ? <LoaderCircle className="spin" size={15} /> : <LogIn size={15} />}{githubAccount?.username ? '重新检查' : '登录'}</button>}
               </div>
               <div className="repository-mode full" role="group" aria-label="仓库来源">
+                <button type="button" className={repositoryMode === 'warehouse' ? 'active' : ''} onClick={() => setRepositoryMode('warehouse')}>主 Warehouse</button>
                 <button type="button" className={repositoryMode === 'create' ? 'active' : ''} onClick={() => setRepositoryMode('create')}>新建仓库</button>
                 <button type="button" className={repositoryMode === 'existing' ? 'active' : ''} onClick={() => setRepositoryMode('existing')}>已有仓库</button>
               </div>
-              {repositoryMode === 'create' ? <>
-                <label className="field full"><span>仓库名称</span><input value={repositoryName} onChange={(event) => setRepositoryName(event.target.value)} placeholder="study-notes" /></label>
+              {repositoryMode === 'warehouse' ? <div className="form-note full"><ArchiveRestore size={16} /><span>资料库将保存到 <strong>{warehouse?.warehouseName || 'TC-cloud-Warehouse'}</strong> 的独立目录，不再为每个资料库创建仓库。Warehouse 使用主 GitHub 账号。</span></div> : repositoryMode === 'create' ? <>
+                <label className="field full"><span>远端仓库名称</span><input value={repositoryName} onChange={(event) => setRepositoryName(event.target.value)} placeholder="study-notes" /><small>中文资料库会转为可读拼音，并附加稳定后缀防止同名或同音冲突；本地仍显示“{workspace.name}”。</small></label>
                 <div className="visibility-options full">
                   <button type="button" className={repositoryPrivate ? 'active' : ''} onClick={() => setRepositoryPrivate(true)}><LockKeyhole size={16} /><span><strong>私有仓库</strong><small>仅你和授权成员可见</small></span></button>
                   <button type="button" className={!repositoryPrivate ? 'active' : ''} onClick={() => setRepositoryPrivate(false)}><Globe2 size={16} /><span><strong>公开仓库</strong><small>任何人都可以查看</small></span></button>
@@ -161,11 +209,13 @@ function TargetDialog({ workspace, onClose, onSaved }: { workspace: WorkspacePro
             <label className="field"><span>用户名</span><input value={username} onChange={(event) => setUsername(event.target.value)} /></label>
             <label className="field"><span>密码或应用密码</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
             <label className="field full"><span>远端路径</span><input value={remotePath} onChange={(event) => setRemotePath(event.target.value)} /></label>
+            <div className="form-note full"><ShieldCheck size={16} /><span>服务器目录使用拼音唯一键避免字符替换碰撞；状态文档保存原名“{workspace.name}”，恢复到应用后仍显示中文。</span></div>
           </>}
         </div>
         </FadeContent>
         {error && <div className="form-error" role="alert"><AlertTriangle size={15} />{error}</div>}
-        <footer><button className="plain-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving} onClick={() => void save()}>{saving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}添加目标</button></footer>
+        </div>
+        <footer><button className="plain-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving || remoteKeyLoading} onClick={() => void save()}>{saving || remoteKeyLoading ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}添加目标</button></footer>
       </motion.section>
     </motion.div>
   )

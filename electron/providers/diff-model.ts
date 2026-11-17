@@ -30,6 +30,8 @@ export interface RemoteFileEntry {
   path: string
   size: number
   lastmodMs?: number
+  sha256?: string
+  etag?: string
 }
 
 export interface RemoteFileDiff {
@@ -39,12 +41,12 @@ export interface RemoteFileDiff {
 }
 
 // WebDAV 远端与本地清单的差异计算：
-// - 大小相同视为未变化（远端哈希比较仍在路线图中）
+// - 大小相同时仍比较内容哈希，不能仅凭大小判断相同
 // - 大小不同且远端修改时间较新视为两端冲突，不允许静默覆盖
 // - 远端缺失或远端较旧视为待上传
 // - lastmod 只有秒级精度，比较时保留 2 秒容差
 export function diffRemoteFiles(
-  localFiles: Array<{ relativePath: string; size: number; modifiedAt: number }>,
+  localFiles: Array<{ relativePath: string; size: number; modifiedAt: number; sha256?: string }>,
   remoteFiles: RemoteFileEntry[],
   managedPaths: string[],
 ): RemoteFileDiff {
@@ -58,7 +60,12 @@ export function diffRemoteFiles(
       uploads.push(local.relativePath)
       continue
     }
-    if (remote.size === local.size) continue
+    if (remote.size === local.size) {
+      if (local.sha256 && remote.sha256 && local.sha256 !== remote.sha256) {
+        conflicts.push({ path: local.relativePath, size: local.size, kind: 'conflict' })
+      }
+      continue
+    }
     const remoteNewer = remote.lastmodMs !== undefined && remote.lastmodMs - local.modifiedAt > 2000
     if (remoteNewer) conflicts.push({ path: local.relativePath, size: local.size, kind: 'conflict' })
     else uploads.push(local.relativePath)

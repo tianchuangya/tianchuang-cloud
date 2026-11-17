@@ -1,4 +1,4 @@
-import { cp, mkdir } from 'node:fs/promises'
+import { cp, mkdir, rm } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { app } from 'electron'
@@ -6,6 +6,8 @@ import { simpleGit } from 'simple-git'
 import { formatBytes, scanFiles } from '../files.js'
 import type { FileIssue, GitTargetConfig, SyncDecision, SyncPlan, SyncTarget, WorkspaceProfile } from '../types.js'
 import { largeFileActions, largeFileIssues, largeFileSummary } from './diff-model.js'
+import { buildWorkspaceSyncState, readLocalSyncState, readTargetBaseState, removeTargetBaseState, syncStateContentFingerprint, SYNC_STATE_FILE, writeLocalSyncState, writeTargetBaseState } from '../sync-state.js'
+import { deleteWarehouseLibraryBackup, planWarehouseGitSync, runWarehouseGitSync } from './warehouse-git.js'
 
 function remoteName(targetId: string): string {
   return `tc-${targetId.slice(0, 8)}`
@@ -42,8 +44,9 @@ export function credentialScopedRemoteUrl(config: GitTargetConfig): string {
   return url
 }
 
-export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarget): Promise<SyncPlan> {
+export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarget, deviceId = '00000000000000000000000000000001'): Promise<SyncPlan> {
   const config = target.config as GitTargetConfig
+  if (config.warehouse) return planWarehouseGitSync(workspace, target, path.join(app.getPath('userData'), 'warehouse-cache'), deviceId)
   const files = await scanFiles(workspace.path)
   const limitMb = target.maxFileSizeMb
   const tooLarge = largeFileIssues(files, limitMb)
@@ -61,6 +64,11 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
     }
   }
 
+  const localPreviousState = await readLocalSyncState(workspace.path)
+  const localState = await buildWorkspaceSyncState({ workspaceId: workspace.id, workspaceName: workspace.freshRestore ? undefined : workspace.name, deviceId, files, previous: localPreviousState })
+  const localContentFingerprint = syncStateContentFingerprint(localState)
+  const stateMetadataDirty = localPreviousState?.workspaceName !== localState.workspaceName
+
   if (!isRepo || !(await hasHead(workspace.path))) {
     const localOnly = files.map((file) => ({ path: file.relativePath, kind: 'local-only' as const }))
     return {
@@ -69,7 +77,7 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
       summary: remoteSha ? '本地尚未建立版本历史，远端已有内容' : `准备首次上传 ${files.length} 个文件`,
       actions: remoteSha ? ['先保全本地文件', '获取远端历史', '合并后上传'] : ['初始化 Git', '创建首个版本', '上传到远端'],
       issues: remoteSha ? localOnly : [], requiresConfirmation: Boolean(remoteSha),
-      createdAt: new Date().toISOString(), metadata: { remoteExists: Boolean(remoteSha), newRepository: true },
+      createdAt: new Date().toISOString(), metadata: { remoteExists: Boolean(remoteSha), remoteSha: remoteSha ?? '', newRepository: true, localContentFingerprint },
     }
   }
 
@@ -85,11 +93,13 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
     ;[ahead, behind] = await countAheadBehind(workspace.path, fetchedSha)
     if (ahead > 0 && behind > 0) diverged = true
   }
-  const dirty = !status.isClean()
+  const workingTreeDirty = !status.isClean()
+  const dirty = workingTreeDirty || stateMetadataDirty
   const direction = !remoteSha ? 'upload' : diverged ? 'blocked' : behind > 0 && (ahead > 0 || dirty) ? 'bidirectional' : behind > 0 ? 'download' : ahead > 0 || dirty ? 'upload' : 'none'
   const actions: string[] = []
   if (behind > 0) actions.push(`下载 ${behind} 个远端版本`)
-  if (dirty) actions.push('保存本地改动为新版本')
+  if (workingTreeDirty) actions.push('保存本地改动为新版本')
+  if (stateMetadataDirty) actions.push('更新资料库中文名称映射')
   if (remoteDeletes.length > 0) actions.push(`从远端版本删除 ${remoteDeletes.length} 个文件`)
   if (!remoteSha || ahead > 0 || dirty) actions.push('上传本地版本')
   if (direction === 'none') actions.push('无需传输')
@@ -97,10 +107,10 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
   return {
     id: crypto.randomUUID(), workspaceId: workspace.id, targetId: target.id,
     targetName: target.name, provider: 'git', direction,
-    summary: !remoteSha ? '远端分支为空，准备上传本地版本' : diverged ? '本地与远端历史已经分叉，需要人工检查' : direction === 'none' ? '已是最新版本' : `本地领先 ${ahead}，远端领先 ${behind}`,
+    summary: !remoteSha ? '远端分支为空，准备上传本地版本' : diverged ? '本地与远端历史已经分叉，需要人工检查' : direction === 'none' ? '已是最新版本' : stateMetadataDirty && !workingTreeDirty && ahead === 0 && behind === 0 ? '准备更新资料库中文名称映射' : `本地领先 ${ahead}，远端领先 ${behind}`,
     actions, issues: diverged ? [{ path: config.branch, kind: 'conflict' }, ...localOnly, ...remoteDeletes] : [...localOnly, ...remoteDeletes],
     requiresConfirmation: diverged || remoteDeletes.length > 0 || (behind > 0 && localOnly.length > 0),
-    createdAt: new Date().toISOString(), metadata: { ahead, behind, dirty, diverged, remoteExists: Boolean(remoteSha), totalBytes: files.reduce((sum, file) => sum + file.size, 0) },
+    createdAt: new Date().toISOString(), metadata: { ahead, behind, dirty, workingTreeDirty, stateMetadataDirty, plannedWorkspaceName: localState.workspaceName ?? '', diverged, remoteExists: Boolean(remoteSha), remoteSha: remoteSha ?? '', totalBytes: files.reduce((sum, file) => sum + file.size, 0), localContentFingerprint },
   }
 }
 
@@ -137,12 +147,23 @@ export async function runGitSync(
   target: SyncTarget,
   plan: SyncPlan,
   decision: SyncDecision,
+  deviceId = '00000000000000000000000000000001',
 ): Promise<string> {
+  if ((target.config as GitTargetConfig).warehouse) {
+    return runWarehouseGitSync(workspace, target, plan, decision, path.join(app.getPath('userData'), 'warehouse-cache'), deviceId)
+  }
   if (plan.metadata.diverged) throw new Error('分支已经分叉，请先在 Git 工具中解决冲突')
   if (plan.issues.some((issue) => issue.kind === 'remote-delete') && !decision.deleteRemote) {
     throw new Error('检测到云端删除操作，需要重新检查并明确确认')
   }
   const config = target.config as GitTargetConfig
+  const plannedRemoteSha = String(plan.metadata.remoteSha ?? '')
+  const latestRemoteSha = await remoteHead(config)
+  if (plannedRemoteSha !== (latestRemoteSha ?? '')) throw new Error('Git 远端在确认期间已经变化，请重新检查后再同步')
+  const plannedLocalPrevious = await readLocalSyncState(workspace.path)
+  const plannedLocalCurrent = await buildWorkspaceSyncState({ workspaceId: workspace.id, workspaceName: workspace.freshRestore ? undefined : workspace.name, deviceId, files: await scanFiles(workspace.path), previous: plannedLocalPrevious })
+  if (syncStateContentFingerprint(plannedLocalCurrent) !== String(plan.metadata.localContentFingerprint ?? '')) throw new Error('本机资料库在确认期间发生变化，请重新检查')
+  if ((plannedLocalCurrent.workspaceName ?? '') !== String(plan.metadata.plannedWorkspaceName ?? plannedLocalCurrent.workspaceName ?? '')) throw new Error('资料库名称在确认期间发生变化，请重新检查')
   const git = simpleGit(workspace.path)
   // 新设备场景：本地还不是仓库而远端有历史时，直接把远端克隆进目标文件夹
   if (!(await git.checkIsRepo()) && await remoteHead(config)) {
@@ -181,6 +202,22 @@ export async function runGitSync(
     }
   }
 
+  const localPreviousState = await readLocalSyncState(workspace.path)
+  const previousTargetBaseState = await readTargetBaseState(workspace.path, target.id)
+  const confirmedHead = await git.revparse(['--verify', 'HEAD']).then((value) => value.trim()).catch(() => undefined)
+  const syncState = await buildWorkspaceSyncState({
+    workspaceId: workspace.id,
+    workspaceName: workspace.freshRestore ? undefined : workspace.name,
+    deviceId,
+    files: await scanFiles(workspace.path),
+    previous: localPreviousState,
+    targetId: target.id,
+  })
+  await writeLocalSyncState(workspace.path, syncState)
+  // The per-target baseline belongs to the same atomic Git version as state.tc.
+  // Writing it after a successful push leaves a tracked change that triggers a second sync.
+  await writeTargetBaseState(workspace.path, target.id, syncState)
+
   const status = await git.status()
   if (!status.isClean()) {
     await git.add(['-A'])
@@ -197,7 +234,21 @@ export async function runGitSync(
 
   const finalStatus = await git.status()
   const shouldPush = !remoteSha || finalStatus.ahead > 0 || plan.direction === 'upload' || plan.direction === 'bidirectional'
-  if (shouldPush) await git.push(remote, config.branch, ['--set-upstream'])
+  if (shouldPush) {
+    try {
+      await git.push(remote, config.branch, ['--set-upstream'])
+    } catch (error) {
+      // 本次提交尚未获得远端确认：撤销刚创建的同步提交，但保留用户文件为工作区改动，
+      // 同时恢复上一次已确认状态，避免失败的 revision/targetHead 被误当成同步成功。
+      if (confirmedHead) await git.reset(['--mixed', confirmedHead])
+      else await git.raw(['update-ref', '-d', 'HEAD'])
+      if (localPreviousState) await writeLocalSyncState(workspace.path, localPreviousState)
+      else await rm(path.join(workspace.path, ...SYNC_STATE_FILE.split('/')), { force: true })
+      if (previousTargetBaseState) await writeTargetBaseState(workspace.path, target.id, previousTargetBaseState)
+      else await removeTargetBaseState(workspace.path, target.id)
+      throw error
+    }
+  }
   return shouldPush ? '同步并上传完成' : '已经是最新版本，没有重复上传'
 }
 
@@ -228,6 +279,7 @@ async function githubTokenFromCredentialHelper(): Promise<string | undefined> {
 // 平台不是 GitHub 时，明确告知需要网页端手动删除，不做静默失败。
 export async function deleteGitRepository(workspace: WorkspaceProfile, target: SyncTarget): Promise<string> {
   const config = target.config as GitTargetConfig
+  if (config.warehouse) return deleteWarehouseLibraryBackup(workspace, target, path.join(app.getPath('userData'), 'warehouse-cache'))
   void workspace
   const match = /^https?:\/\/(?:www\.)?github\.com\/([^/]+)\/([^/#?]+?)(?:\.git)?\/?$/i.exec(config.remoteUrl)
     ?? /^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i.exec(config.remoteUrl)

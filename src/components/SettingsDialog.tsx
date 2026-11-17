@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import {
   Activity, AlertTriangle, ArchiveRestore, Bell, Check, Cloud, Droplets, GitBranch, Globe2, Grid2X2, History,
-  Image as ImageIcon, Laptop, Layers3, LoaderCircle, LogIn, Monitor, MousePointer2,
-  Download, Palette, Search, Settings, ShieldCheck, Sparkles, SunMedium, Upload, UserRound, Waves, X,
+  Image as ImageIcon, Laptop, Layers3, LoaderCircle, LogIn, Monitor, MousePointer2, Pencil, RefreshCw,
+  Download, Palette, Search, Settings, ShieldCheck, Sparkles, SunMedium, Trash2, Upload, UserRound, Waves, X,
 } from 'lucide-react'
-import { DEFAULT_NOTIFICATION_PREFERENCES, type CloudConfigDocument, type CloudConfigStatus, type GitHubAccountSession, type NotificationPreferences } from '../../electron/types'
+import { DEFAULT_NOTIFICATION_PREFERENCES, type CloudConfigDocument, type CloudConfigStatus, type GitHubAccountSession, type NotificationPreferences, type StorageConnectionHealth, type StorageConnectionSummary, type StorageConnectionUpdate, type WarehouseSettings } from '../../electron/types'
 import {
   BUILT_IN_THEMES, applyTheme, getSavedThemeSelection, listCustomThemes, parseThemeDocument,
   removeCustomTheme, resolveTheme, saveCustomTheme, saveThemeSelection,
@@ -27,7 +27,7 @@ const PROJECT_LINKS: LogoLoopItem[] = [
     title: '是天创呀',
     ariaLabel: '打开是天创呀的 GitHub 主页',
     href: 'https://github.com/tianchuangya',
-    node: <><img className="loop-avatar" src="/assets/author-avatar.png" alt="是天创呀头像" /><span><strong>是天创呀</strong><small>项目作者</small></span></>,
+    node: <><img className="loop-avatar" src="./assets/author-avatar.png" alt="是天创呀头像" /><span><strong>是天创呀</strong><small>项目作者</small></span></>,
   },
   {
     title: '天创域',
@@ -145,7 +145,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
                   <button className={preferences.startupEffect === 'aurora' ? 'active' : ''} onClick={() => setStartupEffect('aurora')} aria-pressed={preferences.startupEffect === 'aurora'} disabled={reduceMotion}><span className="effect-preview aurora"><Waves size={20} /></span><span><strong>柔光极光</strong><small>流动色带与玻璃云层</small></span><Check size={15} /></button>
                   <button className={preferences.startupEffect === 'light' ? 'active' : ''} onClick={() => setStartupEffect('light')} aria-pressed={preferences.startupEffect === 'light'}><span className="effect-preview rays"><SunMedium size={20} /></span><span><strong>侧光掠影</strong><small>更克制的缓慢光束</small></span><Check size={15} /></button>
                 </div></div>
-                <div className="startup-settings-preview" data-effect={preferences.startupEffect}><span><img src="/assets/app-icon.png" alt="" /><strong>天创云端</strong><small>{preferences.startupEffect === 'aurora' ? '柔光极光' : '侧光掠影'}</small></span></div>
+                <div className="startup-settings-preview" data-effect={preferences.startupEffect}><span><img src="./assets/app-icon.png" alt="" /><strong>天创云端</strong><small>{preferences.startupEffect === 'aurora' ? '柔光极光' : '侧光掠影'}</small></span></div>
                 <div className="performance-note"><ShieldCheck size={16} /><span>资料库会在动画期间并行加载；进度完成后按任意键或点击画面进入软件。</span></div>
               </section>
             </FadeContent>}
@@ -170,7 +170,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
             {category === 'appearance' && subpage === 'background' && <FadeContent key="background" duration={220} blurAmount={4}>
               <section className="settings-panel-stack">
                 <div><div className="setting-group-heading"><strong>背景图</strong><span>底图与动态效果相互独立</span></div><div className="background-image-settings">
-                  <div className="background-image-preview">{customBackground ? <img src={customBackground} alt="当前自定义背景预览" /> : <img src="/assets/cloud-glass-bg.png" alt="默认背景预览" />}</div>
+                  <div className="background-image-preview">{customBackground ? <img src={customBackground} alt="当前自定义背景预览" /> : <img src="./assets/cloud-glass-bg.png" alt="默认背景预览" />}</div>
                   <div><strong>{customBackground ? '自定义背景' : '天创云端默认背景'}</strong><small>{customBackground ? '图片已复制到应用数据目录' : '当前项目内置的玻璃云端背景'}</small><span><button className="secondary-button" onClick={() => void onSelectBackground()}><ImageIcon size={15} />选择图片</button>{customBackground && <button className="plain-button" onClick={() => void onResetBackground()}>恢复默认</button>}</span></div>
                 </div><div className="background-tuning-grid">
                   <label><span><strong>背景模糊</strong><small>{preferences.backgroundBlur}px</small></span><input aria-label="背景模糊" type="range" min="0" max="24" step="1" value={preferences.backgroundBlur} onInput={(event) => onChange({ ...preferences, backgroundBlur: Number(event.currentTarget.value) })} /></label>
@@ -214,7 +214,7 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
               <button className={preferences.libraryView === 'motion' ? 'active' : ''} onClick={() => setLibraryView('motion')} aria-pressed={preferences.libraryView === 'motion'} disabled={reduceMotion}><span className="effect-preview ripple"><Layers3 size={20} /></span><span><strong>动态网格</strong><small>使用封面构成有序运动网格</small></span><Check size={15} /></button>
               <button className={preferences.libraryView === 'accordion' ? 'active' : ''} onClick={() => setLibraryView('accordion')} aria-pressed={preferences.libraryView === 'accordion'} disabled={reduceMotion}><span className="effect-preview iridescence"><ImageIcon size={20} /></span><span><strong>手风琴封面</strong><small>分组浏览，悬停展开当前资料库</small></span><Check size={15} /></button>
               <button className={preferences.libraryView === 'depth' ? 'active' : ''} onClick={() => setLibraryView('depth')} aria-pressed={preferences.libraryView === 'depth'} disabled={reduceMotion}><span className="effect-preview topography"><Waves size={20} /></span><span><strong>深度轮播</strong><small>滚轮、方向键与按钮切换封面</small></span><Check size={15} /></button>
-            </div></section></FadeContent>}
+            </div><label className="setting-row library-ripple-setting"><span><strong>资料库背景水波</strong><small>仅在鼠标经过或点击项目背景时短暂折射；关闭后始终显示原图</small></span><input type="checkbox" checked={preferences.libraryRippleEnabled} onChange={(event) => onChange({ ...preferences, libraryRippleEnabled: event.target.checked })} /><i /></label></section></FadeContent>}
             {category === 'notifications' && subpage === 'alerts' && <FadeContent key="notifications" duration={220} blurAmount={4}>
               <section className="settings-panel-stack">
                 <div>
@@ -235,11 +235,145 @@ function CursorSettingsDialog({ preferences, customBackground, onSelectBackgroun
   )
 }
 
+interface ConnectionEditorDraft {
+  name: string
+  maxFileSizeMb: number
+  remoteUrl: string
+  branch: string
+  endpoint: string
+  username: string
+  remotePath: string
+  destinationPath: string
+  password: string
+}
+
+function connectionEditorDraft(connection: StorageConnectionSummary): ConnectionEditorDraft {
+  return {
+    name: connection.name,
+    maxFileSizeMb: connection.maxFileSizeMb,
+    remoteUrl: connection.config.kind === 'git' ? connection.config.remoteUrl : '',
+    branch: connection.config.kind === 'git' ? connection.config.branch : 'main',
+    endpoint: connection.config.kind === 'webdav' ? connection.config.endpoint : '',
+    username: connection.config.kind === 'webdav' ? connection.config.username : '',
+    remotePath: connection.config.kind === 'webdav' ? connection.config.remotePath : '',
+    destinationPath: connection.config.kind === 'local' ? connection.config.destinationPath : '',
+    password: '',
+  }
+}
+
+function StorageConnectionManager({ connections, onChange, onError }: {
+  connections: StorageConnectionSummary[]
+  onChange: (connections: StorageConnectionSummary[]) => void
+  onError: (message: string) => void
+}) {
+  const [editing, setEditing] = useState<StorageConnectionSummary>()
+  const [draft, setDraft] = useState<ConnectionEditorDraft>()
+  const [busyId, setBusyId] = useState('')
+  const [deleteConfirmId, setDeleteConfirmId] = useState('')
+  const [health, setHealth] = useState<Record<string, StorageConnectionHealth>>({})
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    if (!deleteConfirmId) return undefined
+    const timer = window.setTimeout(() => {
+      setDeleteConfirmId('')
+      setNotice('')
+    }, 5000)
+    return () => window.clearTimeout(timer)
+  }, [deleteConfirmId])
+
+  const reload = async () => onChange(await window.tianchuang.listStorageConnections())
+  const startEditing = (connection: StorageConnectionSummary) => {
+    setEditing(connection)
+    setDraft(connectionEditorDraft(connection))
+    setDeleteConfirmId('')
+  }
+  const save = async () => {
+    if (!editing || !draft) return
+    setBusyId(editing.id)
+    onError('')
+    try {
+      let config: StorageConnectionUpdate['config']
+      if (editing.config.kind === 'git') config = { ...editing.config, remoteUrl: draft.remoteUrl, branch: draft.branch }
+      else if (editing.config.kind === 'webdav') config = { ...editing.config, endpoint: draft.endpoint, username: draft.username, remotePath: draft.remotePath }
+      else config = { ...editing.config, destinationPath: draft.destinationPath }
+      await window.tianchuang.updateStorageConnection(editing.id, { name: draft.name, maxFileSizeMb: draft.maxFileSizeMb, config, ...(draft.password ? { password: draft.password } : {}) })
+      await reload()
+      setNotice(`已保存 ${draft.name}，并应用到全部已绑定目标`)
+      setEditing(undefined)
+      setDraft(undefined)
+    } catch (reason) {
+      onError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setBusyId('')
+    }
+  }
+  const check = async (connectionId: string) => {
+    setBusyId(connectionId)
+    onError('')
+    try {
+      const result = await window.tianchuang.checkStorageConnection(connectionId)
+      setHealth((current) => ({ ...current, [connectionId]: result }))
+    } catch (reason) {
+      onError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setBusyId('')
+    }
+  }
+  const remove = async (connection: StorageConnectionSummary) => {
+    if (connection.usageCount > 0) return
+    if (deleteConfirmId !== connection.id) {
+      setDeleteConfirmId(connection.id)
+      setNotice(`再次点击 ${connection.name} 的红色删除按钮以确认；已绑定的连接不能删除`)
+      return
+    }
+    setBusyId(connection.id)
+    onError('')
+    try {
+      const message = await window.tianchuang.deleteStorageConnection(connection.id)
+      await reload()
+      setNotice(message)
+      setDeleteConfirmId('')
+      if (editing?.id === connection.id) setEditing(undefined)
+    } catch (reason) {
+      onError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  if (connections.length === 0) return <div className="workspace-search-empty">添加同步目标后会自动保存为可复用连接。</div>
+  return <>{notice && <div className="connection-notice" role="status">{notice}</div>}<div className="account-list connection-list">{connections.map((connection) => <div className="connection-entry" key={connection.id}>
+    <div className="account-row connection-row">
+      <span className="collaborator-avatar">{connection.config.kind === 'git' ? <GitBranch size={15} /> : connection.config.kind === 'webdav' ? <Cloud size={15} /> : <Laptop size={15} />}</span>
+      <span><strong>{connection.name}</strong><small>{connection.config.kind === 'git' ? connection.config.remoteUrl : connection.config.kind === 'webdav' ? connection.config.endpoint : connection.config.destinationPath} · {connection.usageCount} 个目标使用</small>{health[connection.id] && <small className={health[connection.id].ok ? 'connection-health-ok' : 'connection-health-error'}>{health[connection.id].detail}</small>}</span>
+      <div className="connection-actions">
+        <button className="icon-button" aria-label={`检查连接 ${connection.name}`} title="检查连接" disabled={busyId === connection.id} onClick={() => void check(connection.id)}>{busyId === connection.id ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />}</button>
+        <button className="icon-button" aria-label={`编辑连接 ${connection.name}`} title="编辑连接" onClick={() => startEditing(connection)}><Pencil size={14} /></button>
+        <button className={`icon-button ${deleteConfirmId === connection.id ? 'danger' : ''}`} aria-label={connection.usageCount > 0 ? `连接 ${connection.name} 仍被使用，不能删除` : deleteConfirmId === connection.id ? `再次确认删除连接 ${connection.name}` : `删除连接 ${connection.name}`} title={connection.usageCount > 0 ? '仍有同步目标使用，不能删除' : deleteConfirmId === connection.id ? '再次点击确认删除' : '删除未使用连接'} disabled={connection.usageCount > 0 || busyId === connection.id} onClick={() => void remove(connection)}><Trash2 size={14} /></button>
+      </div>
+    </div>
+    {editing?.id === connection.id && draft && <div className="connection-editor form-grid">
+      <label className="field"><span>连接名称</span><input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
+      <label className="field"><span>单文件限制（MB）</span><input type="number" min="1" value={draft.maxFileSizeMb} onChange={(event) => setDraft({ ...draft, maxFileSizeMb: Number(event.target.value) })} /></label>
+      {connection.config.kind === 'git' && <><label className="field full"><span>仓库地址</span><input value={draft.remoteUrl} onChange={(event) => setDraft({ ...draft, remoteUrl: event.target.value })} /></label><label className="field full"><span>分支</span><input value={draft.branch} onChange={(event) => setDraft({ ...draft, branch: event.target.value })} /></label></>}
+      {connection.config.kind === 'webdav' && <><label className="field full"><span>服务器地址</span><input value={draft.endpoint} onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })} /></label><label className="field"><span>用户名</span><input value={draft.username} onChange={(event) => setDraft({ ...draft, username: event.target.value })} /></label><label className="field"><span>新密码（留空则不变）</span><input type="password" value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} /></label><label className="field full"><span>远端路径</span><input value={draft.remotePath} onChange={(event) => setDraft({ ...draft, remotePath: event.target.value })} /></label></>}
+      {connection.config.kind === 'local' && <label className="field full"><span>目标目录</span><div className="input-action"><input readOnly value={draft.destinationPath} /><button onClick={async () => { const value = await window.tianchuang.selectMirrorFolder(); if (value) setDraft({ ...draft, destinationPath: value }) }}>选择</button></div></label>}
+      <div className="connection-editor-actions full"><button className="plain-button" onClick={() => { setEditing(undefined); setDraft(undefined) }}>取消</button><button className="secondary-button" disabled={busyId === connection.id} onClick={() => void save()}>{busyId === connection.id ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />}保存并应用到全部目标</button></div>
+    </div>}
+  </div>)}</div></>
+}
+
 function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config: CloudConfigDocument) => void }) {
   const [status, setStatus] = useState<CloudConfigStatus>()
   const [accounts, setAccounts] = useState<GitHubAccountSession[]>([])
   const [loading, setLoading] = useState(true)
   const [publishing, setPublishing] = useState(false)
+  const [warehouse, setWarehouse] = useState<WarehouseSettings>()
+  const [warehouseName, setWarehouseName] = useState('TC-cloud-Warehouse')
+  const [deviceName, setDeviceName] = useState('')
+  const [savingWarehouse, setSavingWarehouse] = useState(false)
+  const [connections, setConnections] = useState<StorageConnectionSummary[]>([])
   const [error, setError] = useState('')
 
   const refreshStatus = async (showLoading = true) => {
@@ -259,6 +393,12 @@ function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config:
 
   useEffect(() => {
     void window.tianchuang.listGithubAccounts().then(setAccounts).catch(() => { /* 账号列表不可用时按主账号处理 */ })
+    void window.tianchuang.getWarehouseSettings().then((next) => {
+      setWarehouse(next)
+      setWarehouseName(next.warehouseName)
+      setDeviceName(next.device.deviceName)
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)))
+    void window.tianchuang.listStorageConnections().then(setConnections).catch(() => { /* 空列表展示 */ })
     let active = true
     void window.tianchuang.getCloudConfigStatus().then((next) => {
       if (!active) return
@@ -271,6 +411,21 @@ function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config:
     })
     return () => { active = false }
   }, [])
+
+  const saveWarehouse = async () => {
+    setSavingWarehouse(true)
+    setError('')
+    try {
+      const next = await window.tianchuang.updateWarehouseSettings({ warehouseName, deviceName })
+      setWarehouse(next)
+      setWarehouseName(next.warehouseName)
+      setDeviceName(next.device.deviceName)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      setSavingWarehouse(false)
+    }
+  }
 
   const login = async () => {
     setError('')
@@ -324,15 +479,32 @@ function CloudAccountSettings({ onRequestRestore }: { onRequestRestore: (config:
         </div>
       </div>}
       <div>
-        <div className="setting-group-heading"><strong>私人主配置仓库</strong><span>固定名称：tianchuang-cloud-config</span></div>
+        <div className="setting-group-heading"><strong>Warehouse 与本机设备</strong><span>统一仓库名可修改；设备使用稳定 ID，不以名称识别</span></div>
+        <div className="form-grid">
+          <label className="field"><span>Warehouse 名称</span><input value={warehouseName} maxLength={100} onChange={(event) => setWarehouseName(event.target.value)} /></label>
+          <label className="field"><span>设备名称</span><input value={deviceName} maxLength={64} onChange={(event) => setDeviceName(event.target.value)} /></label>
+          {warehouse && <div className="form-note full"><Laptop size={16} /><span>{warehouse.device.deviceModel} · {warehouse.device.platform}<br />设备 ID：{warehouse.device.deviceId}</span></div>}
+          <div className="full"><button className="secondary-button" disabled={savingWarehouse || !warehouseName.trim() || !deviceName.trim()} onClick={() => void saveWarehouse()}>{savingWarehouse ? <LoaderCircle className="spin" size={15} /> : <Check size={15} />}保存 Warehouse 与设备名称</button></div>
+        </div>
+      </div>
+      <div>
+        <div className="setting-group-heading"><strong>私人 Warehouse 控制仓库</strong><span>{status?.repositoryName || warehouseName}</span></div>
         <div className="cloud-config-card">
-          <div className="cloud-config-copy"><span className="cloud-config-icon"><Laptop size={21} /></span><span><strong>{status?.repositoryExists ? '主配置仓库已连接' : '尚未建立主配置仓库'}</strong><small>{status?.hasRemoteConfig ? `${status.workspaceCount} 个资料库 · 更新于 ${new Date(status.updatedAt || '').toLocaleString()}` : '保存资料库名称、目标地址和同步偏好，不保存密码或访问令牌'}</small></span></div>
+          <div className="cloud-config-copy"><span className="cloud-config-icon"><Laptop size={21} /></span><span><strong>{status?.repositoryExists ? 'Warehouse 控制仓库已连接' : '尚未建立 Warehouse 控制仓库'}</strong><small>{status?.hasRemoteConfig ? `${status.workspaceCount} 个资料库 · ${status.devices?.length ?? 0} 台已注册设备 · 更新于 ${new Date(status.updatedAt || '').toLocaleString()}` : '保存资料库索引、设备文档和同步偏好，不保存密码或访问令牌'}</small></span></div>
           <div className="cloud-config-actions">
             {status?.repositoryUrl && <button className="plain-button" onClick={() => window.open(status.repositoryUrl)}>打开仓库</button>}
             {status?.config && <button className="secondary-button" onClick={() => onRequestRestore(status.config!)}><ArchiveRestore size={15} />查看恢复内容</button>}
             <button className="primary-button" disabled={!status?.authenticated || publishing} onClick={() => void publish()}>{publishing ? <LoaderCircle className="spin" size={15} /> : <Upload size={15} />}{status?.hasRemoteConfig ? '更新云端配置' : '创建并备份'}</button>
           </div>
         </div>
+      </div>
+      {status?.devices && status.devices.length > 0 && <div>
+        <div className="setting-group-heading"><strong>已注册设备</strong><span>离线设备也会保留；状态按最近活跃时间推算</span></div>
+        <div className="account-list">{status.devices.map((device) => <div className="account-row" key={device.deviceId}><span className="collaborator-avatar"><Laptop size={15} /></span><span><strong>{device.deviceName}</strong><small>{device.deviceModel} · 最近活跃 {new Date(device.lastSeenAt).toLocaleString()}</small></span>{device.deviceId === warehouse?.device.deviceId && <em>本机</em>}</div>)}</div>
+      </div>}
+      <div>
+        <div className="setting-group-heading"><strong>全局存储连接</strong><span>创建一次后可直接绑定到其他资料库</span></div>
+        <StorageConnectionManager connections={connections} onChange={setConnections} onError={setError} />
       </div>
       <div className="performance-note"><ShieldCheck size={16} /><span>恢复操作只合并你明确选择的资料库，不会静默覆盖本机数据。WebDAV 密码、GitHub 令牌和系统凭据不会写入仓库。</span></div>
       {error && <div className="form-error cloud-config-error"><AlertTriangle size={15} />{error}</div>}

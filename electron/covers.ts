@@ -3,6 +3,7 @@ import path from 'node:path'
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.svg'])
 const COVER_NAMES = ['.tianchuang-cover', 'tianchuang-cover', 'cover', 'folder']
+const BACKGROUND_NAMES = ['.tianchuang-background', 'tianchuang-background', 'background']
 
 export async function findWorkspaceCover(folderPath: string): Promise<string | undefined> {
   const files = await readdir(folderPath, { withFileTypes: true }).catch(() => [])
@@ -13,6 +14,33 @@ export async function findWorkspaceCover(folderPath: string): Promise<string | u
     if (match) return path.join(folderPath, match.name)
   }
   return undefined
+}
+
+export async function findWorkspaceBackground(folderPath: string): Promise<string | undefined> {
+  const files = await readdir(folderPath, { withFileTypes: true }).catch(() => [])
+  for (const baseName of BACKGROUND_NAMES) {
+    const match = files.find((item) => item.isFile()
+      && path.parse(item.name).name.toLowerCase() === baseName
+      && IMAGE_EXTENSIONS.has(path.extname(item.name).toLowerCase()))
+    if (match) return path.join(folderPath, match.name)
+  }
+  return undefined
+}
+
+export async function copyWorkspaceBackground(folderPath: string, sourcePath: string): Promise<string> {
+  const extension = path.extname(sourcePath).toLowerCase()
+  if (!IMAGE_EXTENSIONS.has(extension)) throw new Error('请选择 PNG、JPG、WebP、GIF、AVIF 或 SVG 图片')
+  const sourceInfo = await stat(sourcePath).catch(() => undefined)
+  if (!sourceInfo?.isFile() || sourceInfo.size > 20 * 1024 * 1024) throw new Error('背景图片不可访问或超过 20 MB')
+  const destination = path.join(folderPath, `.tianchuang-background${extension}`)
+  const existing = await readdir(folderPath, { withFileTypes: true }).catch(() => [])
+  await Promise.all(existing
+    .filter((item) => item.isFile() && path.parse(item.name).name.toLowerCase() === '.tianchuang-background')
+    .map((item) => path.join(folderPath, item.name))
+    .filter((filePath) => path.resolve(filePath) !== path.resolve(sourcePath) && path.resolve(filePath) !== path.resolve(destination))
+    .map((filePath) => unlink(filePath).catch(() => undefined)))
+  if (path.resolve(sourcePath) !== path.resolve(destination)) await copyFile(sourcePath, destination)
+  return destination
 }
 
 export async function copyWorkspaceCover(folderPath: string, sourcePath: string): Promise<string> {

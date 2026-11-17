@@ -5,17 +5,19 @@ import './GridMotion.css'
 
 interface GridMotionProps {
   workspaces: WorkspaceProfile[]
-  covers: Record<string, string | undefined>
+  backgrounds: Record<string, string | undefined>
+  activeId?: string
   backgroundImage?: string
   backgroundBlur: number
   backgroundOpacity: number
-  onSelect: (workspaceId: string) => void
+  onFocus: (workspaceId: string) => void
+  onOpen: (workspaceId: string) => void
 }
 
 const CELL_COUNT = 28
 const FOCUS_POSITIONS = [10, 17, 9, 18, 11, 16, 3, 24, 2, 25, 4, 23, 8, 19, 12, 15, 1, 26, 5, 22, 7, 20, 13, 14, 0, 27, 6, 21]
 
-export default function GridMotion({ workspaces, covers, backgroundImage, backgroundBlur, backgroundOpacity, onSelect }: GridMotionProps) {
+export default function GridMotion({ workspaces, backgrounds, activeId, backgroundImage, backgroundBlur, backgroundOpacity, onFocus, onOpen }: GridMotionProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<Array<HTMLDivElement | null>>([])
   const items = useMemo(() => {
@@ -66,7 +68,7 @@ export default function GridMotion({ workspaces, covers, backgroundImage, backgr
       className="library-motion-grid"
       aria-label="动态资料库网格"
       style={{
-        '--motion-background': `url("${backgroundImage || '/assets/cloud-glass-bg.png'}")`,
+        '--motion-background': `url("${backgroundImage || './assets/cloud-glass-bg.png'}")`,
         '--motion-background-blur': `${backgroundBlur}px`,
         '--motion-background-opacity': backgroundOpacity,
         '--motion-background-scale': 1 + backgroundBlur / 480,
@@ -79,14 +81,16 @@ export default function GridMotion({ workspaces, covers, backgroundImage, backgr
         <div className="library-motion-row" key={rowIndex} ref={(element) => { rowRefs.current[rowIndex] = element }}>
           {items.slice(rowIndex * 7, rowIndex * 7 + 7).map(({ workspace }, columnIndex) => {
             if (!workspace) return <span className="library-motion-ambient" aria-hidden="true" key={`${rowIndex}-${columnIndex}-ambient`} style={{ backgroundPosition: `${columnIndex * 16}% ${rowIndex * 30}%` }} />
-            const cover = covers[workspace.id]
+            const cover = backgrounds[workspace.id]
+            const resolvedCover = cover ? new URL(cover, window.location.href).href : undefined
             return (
               <button
-                className={`library-motion-item ${cover ? 'has-cover' : ''}`}
+                className={`library-motion-item ${cover ? 'has-cover' : ''} ${workspace.id === activeId ? 'active' : ''}`}
                 key={`${rowIndex}-${columnIndex}-${workspace.id}`}
-                onClick={() => onSelect(workspace.id)}
-                aria-label={`打开资料库 ${workspace.name}`}
-                style={cover ? { '--library-cover': `url("${cover}")` } as CSSProperties : undefined}
+                onClick={() => onFocus(workspace.id)}
+                onDoubleClick={() => onOpen(workspace.id)}
+                aria-label={`选择资料库 ${workspace.name}`}
+                style={resolvedCover ? { '--library-cover': `url("${resolvedCover}")` } as CSSProperties : undefined}
               >
                 <span className="motion-cover-placeholder"><Folder size={27} /></span>
                 <span className="motion-item-copy"><strong>{workspace.name}</strong><small>{workspace.targets.length} 个备份目标</small></span>

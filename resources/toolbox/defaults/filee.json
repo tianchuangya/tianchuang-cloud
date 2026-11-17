@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 75,
+  "language": "auto",
+  "startWithSystem": true,
+  "contextMenuEnabled": true,
+  "checkForUpdates": true,
+  "closeAction": "Tray",
+  "showInDock": true,
+  "showMenuBarIcon": true,
+  "paused": false,
+  "theme": { "style": "Soft", "mode": "Dark", "accent": "#378ADD", "cornerRadius": 16 },
+  "donut": { "outerRadius": 150, "holeRatio": 0.42, "opacity": 0.96, "showCaptions": true, "flipKey": "Tab", "flipWithWheel": true },
+  "libreOfficeForSlides": true,
+  "libreOfficeForHwp": false,
+  "libreOfficeForDocuments": false,
+  "libreOfficeForSheets": false,
+  "keepFileDates": true,
+  "collectDroppedFiles": false,
+  "zipGeoResults": false,
+  "uiScale": 1,
+  "navCollapsed": false
+}

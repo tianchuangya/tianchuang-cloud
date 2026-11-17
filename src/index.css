@@ -1,27 +1,27 @@
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  color: #edf6f8;
+  color: #f2f5f8;
   background: transparent;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --ink: #edf6f8;
-  --muted: #9cabb2;
-  --quiet: #6f7e86;
-  --line: rgba(225, 241, 244, .1);
-  --cyan: #80dce8;
-  --blue: #80dce8;
-  --blue-strong: #9ee8f1;
-  --green: #52d49a;
-  --amber: #e4a44e;
-  --red: #ff716a;
-  --surface: rgba(9, 14, 18, .43);
-  --glass: rgba(10, 16, 20, .58);
-  --window-mask: rgba(7, 12, 16, .48);
-  --shadow: 0 24px 70px rgba(0, 0, 0, .45), 0 4px 16px rgba(0, 0, 0, .26);
+  --ink: #f2f5f8;
+  --muted: #a5b0be;
+  --quiet: #778494;
+  --line: rgba(185, 201, 219, .14);
+  --cyan: #6c9cff;
+  --blue: #6c9cff;
+  --blue-strong: #88adff;
+  --green: #4fc38a;
+  --amber: #e0a84e;
+  --red: #f06b72;
+  --surface: rgba(21, 28, 37, .94);
+  --glass: rgba(17, 24, 33, .9);
+  --window-mask: rgba(13, 17, 23, .76);
+  --shadow: 0 22px 58px rgba(0, 0, 0, .38), 0 3px 12px rgba(0, 0, 0, .22);
   /* 主题令牌（玻璃基底默认值）：新拟物等主题通过 documentElement 内联样式覆盖 */
-  --bg-page: #0b1014;
+  --bg-page: #0d1117;
   --shadow-dark: rgba(0, 0, 0, .45);
   --shadow-light: rgba(255, 255, 255, .1);
   --shadow-raised: 0 18px 40px rgba(0, 0, 0, .14);
@@ -39,7 +39,7 @@ html, body, #root { width: 100%; min-width: 0; height: 100%; margin: 0; overflow
 body { background: transparent; }
 button, input, select { font: inherit; letter-spacing: 0; -webkit-app-region: no-drag; }
 button { color: inherit; }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(119, 221, 234, .2); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(108, 156, 255, .3); outline-offset: 2px; }
 button:disabled { opacity: .48; cursor: not-allowed; }
 .startup-error { height: 100%; display: grid; place-content: center; gap: 8px; padding: 32px; color: var(--ink); background: #11181d; text-align: center; }
 .startup-error strong { font-size: 18px; }

@@ -12,7 +12,15 @@ dist
 dist-ssr
 dist-electron
 release
+native/**/target/
+# User-supplied full LocalSend checkout is a reference only; the pinned core snapshot lives in native/vendor.
+localsend-main/
 *.local
+
+# Local source artwork and one-off visual QA evidence are not release inputs.
+/图/
+docs/toolbox-*-proof.png
+docs/toolbox-pavise-installed.png
 
 # Editor directories and files
 .vscode/*

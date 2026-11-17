@@ -1,12 +1,12 @@
-import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
-  Activity, AlertTriangle, ArrowLeft, ArrowRightLeft, Check, ChevronRight, Cloud, CloudOff, CloudUpload, Folder, FolderInput,
+  Activity, AlertTriangle, ArrowLeft, ArrowRightLeft, Check, ChevronRight, Cloud, CloudUpload, Folder, FolderInput,
   ExternalLink, FileText, GitBranch, Grid2X2, HardDrive, History, Image as ImageIcon, ImagePlus, Images, ListChecks, LoaderCircle, MoreHorizontal, Music, Plus, RefreshCw, Video,
-  Server, Share2, Settings, ShieldCheck, Trash2,
+  Boxes, Server, Share2, Settings, ShieldCheck, Trash2,
 } from 'lucide-react'
 import type {
-  AppSnapshot, CloudConfigDocument, ProviderKind, SyncDecision, SyncPlan, SyncProgress, SyncTarget, WorkspaceFileEntry, WorkspaceProfile,
+  AppSnapshot, CloudConfigDocument, ProviderKind, SyncDecision, SyncPlan, SyncProgress, SyncTarget, WorkspaceDeleteOptions, WorkspaceFileEntry, WorkspaceProfile,
 } from '../electron/types'
 import AnimatedContent from './components/AnimatedContent'
 import CursorExperience from './components/CursorExperience'
@@ -15,6 +15,7 @@ import InteractiveBackdrop from './components/InteractiveBackdrop'
 import StartupExperience from './components/StartupExperience'
 import { ProgressOverlay, ReviewDialog } from './components/SyncDialogs'
 import WorkspaceOverview from './components/WorkspaceOverview'
+import { resolveWorkspaceVisuals } from './components/library-default-visuals'
 import { previewKindOf } from '../electron/preview-kind'
 import { formatFileSize, providerLabel, relativeTime } from './components/workspace-meta'
 import {
@@ -32,9 +33,26 @@ const DangerConfirmDialog = lazy(() => import('./components/DangerConfirmDialog'
 const MigrationDialog = lazy(() => import('./components/MigrationDialog'))
 const FilePreviewDialog = lazy(() => import('./components/FilePreviewDialog'))
 const RandomCoverDialog = lazy(() => import('./components/RandomCoverDialog'))
+const WorkspaceVisualSetupDialog = lazy(() => import('./components/WorkspaceVisualSetupDialog'))
+const NearbyTransfer = lazy(() => import('./components/NearbyTransfer'))
+const Toolbox = lazy(() => import('./components/Toolbox'))
 
 const EMPTY_SNAPSHOT: AppSnapshot = { workspaces: [], activity: [] }
-type AppNavigationState = { view: 'overview' | 'workspace'; workspaceId?: string; settings?: boolean }
+type AppNavigationState = { view: 'overview' | 'workspace' | 'nearby' | 'toolbox'; workspaceId?: string; settings?: boolean }
+
+function sidebarSyncStatus(workspace: WorkspaceProfile): { tone: 'syncing' | 'error' | 'success' | 'never'; label: string } {
+  if (workspace.state === 'syncing' || workspace.state === 'checking') return { tone: 'syncing', label: '正在同步' }
+  if (workspace.state === 'error' || workspace.targets.some((target) => Boolean(target.lastError))) return { tone: 'error', label: '同步失败' }
+  if (workspace.lastSyncAt) return { tone: 'success', label: '同步成功' }
+  return { tone: 'never', label: '从未同步' }
+}
+
+function sidebarSyncDate(value?: string): string {
+  if (!value) return '从未同步'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '同步日期未知'
+  return `上次同步 ${new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date)}`
+}
 
 function ProviderIcon({ kind }: { kind: ProviderKind }) {
   if (kind === 'git') return <GitBranch size={18} />
@@ -43,6 +61,7 @@ function ProviderIcon({ kind }: { kind: ProviderKind }) {
 }
 
 function App() {
+  const reduceMotion = useReducedMotion()
   const [snapshot, setSnapshot] = useState<AppSnapshot>(EMPTY_SNAPSHOT)
   const [windowMaximized, setWindowMaximized] = useState(false)
   const [selectedId, setSelectedId] = useState<string>()
@@ -56,6 +75,7 @@ function App() {
   const [menuTargetId, setMenuTargetId] = useState<string>()
   const [workspaceMenu, setWorkspaceMenu] = useState<{ id: string; x: number; y: number }>()
   const [removeWorkspaceDialog, setRemoveWorkspaceDialog] = useState<WorkspaceProfile>()
+  const [dangerousWorkspaceDelete, setDangerousWorkspaceDelete] = useState<{ workspace: WorkspaceProfile; options: WorkspaceDeleteOptions }>()
   const [settingsDialog, setSettingsDialog] = useState(false)
   const [cursorPreferences, setCursorPreferences] = useState(loadCursorPreferences)
   const [appReady, setAppReady] = useState(false)
@@ -64,14 +84,17 @@ function App() {
     return preferences.startupMode === 'always' || (preferences.startupMode === 'once' && localStorage.getItem('tianchuang.startup-seen.v1') !== 'true')
   })
   const [showOverview, setShowOverview] = useState(true)
+  const [showNearby, setShowNearby] = useState(false)
+  const [showToolbox, setShowToolbox] = useState(false)
   const [coverUrls, setCoverUrls] = useState<Record<string, string | undefined>>({})
+  const [workspaceBackgrounds, setWorkspaceBackgrounds] = useState<Record<string, string | undefined>>({})
+  const [visualSetup, setVisualSetup] = useState<WorkspaceProfile>()
   const [customBackground, setCustomBackground] = useState<string>()
   const [backgroundEffectPreview, setBackgroundEffectPreview] = useState<BackgroundEffect>()
   const [coverCrop, setCoverCrop] = useState<{ workspace: WorkspaceProfile; source: string }>()
   const [collaborationTarget, setCollaborationTarget] = useState<SyncTarget>()
   const [cloudRestore, setCloudRestore] = useState<CloudConfigDocument>()
   const [removeTargetDialog, setRemoveTargetDialog] = useState<{ workspace: WorkspaceProfile; target: SyncTarget }>()
-  const [deleteBackupsDialog, setDeleteBackupsDialog] = useState<WorkspaceProfile>()
   const [randomCover, setRandomCover] = useState<WorkspaceProfile>()
   const [migrationDialog, setMigrationDialog] = useState<{ workspace: WorkspaceProfile; target: SyncTarget }>()
   const [bulkMode, setBulkMode] = useState(false)
@@ -81,9 +104,14 @@ function App() {
   const [fileDirState, setFileDirState] = useState({ id: '', dir: '' })
   const [filesState, setFilesState] = useState<{ key: string; entries: WorkspaceFileEntry[] }>({ key: '', entries: [] })
   const [filePreview, setFilePreview] = useState<{ workspace: WorkspaceProfile; entry: WorkspaceFileEntry }>()
+  const workspaceListRef = useRef<HTMLElement | null>(null)
+  const sidebarScrollFrameRef = useRef(0)
+  const programmaticSidebarGroupRef = useRef<number | undefined>(undefined)
 
   const applyNavigation = (state: AppNavigationState) => {
     setShowOverview(state.view === 'overview')
+    setShowNearby(state.view === 'nearby')
+    setShowToolbox(state.view === 'toolbox')
     if (state.workspaceId) setSelectedId(state.workspaceId)
     setSettingsDialog(Boolean(state.settings))
     if (!state.settings) setBackgroundEffectPreview(undefined)
@@ -95,7 +123,7 @@ function App() {
   }
 
   const currentNavigation = (): AppNavigationState => ({
-    view: showOverview ? 'overview' : 'workspace',
+    view: showNearby ? 'nearby' : showToolbox ? 'toolbox' : showOverview ? 'overview' : 'workspace',
     workspaceId: selectedId,
   })
 
@@ -170,8 +198,14 @@ function App() {
 
   useEffect(() => {
     let active = true
-    void Promise.all(snapshot.workspaces.map(async (workspace) => [workspace.id, await window.tianchuang.getWorkspaceCover(workspace.id)] as const))
-      .then((entries) => { if (active) setCoverUrls(Object.fromEntries(entries)) })
+    void Promise.all(snapshot.workspaces.map(async (workspace) => {
+      const [thumbnail, background] = await Promise.all([window.tianchuang.getWorkspaceCover(workspace.id), window.tianchuang.getWorkspaceBackground(workspace.id)])
+      return [workspace.id, thumbnail, background] as const
+    })).then((entries) => {
+      if (!active) return
+      setCoverUrls(Object.fromEntries(entries.map(([id, thumbnail]) => [id, thumbnail])))
+      setWorkspaceBackgrounds(Object.fromEntries(entries.map(([id, , background]) => [id, background])))
+    })
     return () => { active = false }
   }, [snapshot.workspaces])
 
@@ -206,13 +240,13 @@ function App() {
   const filesKey = `${selectedWorkspaceId ?? ''}:${fileDir}`
   const fileLoading = filesState.key !== filesKey
   useEffect(() => {
-    if (!selectedWorkspaceId || !selectedPath || showOverview) return
+    if (!selectedWorkspaceId || !selectedPath || showOverview || showNearby || showToolbox) return
     let active = true
     window.tianchuang.listWorkspaceFiles(selectedWorkspaceId, fileDir)
       .then((entries) => { if (active) setFilesState({ key: `${selectedWorkspaceId}:${fileDir}`, entries }) })
       .catch(() => { if (active) setFilesState({ key: `${selectedWorkspaceId}:${fileDir}`, entries: [] }) })
     return () => { active = false }
-  }, [selectedWorkspaceId, selectedPath, showOverview, fileDir])
+  }, [selectedWorkspaceId, selectedPath, showOverview, showNearby, showToolbox, fileDir])
   const fileEntries = filesState.key === filesKey ? filesState.entries : []
 
   const visibleWorkspaces = useMemo(() => {
@@ -220,6 +254,68 @@ function App() {
     if (!query) return snapshot.workspaces
     return snapshot.workspaces.filter((workspace) => workspace.name.toLowerCase().includes(query))
   }, [snapshot.workspaces, workspaceFilter])
+  const workspaceListGeneration = useMemo(
+    () => `${workspaceFilter.trim().toLowerCase()}::${visibleWorkspaces.map((workspace) => workspace.id).join('|')}`,
+    [visibleWorkspaces, workspaceFilter],
+  )
+
+  const workspaceIds = useMemo(() => snapshot.workspaces.map((workspace) => workspace.id), [snapshot.workspaces])
+  const resolvedThumbnails = useMemo(() => resolveWorkspaceVisuals(workspaceIds, coverUrls, 'thumbnail'), [workspaceIds, coverUrls])
+  const resolvedWorkspaceBackgrounds = useMemo(() => resolveWorkspaceVisuals(workspaceIds, workspaceBackgrounds, 'background'), [workspaceIds, workspaceBackgrounds])
+
+  const overviewBatchSize = cursorPreferences.libraryView === 'accordion'
+    ? 5
+    : cursorPreferences.libraryView === 'depth' ? 7 : 0
+
+  useEffect(() => {
+    programmaticSidebarGroupRef.current = undefined
+  }, [overviewBatchSize])
+
+  const syncOverviewFromSidebarScroll = () => {
+    if (!showOverview || !overviewBatchSize) return
+    window.cancelAnimationFrame(sidebarScrollFrameRef.current)
+    sidebarScrollFrameRef.current = window.requestAnimationFrame(() => {
+      const list = workspaceListRef.current
+      if (!list) return
+      const top = list.getBoundingClientRect().top + 1
+      const firstVisible = [...list.querySelectorAll<HTMLElement>('[data-workspace-id]')]
+        .find((item) => item.getBoundingClientRect().bottom > top)
+      const firstIndex = firstVisible
+        ? snapshot.workspaces.findIndex((workspace) => workspace.id === firstVisible.dataset.workspaceId)
+        : -1
+      if (firstIndex < 0) return
+      const groupStart = Math.floor(firstIndex / overviewBatchSize) * overviewBatchSize
+      if (programmaticSidebarGroupRef.current !== undefined) {
+        if (programmaticSidebarGroupRef.current !== groupStart) return
+        programmaticSidebarGroupRef.current = undefined
+      }
+      const selectedIndex = snapshot.workspaces.findIndex((workspace) => workspace.id === selectedId)
+      if (selectedIndex >= 0 && Math.floor(selectedIndex / overviewBatchSize) * overviewBatchSize === groupStart) return
+      const anchor = snapshot.workspaces[groupStart]
+      if (anchor) setSelectedId(anchor.id)
+    })
+  }
+
+  const focusOverviewWorkspace = (workspaceId: string) => {
+    setSelectedId(workspaceId)
+    if (!overviewBatchSize) return
+    const index = snapshot.workspaces.findIndex((workspace) => workspace.id === workspaceId)
+    if (index < 0) return
+    const groupStart = Math.floor(index / overviewBatchSize) * overviewBatchSize
+    const list = workspaceListRef.current
+    const groupWorkspace = snapshot.workspaces[groupStart]
+    const target = groupWorkspace && list?.querySelector<HTMLElement>(`[data-workspace-id="${CSS.escape(groupWorkspace.id)}"]`)
+    if (!list || !target) return
+    const firstVisible = [...list.querySelectorAll<HTMLElement>('[data-workspace-id]')]
+      .find((item) => item.getBoundingClientRect().bottom > list.getBoundingClientRect().top + 1)
+    const firstIndex = firstVisible
+      ? snapshot.workspaces.findIndex((workspace) => workspace.id === firstVisible.dataset.workspaceId)
+      : -1
+    const currentGroupStart = firstIndex < 0 ? -1 : Math.floor(firstIndex / overviewBatchSize) * overviewBatchSize
+    if (currentGroupStart === groupStart) return
+    programmaticSidebarGroupRef.current = groupStart
+    list.scrollTo({ top: Math.max(0, target.offsetTop), behavior: reduceMotion ? 'auto' : 'smooth' })
+  }
 
   const addFolder = async (folderPath?: string) => {
     if (selectingFolder) return
@@ -230,8 +326,10 @@ function App() {
       if (!chosen) return
       const workspace = await window.tianchuang.addWorkspace(chosen)
       await refresh()
-      navigate({ view: 'workspace', workspaceId: workspace.id })
-      setNotice('资料库已加入，正在监听文件变化')
+      setSelectedId(workspace.id)
+      navigate({ view: 'overview', workspaceId: workspace.id })
+      setVisualSetup(workspace)
+      setNotice('资料库已加入，可以设置缩略图和背景图')
       window.setTimeout(() => setNotice(undefined), 3200)
     } catch (reason) {
       setNoticeError(true)
@@ -353,6 +451,18 @@ function App() {
     window.setTimeout(() => setNotice(undefined), 3600)
   }
 
+  const selectWorkspaceBackground = async (workspaceId: string) => {
+    setWorkspaceMenu(undefined)
+    try {
+      const image = await window.tianchuang.pickWorkspaceBackground(workspaceId)
+      if (image) setWorkspaceBackgrounds((current) => ({ ...current, [workspaceId]: image }))
+    } catch (reason) {
+      setNoticeError(true)
+      setNotice(`设置背景失败：${reason instanceof Error ? reason.message : String(reason)}`)
+      window.setTimeout(() => setNotice(undefined), 5200)
+    }
+  }
+
   const selectCustomBackground = async () => {
     try {
       const image = await window.tianchuang.selectCustomBackground()
@@ -381,7 +491,7 @@ function App() {
       <CursorExperience preferences={cursorPreferences} />
       <AnimatePresence>{showStartup && <StartupExperience key="startup-experience" ready={appReady} effect={cursorPreferences.startupEffect} onComplete={completeStartup} />}</AnimatePresence>
       <header className="titlebar">
-        <div className="brand-mark"><img src="/assets/app-icon.png" alt="" /></div>
+        <div className="brand-mark"><img src="./assets/app-icon.png" alt="" /></div>
         <span>天创云端</span>
         <span className="titlebar-subtitle">Tianchuang Cloud</span>
       </header>
@@ -392,36 +502,45 @@ function App() {
           <button className="icon-button" title="添加资料库" aria-label="添加资料库" disabled={selectingFolder} onClick={(event) => { event.stopPropagation(); void addFolder() }}>{selectingFolder ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}</button>
         </div>
         <input className="workspace-search" type="search" placeholder="查找资料库" aria-label="查找资料库" value={workspaceFilter} onChange={(event) => setWorkspaceFilter(event.target.value)} />
-        <nav className="workspace-list" aria-label="资料库列表">
-          {visibleWorkspaces.map((workspace) => (
-            <button key={workspace.id} className={`workspace-nav ${!showOverview && workspace.id === selectedId ? 'active' : ''} ${bulkMode && bulkSelected.includes(workspace.id) ? 'bulk-selected' : ''}`} title={bulkMode ? '点击选择或取消选择' : '右键管理资料库'} onClick={() => { if (bulkMode) { setBulkSelected((current) => current.includes(workspace.id) ? current.filter((id) => id !== workspace.id) : [...current, workspace.id]); return } navigate({ view: 'workspace', workspaceId: workspace.id }) }} onContextMenu={(event) => { if (bulkMode) { event.preventDefault(); setBulkSelected((current) => current.includes(workspace.id) ? current.filter((id) => id !== workspace.id) : [...current, workspace.id]); return } event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: event.clientX, y: event.clientY }) }}>
-              <span className={`nav-icon ${coverUrls[workspace.id] ? 'has-cover' : ''}`}>
-                {coverUrls[workspace.id] ? <img src={coverUrls[workspace.id]} alt="" /> : <Folder size={17} />}
+        <nav ref={workspaceListRef} className="workspace-list" aria-label="资料库列表" onScroll={syncOverviewFromSidebarScroll}>
+          {visibleWorkspaces.map((workspace, index) => { const syncStatus = sidebarSyncStatus(workspace); return (
+            <motion.button data-workspace-id={workspace.id} key={`${workspaceListGeneration}:${workspace.id}`} className={`workspace-nav ${!showNearby && !showToolbox && workspace.id === selectedId ? 'active' : ''} ${bulkMode && bulkSelected.includes(workspace.id) ? 'bulk-selected' : ''}`} initial={reduceMotion ? false : { opacity: 0, transform: 'translateY(10px) scale(.94)' }} animate={{ opacity: 1, transform: 'translateY(0) scale(1)' }} transition={reduceMotion ? { duration: 0 } : { type: 'spring', duration: .5, bounce: .2, delay: Math.min(index * .045, .3) }} title={bulkMode ? '点击选择或取消选择' : showOverview ? '单击聚焦，双击进入；右键管理' : '点击切换资料库；右键管理'} onClick={() => { if (bulkMode) { setBulkSelected((current) => current.includes(workspace.id) ? current.filter((id) => id !== workspace.id) : [...current, workspace.id]); return } if (showOverview) { setSelectedId(workspace.id); return } navigate({ view: 'workspace', workspaceId: workspace.id }) }} onDoubleClick={() => { if (showOverview && !bulkMode) navigate({ view: 'workspace', workspaceId: workspace.id }) }} onContextMenu={(event) => { if (bulkMode) { event.preventDefault(); setBulkSelected((current) => current.includes(workspace.id) ? current.filter((id) => id !== workspace.id) : [...current, workspace.id]); return } event.preventDefault(); setSelectedId(workspace.id); setWorkspaceMenu({ id: workspace.id, x: Math.max(246, event.clientX + 14), y: event.clientY }) }}>
+              <span className="nav-icon has-cover">
+                <img src={resolvedThumbnails[workspace.id]} alt="" />
               </span>
-              <span className="nav-copy"><strong>{workspace.name}</strong><small>{workspace.targets.length} 个目标</small></span>
+              <span className="nav-copy"><strong>{workspace.name}</strong><small title={workspace.lastSyncAt ? new Date(workspace.lastSyncAt).toLocaleString('zh-CN') : '从未同步'}>{sidebarSyncDate(workspace.lastSyncAt)}</small></span>
               {bulkMode && <span className={`bulk-check ${bulkSelected.includes(workspace.id) ? 'on' : ''}`} aria-hidden="true" />}
-              {!bulkMode && <span className={`state-dot ${workspace.state}`} aria-label={workspace.state} />}
-            </button>
-          ))}
+              {!bulkMode && <span className={`state-dot ${syncStatus.tone}`} title={syncStatus.label} aria-label={syncStatus.label} />}
+            </motion.button>
+          )})}
           {!visibleWorkspaces.length && <div className="workspace-search-empty">没有匹配“{workspaceFilter.trim()}”的资料库</div>}
         </nav>
         <div className="sidebar-footer">
           <button className="sidebar-action add-library-action" disabled={selectingFolder} onClick={() => void addFolder()}><FolderInput size={17} /><span>添加资料库</span></button>
+          <button className={`sidebar-action ${showToolbox || showNearby ? 'active' : ''}`} onClick={() => navigate({ view: 'toolbox' })}><Boxes size={17} /><span>工具箱</span>{showNearby && <span className="nav-live-dot" />}</button>
           <button className="sidebar-action"><Activity size={17} /><span>活动记录</span><span className="count">{snapshot.activity.length}</span></button>
           <button className="sidebar-action" onClick={() => navigate({ ...currentNavigation(), settings: true })}><Settings size={17} /><span>设置</span></button>
         </div>
       </aside>
 
       <main className="content">
-        {showOverview && snapshot.workspaces.length ? (
+        {showToolbox ? (
+          <Suspense fallback={<div className="nearby-loading"><LoaderCircle className="spin" size={20} />正在打开工具箱…</div>}><Toolbox onOpenLocalSend={() => navigate({ view: 'nearby' })} /></Suspense>
+        ) : showNearby ? (
+          <Suspense fallback={<div className="nearby-loading"><LoaderCircle className="spin" size={20} />正在打开附近传送…</div>}><NearbyTransfer /></Suspense>
+        ) : showOverview && snapshot.workspaces.length ? (
           <WorkspaceOverview
             workspaces={snapshot.workspaces}
-            covers={coverUrls}
+            thumbnails={resolvedThumbnails}
+            backgrounds={resolvedWorkspaceBackgrounds}
+            activeId={selectedId}
             backgroundImage={customBackground}
             backgroundBlur={cursorPreferences.backgroundBlur}
             backgroundOpacity={cursorPreferences.backgroundOpacity}
+            libraryRippleEnabled={cursorPreferences.libraryRippleEnabled}
             view={cursorPreferences.libraryView}
             onChangeView={(libraryView) => changeCursorPreferences({ ...cursorPreferences, libraryView })}
+            onFocus={focusOverviewWorkspace}
             onSelect={(workspaceId) => navigate({ view: 'workspace', workspaceId })}
             onAdd={() => void addFolder()}
           />
@@ -546,13 +665,29 @@ function App() {
       </main>
 
       <AnimatePresence>
-        {workspaceMenu && <motion.div key="workspace-menu" className="workspace-context-menu glass-modal" style={{ left: workspaceMenu.x, top: workspaceMenu.y }} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} onClick={(event) => event.stopPropagation()}><button onClick={() => void selectWorkspaceCover(workspaceMenu.id)}><ImagePlus size={15} />设置资料库封面</button><button onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); if (workspace) setRandomCover(workspace) }}><Images size={15} />从软件内随机</button><button onClick={() => { setWorkspaceMenu(undefined); setBulkMode(true); setBulkSelected([]) }}><ListChecks size={15} />批量管理</button>{(snapshot.workspaces.find((item) => item.id === workspaceMenu.id)?.targets.length ?? 0) > 0 && <button className="danger" onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); if (workspace) setDeleteBackupsDialog(workspace) }}><CloudOff size={15} />删除云端备份</button>}<button className="danger" onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); setRemoveWorkspaceDialog(workspace) }}><Trash2 size={15} />从列表移除</button></motion.div>}
+        {workspaceMenu && <motion.div key="workspace-menu" className="workspace-context-menu glass-modal" style={{ left: workspaceMenu.x, top: workspaceMenu.y }} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} onClick={(event) => event.stopPropagation()}><button onClick={() => void selectWorkspaceCover(workspaceMenu.id)}><ImagePlus size={15} />设置缩略图</button><button onClick={() => void selectWorkspaceBackground(workspaceMenu.id)}><ImageIcon size={15} />设置背景图</button><button onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); if (workspace) setRandomCover(workspace) }}><Images size={15} />随机生成缩略图</button><button onClick={() => { setWorkspaceMenu(undefined); setBulkMode(true); setBulkSelected([]) }}><ListChecks size={15} />批量管理</button><button className="danger" onClick={() => { const workspace = snapshot.workspaces.find((item) => item.id === workspaceMenu.id); setWorkspaceMenu(undefined); setRemoveWorkspaceDialog(workspace) }}><Trash2 size={15} />删除资料库…</button></motion.div>}
         {dragging && <motion.div key="drop-overlay" className="drop-overlay glass-material" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.div initial={{ scale: .96 }} animate={{ scale: 1 }}><FolderInput size={30} /><strong>松开以加入资料库</strong><span>文件夹内容不会被移动</span></motion.div></motion.div>}
         {targetDialog && selected && <Suspense key="target-dialog" fallback={null}><TargetDialog workspace={selected} onClose={() => setTargetDialog(false)} onSaved={async () => { setTargetDialog(false); await refresh() }} /></Suspense>}
         {reviewPlan && <ReviewDialog key="review-dialog" plan={reviewPlan} onClose={() => setReviewPlan(undefined)} onRun={(decision) => void runReviewedPlan(decision)} />}
-        {removeWorkspaceDialog && <Suspense key="remove-workspace-dialog" fallback={null}><RemoveWorkspaceDialog workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已从天创云端移除，本地文件未改动'); window.setTimeout(() => setNotice(undefined), 3600) }} /></Suspense>}
+        {removeWorkspaceDialog && <Suspense key="remove-workspace-dialog" fallback={null}><RemoveWorkspaceDialog workspace={removeWorkspaceDialog} onClose={() => setRemoveWorkspaceDialog(undefined)} onRemove={async () => { await window.tianchuang.removeWorkspace(removeWorkspaceDialog.id); setRemoveWorkspaceDialog(undefined); await refresh(); setNoticeError(false); setNotice('资料库已安全移除：本地文档与云端备份保留，.tc 配置已清理'); window.setTimeout(() => setNotice(undefined), 5200) }} onRequestDangerousDelete={(options) => { setDangerousWorkspaceDelete({ workspace: removeWorkspaceDialog, options }); setRemoveWorkspaceDialog(undefined) }} /></Suspense>}
+        {dangerousWorkspaceDelete && <Suspense key="dangerous-workspace-delete" fallback={null}><DangerConfirmDialog
+          title={`最后确认：彻底删除“${dangerousWorkspaceDelete.workspace.name}”？`}
+          description="这是不可逆操作。天创云端会先停止该资料库的监听与自动同步，再按下列选择执行删除。"
+          items={[
+            ...(dangerousWorkspaceDelete.options.deleteCloud ? dangerousWorkspaceDelete.workspace.targets.map((target) => ({ key: `cloud-${target.id}`, name: `云端：${target.name}`, detail: target.config.kind === 'git' ? '删除仓库或 Warehouse 中该资料库的数据' : target.config.kind === 'webdav' ? `删除 WebDAV 目录 ${target.config.remotePath}` : '删除磁盘镜像备份', danger: true })) : []),
+            ...(dangerousWorkspaceDelete.options.deleteLocal ? [{ key: 'local', name: '本地文档', detail: `永久删除整个文件夹 ${dangerousWorkspaceDelete.workspace.path}`, danger: true }] : []),
+          ]}
+          note="如果任一云端删除失败，本地文档不会继续删除，资料库配置会保留以便重试。"
+          countdownMs={8000}
+          confirmLabel="确认彻底删除"
+          onConfirm={async () => {
+            const message = await window.tianchuang.deleteWorkspace(dangerousWorkspaceDelete.workspace.id, dangerousWorkspaceDelete.options)
+            setNoticeError(false); setNotice(message); window.setTimeout(() => setNotice(undefined), 6200); return message
+          }}
+          onClose={() => { setDangerousWorkspaceDelete(undefined); void refresh() }} /></Suspense>}
         {settingsDialog && <Suspense key="settings-dialog" fallback={null}><SettingsDialog preferences={cursorPreferences} customBackground={customBackground} onSelectBackground={selectCustomBackground} onResetBackground={resetCustomBackground} onPreviewBackgroundEffect={setBackgroundEffectPreview} onRequestRestore={setCloudRestore} onChange={changeCursorPreferences} onClose={closeSettings} /></Suspense>}
         {coverCrop && <Suspense key="cover-crop-dialog" fallback={null}><CoverCropDialog workspace={coverCrop.workspace} source={coverCrop.source} onClose={() => setCoverCrop(undefined)} onSave={saveCroppedCover} /></Suspense>}
+        {visualSetup && <Suspense key="visual-setup-dialog" fallback={null}><WorkspaceVisualSetupDialog workspace={visualSetup} thumbnail={resolvedThumbnails[visualSetup.id]} background={resolvedWorkspaceBackgrounds[visualSetup.id]} onPickThumbnail={() => void selectWorkspaceCover(visualSetup.id)} onPickBackground={() => void selectWorkspaceBackground(visualSetup.id)} onClose={() => setVisualSetup(undefined)} /></Suspense>}
         {collaborationTarget?.config.kind === 'git' && <Suspense key="collaboration-dialog" fallback={null}><CollaborationDialog targetName={collaborationTarget.name} remoteUrl={collaborationTarget.config.remoteUrl} onClose={() => setCollaborationTarget(undefined)} /></Suspense>}
         {cloudRestore && <Suspense key="cloud-restore-dialog" fallback={null}><CloudRestoreDialog config={cloudRestore} onClose={() => { localStorage.setItem('tianchuang.cloud-config-dismissed', cloudRestore.updatedAt); setCloudRestore(undefined) }} onRestored={async () => { localStorage.setItem('tianchuang.cloud-config-dismissed', cloudRestore.updatedAt); setCloudRestore(undefined); await refresh(); setNoticeError(false); setNotice('其他设备的资料库配置已恢复，请检查凭据与本机路径'); window.setTimeout(() => setNotice(undefined), 5200) }} /></Suspense>}
         {removeTargetDialog && <Suspense key="remove-target-dialog" fallback={null}><DangerConfirmDialog
@@ -576,26 +711,6 @@ function App() {
             return message
           }}
           onClose={() => { setRemoveTargetDialog(undefined); void refresh() }} /></Suspense>}
-        {deleteBackupsDialog && <Suspense key="delete-backups-dialog" fallback={null}><DangerConfirmDialog
-          title={`删除“${deleteBackupsDialog.name}”的全部云端备份？`}
-          description="所有目标的云端备份都会被删除，资料库会从列表移除；本地文件不会被删除，删除后自动同步也不会重新上传。"
-          items={deleteBackupsDialog.targets.map((target) => ({
-            key: target.id,
-            name: target.name,
-            detail: target.config.kind === 'git' ? (target.config.provider === 'github' ? '将调用 GitHub API 删除整个仓库（需要凭据具有 delete_repo 权限）' : '天创云端不会自动删除该仓库，请到对应平台网页端手动删除') : target.config.kind === 'webdav' ? `将删除 WebDAV 目录 ${target.config.remotePath} 及其中全部文件` : '将删除镜像目录中的全部备份文件',
-            danger: !(target.config.kind === 'git' && target.config.provider !== 'github'),
-          }))}
-          note="倒计时环走完仍未点击确认，将自动取消本次操作。"
-          countdownMs={6000}
-          confirmLabel="全部删除"
-          onConfirm={async () => {
-            const message = await window.tianchuang.deleteWorkspaceBackups(deleteBackupsDialog.id)
-            setNoticeError(false)
-            setNotice(message)
-            window.setTimeout(() => setNotice(undefined), 5200)
-            return message
-          }}
-          onClose={() => { setDeleteBackupsDialog(undefined); void refresh() }} /></Suspense>}
         {bulkMode && <motion.div key="bulk-bar" className="bulk-bar glass-modal" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
           <strong>已选择 {bulkSelected.length} 个资料库</strong>
           <button className="secondary-button" disabled={!bulkSelected.length} onClick={() => setBulkRemoveDialog(true)}><Trash2 size={15} />移除所选</button>
@@ -621,7 +736,7 @@ function App() {
         {randomCover && <Suspense key="random-cover-dialog" fallback={null}><RandomCoverDialog workspace={randomCover} onSave={saveRandomCover} onClose={() => setRandomCover(undefined)} /></Suspense>}
         {filePreview && <Suspense key="file-preview-dialog" fallback={null}><FilePreviewDialog workspace={filePreview.workspace} entry={filePreview.entry} onClose={() => setFilePreview(undefined)} /></Suspense>}
         {migrationDialog && <Suspense key="migration-dialog" fallback={null}><MigrationDialog workspace={migrationDialog.workspace} sourceTarget={migrationDialog.target} onClose={() => setMigrationDialog(undefined)} onMigrated={(message) => { setMigrationDialog(undefined); void refresh(); setNoticeError(false); setNotice(message); window.setTimeout(() => setNotice(undefined), 5200) }} /></Suspense>}
-        {progress && <ProgressOverlay key="progress-overlay" progress={progress} onClose={() => setProgress(undefined)} />}
+        {progress && <ProgressOverlay key="progress-overlay" progress={progress} onClose={() => setProgress(undefined)} onCancel={() => { void window.tianchuang.cancelSync(progress.workspaceId) }} />}
         {notice && <motion.div key="notice-toast" className={`toast glass-material ${noticeError ? 'error' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>{noticeError ? <AlertTriangle size={16} /> : <Check size={16} />}{notice}</motion.div>}
       </AnimatePresence>
     </div>

@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import type { GitHubAccountSession, GitHubCollaborator, GitHubCollaboratorDraft, GitHubRepositoryDraft, GitHubRepositoryResult, GitHubSession } from './types.js'
+import { validateAsciiRepositoryName } from './repository-name.js'
 
 interface CommandResult {
   stdout: string
@@ -87,12 +88,7 @@ export async function primaryCredential(): Promise<{ username: string; token: st
 }
 
 export function validateRepositoryName(name: string): string {
-  const normalized = name.trim()
-  if (!normalized) throw new Error('请输入仓库名称')
-  if (normalized.length > 100) throw new Error('仓库名称不能超过 100 个字符')
-  if (!/^[\p{L}\p{N}._-]+$/u.test(normalized)) throw new Error('仓库名称只能包含文字、数字、点、短横线和下划线')
-  if (normalized === '.' || normalized === '..') throw new Error('仓库名称无效')
-  return normalized
+  return validateAsciiRepositoryName(name)
 }
 
 // 多账号：列出 GCM 中已登录的全部 GitHub 账号（第一个视为主账号）

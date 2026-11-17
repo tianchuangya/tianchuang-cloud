@@ -12,6 +12,7 @@ export interface CursorPreferences {
   backgroundBlur: number
   backgroundOpacity: number
   libraryView: LibraryView
+  libraryRippleEnabled: boolean
   startupMode: StartupMode
   startupEffect: StartupEffect
   cursorColor: string
@@ -25,6 +26,7 @@ export const DEFAULT_CURSOR_PREFERENCES: CursorPreferences = {
   backgroundBlur: 0,
   backgroundOpacity: 1,
   libraryView: 'glass',
+  libraryRippleEnabled: true,
   startupMode: 'always',
   startupEffect: 'aurora',
   cursorColor: '#dafcff',
@@ -47,6 +49,7 @@ export function loadCursorPreferences(): CursorPreferences {
       backgroundBlur: typeof stored.backgroundBlur === 'number' ? Math.min(24, Math.max(0, stored.backgroundBlur)) : 0,
       backgroundOpacity: typeof stored.backgroundOpacity === 'number' ? Math.min(1, Math.max(.2, stored.backgroundOpacity)) : 1,
       libraryView: stored.libraryView === 'motion' || stored.libraryView === 'accordion' || stored.libraryView === 'depth' ? stored.libraryView : 'glass',
+      libraryRippleEnabled: stored.libraryRippleEnabled !== false,
       startupMode: stored.startupMode === 'once' || stored.startupMode === 'off' ? stored.startupMode : 'always',
       startupEffect: stored.startupEffect === 'light' ? 'light' : 'aurora',
       cursorColor: color(stored.cursorColor, DEFAULT_CURSOR_PREFERENCES.cursorColor),

@@ -1,0 +1,21 @@
+[package]
+name = "tc-localsend-sidecar"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow = "1.0"
+bytes = "1.12"
+futures-util = "0.3"
+localsend = { path = "../vendor/localsend-core", features = ["discovery"] }
+mime_guess = "2.0"
+pem = "4.0"
+rcgen = "0.14"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.53", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+uuid = { version = "1.24", features = ["v4"] }
+walkdir = "2.5"
+

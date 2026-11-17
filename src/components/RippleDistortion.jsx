@@ -44,7 +44,6 @@ void main() {
   if (r > 1.0) discard;
 
   float brush = (exp(-r * 5.0) - EDGE) / (1.0 - EDGE);
-
   brush *= 0.55 + 0.45 * cos(sqrt(r) * PI * 2.0 * uRings);
 
   gl_FragColor = vec4(vec3(brush * vOpacity * vOpacity), 1.0);
@@ -80,6 +79,9 @@ uniform float uDispersion;
 uniform float uGlint;
 uniform float uTintAmount;
 uniform float uGrayscale;
+uniform float uTime;
+uniform float uAmbient;
+uniform float uOverlayOnly;
 
 const float TAU = 6.283185307179586;
 
@@ -94,6 +96,12 @@ vec2 coverUV(vec2 uv) {
 void main() {
   float amount = texture2D(uDisplacement, vUv).r;
   vec2 base = coverUV(vUv);
+
+  vec2 ambientWave = vec2(
+    sin((base.y * 7.0 + uTime * 0.16) * TAU) + sin((base.y * 13.0 - uTime * 0.11) * TAU) * 0.45,
+    cos((base.x * 8.0 - uTime * 0.14) * TAU) + cos((base.x * 15.0 + uTime * 0.09) * TAU) * 0.4
+  );
+  base += ambientWave * uAmbient;
 
   float theta = amount * uSwirl * TAU;
   vec2 dir = vec2(sin(theta), cos(theta));
@@ -125,9 +133,11 @@ void main() {
     float raw = pow(max(dot(normal, light), 0.0), 22.0);
     float flatSpec = pow(max(light.z, 0.0), 22.0);
     color += uHighlight * clamp((raw - flatSpec) / max(1.0 - flatSpec, 0.0001), 0.0, 1.0) * uGlint;
+
   }
 
-  gl_FragColor = vec4(color, 1.0);
+  float overlayAlpha = clamp(amount * 2.4, 0.0, 1.0);
+  gl_FragColor = vec4(color, mix(1.0, overlayAlpha, uOverlayOnly));
 }
 `;
 
@@ -163,6 +173,9 @@ const RippleDistortion = ({
   trigger = 'hover',
   clickStrength = 2,
   quality = 'low',
+  ambientStrength = 0,
+  overlayOnly = false,
+  maxActiveWaves = MAX_WAVES,
   enabled = true,
   className = '',
   style
@@ -171,7 +184,7 @@ const RippleDistortion = ({
   const configRef = useRef({});
   const uniformsRef = useRef(null);
 
-  configRef.current = { brushSize, spread, fade, spacing, clickStrength, trigger, enabled };
+  configRef.current = { brushSize, spread, fade, spacing, clickStrength, trigger, enabled, maxActiveWaves };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -183,12 +196,12 @@ const RippleDistortion = ({
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const renderer = new Renderer({
-      alpha: false,
+      alpha: overlayOnly,
       antialias: false,
       dpr: Math.min(window.devicePixelRatio || 1, 2)
     });
     const gl = renderer.gl;
-    gl.clearColor(0, 0, 0, 1);
+    gl.clearColor(0, 0, 0, overlayOnly ? 0 : 1);
     const canvas = gl.canvas;
     canvas.style.width = '100%';
     canvas.style.height = '100%';
@@ -276,7 +289,10 @@ const RippleDistortion = ({
       uDispersion: { value: dispersion },
       uGlint: { value: glint },
       uTintAmount: { value: tintAmount },
-      uGrayscale: { value: grayscale ? 1 : 0 }
+      uGrayscale: { value: grayscale ? 1 : 0 },
+      uTime: { value: 0 },
+      uAmbient: { value: reduceMotion ? 0 : ambientStrength },
+      uOverlayOnly: { value: overlayOnly ? 1 : 0 }
     };
 
     const compositeMesh = new Mesh(gl, {
@@ -285,6 +301,7 @@ const RippleDistortion = ({
         vertex: screenVertex,
         fragment: compositeFragment,
         uniforms: compositeUniforms,
+        transparent: overlayOnly,
         depthTest: false,
         depthWrite: false
       })
@@ -316,7 +333,7 @@ const RippleDistortion = ({
     const setNewWave = (x, y, power) => {
       const cfg = configRef.current;
       const wave = waves[current];
-      current = (current + 1) % MAX_WAVES;
+      current = (current + 1) % Math.max(1, Math.min(MAX_WAVES, cfg.maxActiveWaves || MAX_WAVES));
       wave.x = x;
       wave.y = y;
       wave.scale = START_SCALE * power;
@@ -368,6 +385,8 @@ const RippleDistortion = ({
       previousTime = now;
       const cfg = configRef.current;
       let active = false;
+      let activeWaveCount = 0;
+      compositeUniforms.uTime.value = now / 1000;
 
       const growth = reduceMotion ? 0 : 1 - Math.exp(-delta * 1.09);
       const decay = reduceMotion ? 1 : Math.exp((-delta * LIFE_CONSTANT) / Math.max(0.15, cfg.fade));
@@ -390,6 +409,7 @@ const RippleDistortion = ({
 
         const half = (wave.scale * wave.size) / 2;
         active = true;
+        activeWaveCount += 1;
         offsets[i * 2] = (wave.x / width) * 2 - 1;
         offsets[i * 2 + 1] = (wave.y / height) * 2 - 1;
         scales[i * 2] = (half / width) * 2;
@@ -401,8 +421,12 @@ const RippleDistortion = ({
       geometry.attributes.iScale.needsUpdate = true;
       geometry.attributes.iOpacity.needsUpdate = true;
 
+      if (compositeUniforms.uAmbient.value > 0.00001) active = true;
       renderer.render({ scene: waveMesh, target: displacementTarget, clear: true });
       renderer.render({ scene: compositeMesh });
+      canvas.dataset.renderCount = String(Number(canvas.dataset.renderCount || 0) + 1);
+      canvas.dataset.activeWaves = String(activeWaveCount);
+      canvas.dataset.overlayOnly = overlayOnly ? 'true' : 'false';
       if (active && !disposed) raf = requestAnimationFrame(loop);
     };
     scheduleFrame = () => {

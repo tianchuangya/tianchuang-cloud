@@ -1,12 +1,15 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { SyncDecision, SyncPlan, SyncProgress, TargetDraft, WorkspaceProfile } from './types.js'
+import type { NearbyEvent, NearbyState, StorageConnectionHealth, StorageConnectionSummary, StorageConnectionUpdate, SyncDecision, SyncPlan, SyncProgress, TargetDraft, ToolboxEvent, ToolboxState, ToolboxToolId, WarehouseSettings, WorkspaceDeleteOptions, WorkspaceProfile } from './types.js'
 
 contextBridge.exposeInMainWorld('tianchuang', {
   getSnapshot: () => ipcRenderer.invoke('app:snapshot'),
+  suggestRepositoryName: (displayName: string, stableKey?: string) => ipcRenderer.invoke('repository:name:suggest', displayName, stableKey) as Promise<string>,
   openThemeFile: () => ipcRenderer.invoke('dialog:open-theme'),
   saveThemeFile: (name: string, document: unknown) => ipcRenderer.invoke('theme:save', name, document),
   getNotificationPreferences: () => ipcRenderer.invoke('notifications:get'),
   saveNotificationPreferences: (preferences: import('./types.js').NotificationPreferences) => ipcRenderer.invoke('notifications:set', preferences),
+  getWarehouseSettings: () => ipcRenderer.invoke('warehouse:get') as Promise<WarehouseSettings>,
+  updateWarehouseSettings: (changes: { warehouseName?: string; deviceName?: string }) => ipcRenderer.invoke('warehouse:update', changes) as Promise<WarehouseSettings>,
   getWindowMaximized: () => ipcRenderer.invoke('window:maximized'),
   getCustomBackground: () => ipcRenderer.invoke('appearance:background:get'),
   selectCustomBackground: () => ipcRenderer.invoke('appearance:background:select'),
@@ -17,9 +20,17 @@ contextBridge.exposeInMainWorld('tianchuang', {
   getWorkspaceCover: (workspaceId: string) => ipcRenderer.invoke('workspace:cover:data', workspaceId),
   pickWorkspaceCover: (workspaceId: string) => ipcRenderer.invoke('workspace:cover:pick', workspaceId),
   saveWorkspaceCover: (workspaceId: string, dataUrl: string) => ipcRenderer.invoke('workspace:cover:save', workspaceId, dataUrl),
+  getWorkspaceBackground: (workspaceId: string) => ipcRenderer.invoke('workspace:background:data', workspaceId),
+  pickWorkspaceBackground: (workspaceId: string) => ipcRenderer.invoke('workspace:background:pick', workspaceId),
   updateWorkspace: (workspaceId: string, changes: Pick<WorkspaceProfile, 'autoSync' | 'syncOnChange' | 'syncOnFocus' | 'autoSyncDelaySeconds' | 'errorNotifyCooldownMinutes' | 'name'>) => ipcRenderer.invoke('workspace:update', workspaceId, changes),
   removeWorkspace: (workspaceId: string) => ipcRenderer.invoke('workspace:remove', workspaceId),
+  deleteWorkspace: (workspaceId: string, options: WorkspaceDeleteOptions) => ipcRenderer.invoke('workspace:delete', workspaceId, options),
   addTarget: (draft: TargetDraft) => ipcRenderer.invoke('target:add', draft),
+  listStorageConnections: () => ipcRenderer.invoke('connections:list') as Promise<StorageConnectionSummary[]>,
+  attachStorageConnection: (workspaceId: string, connectionId: string) => ipcRenderer.invoke('connections:attach', workspaceId, connectionId) as Promise<WorkspaceProfile>,
+  updateStorageConnection: (connectionId: string, draft: StorageConnectionUpdate) => ipcRenderer.invoke('connections:update', connectionId, draft) as Promise<StorageConnectionSummary>,
+  deleteStorageConnection: (connectionId: string) => ipcRenderer.invoke('connections:delete', connectionId) as Promise<string>,
+  checkStorageConnection: (connectionId: string) => ipcRenderer.invoke('connections:check', connectionId) as Promise<StorageConnectionHealth>,
   getGitHubSession: () => ipcRenderer.invoke('github:session'),
   listGithubAccounts: () => ipcRenderer.invoke('github:accounts:list'),
   planMigration: (workspaceId: string, sourceTargetId: string, destinationTargetId: string) => ipcRenderer.invoke('sync:plan-migration', workspaceId, sourceTargetId, destinationTargetId),
@@ -38,7 +49,29 @@ contextBridge.exposeInMainWorld('tianchuang', {
   selectMirrorFolder: () => ipcRenderer.invoke('folder:select'),
   planSync: (workspaceId: string, targetId: string) => ipcRenderer.invoke('sync:plan', workspaceId, targetId) as Promise<SyncPlan>,
   runSync: (planId: string, decision: SyncDecision) => ipcRenderer.invoke('sync:run', planId, decision),
+  cancelSync: (workspaceId: string) => ipcRenderer.invoke('sync:cancel', workspaceId) as Promise<boolean>,
   syncWorkspace: (workspaceId: string) => ipcRenderer.invoke('sync:workspace', workspaceId),
+  getNearbyState: () => ipcRenderer.invoke('nearby:state') as Promise<NearbyState>,
+  refreshNearby: () => ipcRenderer.invoke('nearby:refresh') as Promise<void>,
+  probeNearby: (host: string, port?: number) => ipcRenderer.invoke('nearby:probe', host, port) as Promise<void>,
+  sendNearbyText: (fingerprint: string, text: string) => ipcRenderer.invoke('nearby:send-text', fingerprint, text) as Promise<string>,
+  selectAndSendNearbyFiles: (fingerprint: string, mode: 'files' | 'folder' = 'files') => ipcRenderer.invoke('nearby:send-files', fingerprint, mode) as Promise<string | undefined>,
+  answerNearbyRequest: (sessionId: string, accept: boolean) => ipcRenderer.invoke('nearby:answer', sessionId, accept) as Promise<void>,
+  cancelNearbyTransfer: (transferId: string) => ipcRenderer.invoke('nearby:cancel', transferId) as Promise<void>,
+  getToolboxState: () => ipcRenderer.invoke('toolbox:state') as Promise<ToolboxState>,
+  installTool: (id: ToolboxToolId) => ipcRenderer.invoke('toolbox:install', id) as Promise<ToolboxState>,
+  launchTool: (id: ToolboxToolId) => ipcRenderer.invoke('toolbox:launch', id) as Promise<ToolboxState>,
+  openToolLocation: (id: ToolboxToolId) => ipcRenderer.invoke('toolbox:location', id) as Promise<void>,
+  onToolboxEvent: (listener: (event: ToolboxEvent) => void) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, event: ToolboxEvent) => listener(event)
+    ipcRenderer.on('toolbox:event', wrapped)
+    return () => ipcRenderer.removeListener('toolbox:event', wrapped)
+  },
+  onNearbyEvent: (listener: (event: NearbyEvent) => void) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, event: NearbyEvent) => listener(event)
+    ipcRenderer.on('nearby:event', wrapped)
+    return () => ipcRenderer.removeListener('nearby:event', wrapped)
+  },
   onProgress: (listener: (progress: SyncProgress) => void) => {
     const wrapped = (_event: Electron.IpcRendererEvent, progress: SyncProgress) => listener(progress)
     ipcRenderer.on('sync:progress', wrapped)

@@ -41,12 +41,13 @@ export function ReviewDialog({ plan, onClose, onRun }: { plan: SyncPlan; onClose
   )
 }
 
-export function ProgressOverlay({ progress, onClose }: { progress: SyncProgress; onClose: () => void }) {
-  const done = progress.phase === 'complete' || progress.phase === 'error'
+export function ProgressOverlay({ progress, onClose, onCancel }: { progress: SyncProgress; onClose: () => void; onCancel: () => void }) {
+  const done = progress.phase === 'complete' || progress.phase === 'cancelled' || progress.phase === 'error'
   return (
     <motion.div className="progress-float glass-modal" initial={{ opacity: 0, scale: .94, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .96, y: 10 }} transition={{ type: 'spring', bounce: .08, duration: .36 }}>
-      <div className={`progress-symbol ${progress.phase}`}>{progress.phase === 'complete' ? <Check size={20} /> : progress.phase === 'error' ? <AlertTriangle size={20} /> : <RefreshCw className="spin" size={20} />}</div>
+      <div className={`progress-symbol ${progress.phase}`}>{progress.phase === 'complete' ? <Check size={20} /> : progress.phase === 'error' ? <AlertTriangle size={20} /> : progress.phase === 'cancelled' ? <X size={20} /> : <RefreshCw className="spin" size={20} />}</div>
       <div className="progress-copy"><strong>{progress.title}</strong><span>{progress.detail}</span><div className="progress-track"><motion.i animate={{ width: `${progress.percent}%` }} /></div></div>
+      {!done && progress.cancellable && <button className="plain-button progress-cancel" onClick={onCancel}>取消同步</button>}
       {done && <button className="icon-button" title="关闭" onClick={onClose}><X size={16} /></button>}
     </motion.div>
   )

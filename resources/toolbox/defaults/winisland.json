@@ -1,0 +1,17 @@
+{
+  "island.style": "fluent",
+  "island.material": "acrylic",
+  "island.fullscreen": "hide",
+  "island.autostart": "admin",
+  "plugin.flclash-island.disabled": false,
+  "plugin.clash-verge-island.disabled": false,
+  "plugin.token-meter.disabled": false,
+  "plugin.hw-monitor.disabled": false,
+  "plugin.device-island.disabled": false,
+  "island.opacity": 100,
+  "island.radius": 200,
+  "island.hideWhenIdle": true,
+  "island.hoverDelay": 50,
+  "battery.enabled": false,
+  "island.queueTail": "token-meter"
+}

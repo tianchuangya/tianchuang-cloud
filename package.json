@@ -1,7 +1,7 @@
 {
   "name": "tianchuang-cloud",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "Tianchuang",
     "email": "tianchuangya@users.noreply.github.com"
@@ -16,8 +16,11 @@
     "build": "tsc -b && tsc -p tsconfig.electron.json --noEmit && vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "test:nearby": "node scripts/test-localsend-sidecar.mjs",
+    "build:nearby": "cargo +1.97.1 build --release --manifest-path native/localsend-sidecar/Cargo.toml",
     "smoke:preload": "electron scripts/smoke-preload.cjs",
     "preview": "vite preview",
+    "predist": "npm run build:nearby",
     "dist": "npm run build && electron-builder"
   },
   "build": {
@@ -28,6 +31,28 @@
       "dist/**",
       "dist-electron/**",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "native/localsend-sidecar/target/release",
+        "to": "native",
+        "filter": [
+          "tc-localsend-sidecar",
+          "tc-localsend-sidecar.exe"
+        ]
+      },
+      {
+        "from": "native/vendor/localsend-core/LICENSE",
+        "to": "licenses/LocalSend-LICENSE.txt"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "licenses/THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "resources/toolbox",
+        "to": "toolbox"
+      }
     ],
     "directories": {
       "output": "release",
@@ -70,6 +95,7 @@
     "marked": "^18.0.14",
     "motion": "^13.4.1",
     "ogl": "^1.0.11",
+    "pinyin-pro": "^3.29.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "simple-git": "^3.36.0",
@@ -89,6 +115,7 @@
     "vite": "^8.3.0",
     "vite-plugin-electron": "^1.1.2",
     "vite-plugin-electron-renderer": "^1.0.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "webdav-server": "^2.6.3"
   }
 }

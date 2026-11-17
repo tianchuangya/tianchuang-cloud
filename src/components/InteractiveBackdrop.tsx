@@ -7,7 +7,7 @@ const SoftAurora = lazy(() => import('./effects/SoftAurora.jsx'))
 const OglBackdrop = lazy(() => import('./effects/OglBackdrop.jsx'))
 
 export default function InteractiveBackdrop({ effect, image, blur, opacity }: { effect: BackgroundEffect; image?: string; blur: number; opacity: number }) {
-  const source = image || '/assets/cloud-glass-bg.png'
+  const source = image || './assets/cloud-glass-bg.png'
   const backgroundStyle = {
     '--background-image': `url("${source}")`,
     '--background-blur': `${blur}px`,

@@ -21,6 +21,7 @@
 .library-motion-item::before { content: ''; position: absolute; inset: 0; background: var(--library-cover) center / cover no-repeat; opacity: 0; transition: opacity 180ms ease, transform 260ms cubic-bezier(.23,1,.32,1); }
 .library-motion-item.has-cover::before { opacity: 1; }
 .library-motion-item.has-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 30%, rgba(4,8,10,.84)); }
+.library-motion-item.active { z-index: 2; border-color: rgba(136,194,255,.88); box-shadow: 0 0 0 2px rgba(94,132,255,.24), 0 16px 34px rgba(0,0,0,.28); }
 .library-motion-item:hover { z-index: 2; border-color: rgba(213,250,255,.52); transform: translateY(-3px) scale(1.025); box-shadow: 0 16px 32px rgba(0,0,0,.26); }
 .library-motion-item:hover::before { transform: scale(1.035); }
 .motion-cover-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #758087; }
