@@ -54,8 +54,10 @@ async function remoteHead(config: GitTargetConfig): Promise<string | undefined> 
 }
 
 async function configureIdentity(git: SimpleGit): Promise<void> {
-  try { await git.raw(['config', 'user.name']) } catch { await git.addConfig('user.name', 'Tianchuang Cloud', false, 'local') }
-  try { await git.raw(['config', 'user.email']) } catch { await git.addConfig('user.email', 'sync@tianchuang.local', false, 'local') }
+  const name = await git.raw(['config', 'user.name']).catch(() => '')
+  const email = await git.raw(['config', 'user.email']).catch(() => '')
+  if (!name.trim()) await git.addConfig('user.name', 'Tianchuang Cloud', false, 'local')
+  if (!email.trim()) await git.addConfig('user.email', 'sync@tianchuang.local', false, 'local')
 }
 
 async function prepareCheckout(cacheRoot: string, config: GitTargetConfig): Promise<{ git: SimpleGit; root: string; remoteSha?: string }> {

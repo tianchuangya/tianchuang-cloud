@@ -116,8 +116,12 @@ export async function planGitSync(workspace: WorkspaceProfile, target: SyncTarge
 
 async function configureIdentity(folder: string): Promise<void> {
   const git = simpleGit(folder)
-  try { await git.raw(['config', 'user.name']) } catch { await git.addConfig('user.name', 'Tianchuang Cloud', false, 'local') }
-  try { await git.raw(['config', 'user.email']) } catch { await git.addConfig('user.email', 'sync@tianchuang.local', false, 'local') }
+  const name = await git.raw(['config', 'user.name']).catch(() => '')
+  const email = await git.raw(['config', 'user.email']).catch(() => '')
+  // `git config <missing-key>` exits with code 1 but writes no stderr. simple-git
+  // therefore resolves an empty string on a clean machine instead of rejecting.
+  if (!name.trim()) await git.addConfig('user.name', 'Tianchuang Cloud', false, 'local')
+  if (!email.trim()) await git.addConfig('user.email', 'sync@tianchuang.local', false, 'local')
 }
 
 async function ensureRemote(folder: string, target: SyncTarget): Promise<string> {
